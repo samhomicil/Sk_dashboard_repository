@@ -37,15 +37,24 @@ const LOCATION_TO_STORE: Record<string, string> = {
   '2384 - Margate, FL':        'margate',
 }
 
-const PERIOD_MONTHS: Record<string, string[]> = {
-  l7d:       ['2026-06'],
-  mtd:       ['2026-06'],
-  lastmonth: ['2026-05'],
-  l90d:      ['2026-04', '2026-05', '2026-06'],
+function monthStr(monthsAgo: number, d = new Date()): string {
+  const x = new Date(d.getFullYear(), d.getMonth() - monthsAgo, 1)
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`
 }
 
+const PERIOD_MONTHS: Record<string, string[]> = {
+  l7d:       [monthStr(0)],
+  mtd:       [monthStr(0)],
+  lastmonth: [monthStr(1)],
+  l90d:      [monthStr(2), monthStr(1), monthStr(0)],
+}
+
+const today = new Date()
 const PERIOD_DAYS: Record<string, number> = {
-  l7d: 7, mtd: 26, lastmonth: 31, l90d: 90,
+  l7d: 7,
+  mtd: today.getDate() - 1 || 1,
+  lastmonth: new Date(today.getFullYear(), today.getMonth(), 0).getDate(), // days in previous month
+  l90d: 90,
 }
 
 // POS placeholder entries that aren't real sellable products

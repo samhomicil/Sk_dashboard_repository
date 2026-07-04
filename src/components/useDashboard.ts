@@ -22,6 +22,7 @@ interface DashboardData {
   channels:    ChannelRow[]
   quarters:    QuarterRow[]
   staffing:    StaffingData | null
+  unitsWindow: { start: string; end: string } | null
   daily:       DailyData | null
   dailyRange:  DailyRangeData | null
   loading:     boolean
@@ -43,7 +44,7 @@ export function useDashboard() {
 
   const [data, setData] = useState<DashboardData>({
     kpis: null, trend: [], stores: [], employees: [],
-    products: [], categories: [], channels: [], quarters: [], staffing: null, daily: null, dailyRange: null,
+    products: [], categories: [], channels: [], quarters: [], staffing: null, unitsWindow: null, daily: null, dailyRange: null,
     loading: true, error: null, refreshedAt: null, hasCache: false,
   })
 
@@ -88,6 +89,9 @@ export function useDashboard() {
         channels:    Array.isArray(chRes)     ? chRes     : [],
         quarters:    Array.isArray(qRes)      ? qRes      : [],
         staffing:    heatRes?.pines ? heatRes : null,
+        unitsWindow: heatRes?.unitsWindowStart && heatRes?.unitsWindowEnd
+          ? { start: heatRes.unitsWindowStart, end: heatRes.unitsWindowEnd }
+          : null,
         daily:       dailyRes?.thisWeek ? dailyRes : null,
         dailyRange:  dailyRangeRes?.current ? dailyRangeRes : null,
         refreshedAt: metaRes?.refreshedAt ?? null,

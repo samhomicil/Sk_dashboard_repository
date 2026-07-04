@@ -91,9 +91,9 @@ export interface HeatmapCell {
 export interface StaffingEmployee { name: string; shiftEnd: string }
 export interface StaffingCell {
   hourNum: number
-  day: number    // 0=Sun
-  count: number  // avg employees per occurrence of this dow in the period
-  avgTxn: number // avg transactions for this (dow, hour) from rolling 90-day heatmap
+  day: number      // 0=Sun
+  count: number    // avg employees per occurrence of this dow in the period
+  avgUnits: number // avg units sold for this (dow, hour) from rolling 90-day heatmap
   employees: StaffingEmployee[]
 }
 export interface StaffingData {

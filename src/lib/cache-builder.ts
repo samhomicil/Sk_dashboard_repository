@@ -437,12 +437,12 @@ async function fetchStaffing(start: string, end: string): Promise<StaffingData> 
     }
   }
 
-  const txnMaps: Record<keyof StaffingData, Map<string, number>> = {
+  const unitMaps: Record<keyof StaffingData, Map<string, number>> = {
     pines: new Map(), miramar: new Map(), margate: new Map(),
   }
   for (const sk of ['pines', 'miramar', 'margate'] as (keyof StaffingData)[]) {
     for (const c of sigmaHeatmap(sk as Store)) {
-      txnMaps[sk].set(`${c.day}|${c.hourNum}`, c.rawTxn)
+      unitMaps[sk].set(`${c.day}|${c.hourNum}`, c.rawUnits)
     }
   }
 
@@ -456,11 +456,11 @@ async function fetchStaffing(start: string, end: string): Promise<StaffingData> 
       const hourNum = parseInt(hourStr)
       const numOccurrences = storeDowDates.get(`${sk}|${dow}`)?.size ?? 1
       const avgCount = Math.round((slot.totalCount / numOccurrences) * 10) / 10
-      const avgTxn   = txnMaps[sk].get(key) ?? 0
+      const avgUnits = unitMaps[sk].get(key) ?? 0
       const employees: StaffingEmployee[] = [...slot.employees.entries()]
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([name, shiftEnd]) => ({ name: reverseEmpName(name), shiftEnd: fmtShiftEnd(shiftEnd) }))
-      cells.push({ hourNum, day: dow, count: avgCount, avgTxn, employees })
+      cells.push({ hourNum, day: dow, count: avgCount, avgUnits, employees })
     }
     result[sk] = cells
   }

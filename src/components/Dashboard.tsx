@@ -88,7 +88,7 @@ export default function Dashboard() {
       setRefreshMsg('Failed — is the proxy running?')
     }
   }
-  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, daily, dailyRange, loading, refreshedAt } = data
+  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, unitsWindow, daily, dailyRange, loading, refreshedAt } = data
   const k = kpis as KpiData | null
   const isAll      = state.store === 'all'
   const isCustom   = state.period === 'custom'
@@ -352,7 +352,7 @@ export default function Dashboard() {
         </div>}
 
         {/* Staff Schedule — hidden for custom */}
-        {!isCustom && <Heatmap data={staffing} store={state.store} period={state.period} loading={loading} />}
+        {!isCustom && <Heatmap data={staffing} store={state.store} period={state.period} dates={state.dates} unitsWindow={unitsWindow} loading={loading} />}
 
         {/* Employee Performance — hidden for custom */}
         {!isCustom && <EmployeeTable employees={employees} loading={loading} />}

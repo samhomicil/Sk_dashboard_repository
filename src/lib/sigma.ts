@@ -236,8 +236,11 @@ interface EEPeriod {
 }
 interface EEPeriodsFile { weekly: EEPeriod; monthly: EEPeriod; quarterly: EEPeriod; ytd: EEPeriod }
 interface EmpKeyEntry   { first_name: string; last_name: string; loc_code: string }
-interface HeatRow       { dow: number; hour: number; avg_txn: number; days: number }
-interface HeatFile      { pines: HeatRow[]; miramar: HeatRow[]; margate: HeatRow[] }
+interface HeatRow       { dow: number; hour: number; avg_txn: number; avg_units?: number; days: number }
+interface HeatFile      {
+  pines: HeatRow[]; miramar: HeatRow[]; margate: HeatRow[]
+  unitsWindowStart?: string; unitsWindowEnd?: string
+}
 
 let _eePeriods:  EEPeriodsFile | null = null
 let _empRevMap:  Map<string, number>  | null = null
@@ -380,7 +383,17 @@ export function sigmaEERange(store: Store, start: string, end: string): { ee: nu
   return { sm: rows.reduce((s, r) => s + r.sm, 0), ee: rows.reduce((s, r) => s + r.ee, 0) }
 }
 
-export interface HeatCell { hourNum: number; day: number; txnPerEmp: number; rawTxn: number; staff: number }
+export interface HeatCell { hourNum: number; day: number; uplh: number; rawUnits: number; staff: number }
+
+// The units-sold benchmark backing the heatmap is a rolling ~90-day average,
+// refreshed independently of the selected dashboard period — surfaced so the
+// UI can label what window the numbers actually reflect.
+export function sigmaHeatmapWindow(): { start: string; end: string } | null {
+  if (!existsSync(HEATMAP_PATH)) return null
+  const data = JSON.parse(readFileSync(HEATMAP_PATH, 'utf-8')) as HeatFile
+  if (!data.unitsWindowStart || !data.unitsWindowEnd) return null
+  return { start: data.unitsWindowStart, end: data.unitsWindowEnd }
+}
 
 export function sigmaHeatmap(store: Store): HeatCell[] {
   if (!existsSync(HEATMAP_PATH)) return []
@@ -397,14 +410,15 @@ export function sigmaHeatmap(store: Store): HeatCell[] {
     for (const r of [...data.pines, ...data.miramar]) {
       const k = `${r.dow}|${r.hour}`
       const e = agg.get(k)
-      if (e) { e.sum += r.avg_txn; e.n++ }
-      else agg.set(k, { sum: r.avg_txn, n: 1 })
+      const v = r.avg_units ?? 0
+      if (e) { e.sum += v; e.n++ }
+      else agg.set(k, { sum: v, n: 1 })
     }
     return Array.from(agg.entries())
       .map(([k, v]) => {
         const [dow, hour] = k.split('|').map(Number)
         const avg = v.sum / v.n
-        return { hourNum: hour, day: dow, txnPerEmp: Math.round(avg / STAFF * 10) / 10, rawTxn: Math.round(avg * 10) / 10, staff: STAFF }
+        return { hourNum: hour, day: dow, uplh: Math.round(avg / STAFF * 10) / 10, rawUnits: Math.round(avg * 10) / 10, staff: STAFF }
       })
       .filter(c => c.hourNum >= 7 && c.hourNum <= 21)
   }
@@ -412,11 +426,11 @@ export function sigmaHeatmap(store: Store): HeatCell[] {
   return rows
     .filter(r => r.hour >= 7 && r.hour <= 21)
     .map(r => ({
-      hourNum:   r.hour,
-      day:       r.dow,
-      txnPerEmp: Math.round(r.avg_txn / STAFF * 10) / 10,
-      rawTxn:    Math.round(r.avg_txn * 10) / 10,
-      staff:     STAFF,
+      hourNum:  r.hour,
+      day:      r.dow,
+      uplh:     Math.round((r.avg_units ?? 0) / STAFF * 10) / 10,
+      rawUnits: Math.round((r.avg_units ?? 0) * 10) / 10,
+      staff:    STAFF,
     }))
 }
 

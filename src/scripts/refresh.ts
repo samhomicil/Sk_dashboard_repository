@@ -11,6 +11,7 @@ import { join } from 'path'
 import { format } from 'date-fns'
 import { PROXY_URL } from '../lib/config'
 import { buildCacheData } from '../lib/cache-builder'
+import { writeCacheToDb } from '../lib/azure-cache'
 
 async function testConnection() {
   if (process.env.AZURE_SQL_SERVER) return  // mssql connects lazily on first query
@@ -40,6 +41,16 @@ async function main() {
 
   mkdirSync(join(process.cwd(), 'data'), { recursive: true })
   writeFileSync(join(process.cwd(), 'data', 'cache.json'), JSON.stringify(cache, null, 2))
+
+  // Production reads from smoothieking.dashboard_cache (see src/lib/cache.ts
+  // getCacheAsync), not the deployed cache.json file — the DB row must be
+  // updated directly or a fresh deploy silently has no effect on prod.
+  if (process.env.AZURE_SQL_SERVER) {
+    await writeCacheToDb(cache)
+    console.log('✅ Cache written to Azure SQL (smoothieking.dashboard_cache)')
+  } else {
+    console.log('⚠️  AZURE_SQL_SERVER not set — skipped DB write; production will keep serving its last DB cache until this runs with DB credentials or the in-app Refresh button is used.')
+  }
 
   console.log(`\n✅ Cache written — refreshed at: ${cache.refreshedAt}`)
 }

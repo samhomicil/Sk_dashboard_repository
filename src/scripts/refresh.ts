@@ -46,7 +46,7 @@ async function main() {
   // getCacheAsync), not the deployed cache.json file — the DB row must be
   // updated directly or a fresh deploy silently has no effect on prod.
   if (process.env.AZURE_SQL_SERVER) {
-    await writeCacheToDb(cache)
+    await writeCacheToDb(cache as unknown as Parameters<typeof writeCacheToDb>[0])
     console.log('✅ Cache written to Azure SQL (smoothieking.dashboard_cache)')
   } else {
     console.log('⚠️  AZURE_SQL_SERVER not set — skipped DB write; production will keep serving its last DB cache until this runs with DB credentials or the in-app Refresh button is used.')

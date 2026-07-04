@@ -31,6 +31,8 @@ let _cache: Cache | null = null
 let _cacheAt = 0
 let _dbCachePromise: Promise<Cache | null> | null = null
 let _dbCache: Cache | null = null
+let _dbCacheFetchedAt = 0
+const DB_CACHE_TTL_MS = 60_000 // re-check the DB at least once a minute per warm instance
 
 export function getCache(): Cache | null {
   if (!existsSync(CACHE_PATH)) return null
@@ -44,16 +46,23 @@ export function getCache(): Cache | null {
 export function invalidateCacheMemory() {
   _dbCache = null
   _dbCachePromise = null
+  _dbCacheFetchedAt = 0
 }
 
 export async function getCacheAsync(): Promise<Cache | null> {
-  if (_dbCache) return _dbCache
+  const isFresh = _dbCache && (Date.now() - _dbCacheFetchedAt) < DB_CACHE_TTL_MS
+  if (isFresh) return _dbCache
   if (process.env.AZURE_SQL_SERVER) {
     if (!_dbCachePromise) {
-      _dbCachePromise = readCacheFromDb().then(c => { if (c) _dbCache = c; return c })
+      _dbCachePromise = readCacheFromDb().then(c => {
+        if (c) { _dbCache = c; _dbCacheFetchedAt = Date.now() }
+        return c
+      })
     }
     const dbResult = await _dbCachePromise
+    _dbCachePromise = null
     if (dbResult) return dbResult
+    if (_dbCache) return _dbCache // stale-but-present beats no data if the re-check failed
   }
   return getCache()
 }

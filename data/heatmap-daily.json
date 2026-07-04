@@ -1,0 +1,1881 @@
+{
+  "refreshedAt": "2026-06-25T00:00:00.000Z",
+  "pines": [
+    {
+      "dow": 0,
+      "hour": 7,
+      "avg_txn": 0.0,
+      "days": 1
+    },
+    {
+      "dow": 0,
+      "hour": 8,
+      "avg_txn": 0.0,
+      "days": 2
+    },
+    {
+      "dow": 0,
+      "hour": 9,
+      "avg_txn": 7.0,
+      "days": 11
+    },
+    {
+      "dow": 0,
+      "hour": 10,
+      "avg_txn": 11.23,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 11,
+      "avg_txn": 12.54,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 12,
+      "avg_txn": 12.31,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 13,
+      "avg_txn": 13.31,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 14,
+      "avg_txn": 14.46,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 15,
+      "avg_txn": 11.08,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 16,
+      "avg_txn": 12.5,
+      "days": 12
+    },
+    {
+      "dow": 0,
+      "hour": 17,
+      "avg_txn": 10.08,
+      "days": 12
+    },
+    {
+      "dow": 0,
+      "hour": 18,
+      "avg_txn": 8.08,
+      "days": 12
+    },
+    {
+      "dow": 0,
+      "hour": 19,
+      "avg_txn": 9.75,
+      "days": 12
+    },
+    {
+      "dow": 1,
+      "hour": 6,
+      "avg_txn": 0.0,
+      "days": 2
+    },
+    {
+      "dow": 1,
+      "hour": 7,
+      "avg_txn": 5.67,
+      "days": 12
+    },
+    {
+      "dow": 1,
+      "hour": 8,
+      "avg_txn": 7.54,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 9,
+      "avg_txn": 8.62,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 10,
+      "avg_txn": 9.92,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 11,
+      "avg_txn": 13.38,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 12,
+      "avg_txn": 16.54,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 13,
+      "avg_txn": 14.38,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 14,
+      "avg_txn": 13.69,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 15,
+      "avg_txn": 12.38,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 16,
+      "avg_txn": 14.15,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 17,
+      "avg_txn": 10.54,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 18,
+      "avg_txn": 11.77,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 19,
+      "avg_txn": 12.08,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 20,
+      "avg_txn": 9.31,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 6,
+      "avg_txn": 0.0,
+      "days": 1
+    },
+    {
+      "dow": 2,
+      "hour": 7,
+      "avg_txn": 7.31,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 8,
+      "avg_txn": 7.69,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 9,
+      "avg_txn": 9.38,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 10,
+      "avg_txn": 10.62,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 11,
+      "avg_txn": 13.23,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 12,
+      "avg_txn": 15.92,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 13,
+      "avg_txn": 13.77,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 14,
+      "avg_txn": 15.08,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 15,
+      "avg_txn": 14.92,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 16,
+      "avg_txn": 10.69,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 17,
+      "avg_txn": 11.15,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 18,
+      "avg_txn": 10.54,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 19,
+      "avg_txn": 9.08,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 20,
+      "avg_txn": 9.0,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 6,
+      "avg_txn": 0.25,
+      "days": 4
+    },
+    {
+      "dow": 3,
+      "hour": 7,
+      "avg_txn": 8.15,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 8,
+      "avg_txn": 8.0,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 9,
+      "avg_txn": 11.38,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 10,
+      "avg_txn": 11.0,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 11,
+      "avg_txn": 12.85,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 12,
+      "avg_txn": 14.38,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 13,
+      "avg_txn": 14.15,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 14,
+      "avg_txn": 12.62,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 15,
+      "avg_txn": 13.85,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 16,
+      "avg_txn": 11.38,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 17,
+      "avg_txn": 12.38,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 18,
+      "avg_txn": 11.46,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 19,
+      "avg_txn": 12.0,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 20,
+      "avg_txn": 8.77,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 21,
+      "avg_txn": 0.0,
+      "days": 2
+    },
+    {
+      "dow": 4,
+      "hour": 6,
+      "avg_txn": 0.0,
+      "days": 2
+    },
+    {
+      "dow": 4,
+      "hour": 7,
+      "avg_txn": 8.5,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 8,
+      "avg_txn": 11.0,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 9,
+      "avg_txn": 10.42,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 10,
+      "avg_txn": 12.17,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 11,
+      "avg_txn": 13.75,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 12,
+      "avg_txn": 15.58,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 13,
+      "avg_txn": 12.42,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 14,
+      "avg_txn": 13.75,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 15,
+      "avg_txn": 12.83,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 16,
+      "avg_txn": 13.5,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 17,
+      "avg_txn": 10.75,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 18,
+      "avg_txn": 11.25,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 19,
+      "avg_txn": 11.75,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 20,
+      "avg_txn": 10.25,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 21,
+      "avg_txn": 0.0,
+      "days": 2
+    },
+    {
+      "dow": 5,
+      "hour": 6,
+      "avg_txn": 0.0,
+      "days": 1
+    },
+    {
+      "dow": 5,
+      "hour": 7,
+      "avg_txn": 8.69,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 8,
+      "avg_txn": 14.08,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 9,
+      "avg_txn": 13.77,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 10,
+      "avg_txn": 14.92,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 11,
+      "avg_txn": 17.69,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 12,
+      "avg_txn": 21.54,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 13,
+      "avg_txn": 18.69,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 14,
+      "avg_txn": 19.23,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 15,
+      "avg_txn": 19.46,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 16,
+      "avg_txn": 17.54,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 17,
+      "avg_txn": 16.15,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 18,
+      "avg_txn": 13.85,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 19,
+      "avg_txn": 12.54,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 20,
+      "avg_txn": 13.08,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 21,
+      "avg_txn": 0.25,
+      "days": 4
+    },
+    {
+      "dow": 6,
+      "hour": 8,
+      "avg_txn": 8.85,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 9,
+      "avg_txn": 11.31,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 10,
+      "avg_txn": 15.77,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 11,
+      "avg_txn": 20.08,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 12,
+      "avg_txn": 20.54,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 13,
+      "avg_txn": 17.54,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 14,
+      "avg_txn": 15.92,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 15,
+      "avg_txn": 17.46,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 16,
+      "avg_txn": 13.0,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 17,
+      "avg_txn": 11.62,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 18,
+      "avg_txn": 9.54,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 19,
+      "avg_txn": 9.69,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 20,
+      "avg_txn": 6.31,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 21,
+      "avg_txn": 1.0,
+      "days": 1
+    }
+  ],
+  "miramar": [
+    {
+      "dow": 0,
+      "hour": 8,
+      "avg_txn": 0.43,
+      "days": 7
+    },
+    {
+      "dow": 0,
+      "hour": 9,
+      "avg_txn": 5.0,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 10,
+      "avg_txn": 11.62,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 11,
+      "avg_txn": 13.15,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 12,
+      "avg_txn": 14.85,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 13,
+      "avg_txn": 16.62,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 14,
+      "avg_txn": 15.31,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 15,
+      "avg_txn": 13.31,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 16,
+      "avg_txn": 11.0,
+      "days": 13
+    },
+    {
+      "dow": 0,
+      "hour": 17,
+      "avg_txn": 11.58,
+      "days": 12
+    },
+    {
+      "dow": 0,
+      "hour": 18,
+      "avg_txn": 9.75,
+      "days": 12
+    },
+    {
+      "dow": 0,
+      "hour": 19,
+      "avg_txn": 10.17,
+      "days": 12
+    },
+    {
+      "dow": 0,
+      "hour": 20,
+      "avg_txn": 0.4,
+      "days": 5
+    },
+    {
+      "dow": 1,
+      "hour": 6,
+      "avg_txn": 0.25,
+      "days": 4
+    },
+    {
+      "dow": 1,
+      "hour": 7,
+      "avg_txn": 6.08,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 8,
+      "avg_txn": 8.92,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 9,
+      "avg_txn": 10.85,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 10,
+      "avg_txn": 11.92,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 11,
+      "avg_txn": 17.38,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 12,
+      "avg_txn": 18.69,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 13,
+      "avg_txn": 17.31,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 14,
+      "avg_txn": 17.62,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 15,
+      "avg_txn": 15.23,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 16,
+      "avg_txn": 12.62,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 17,
+      "avg_txn": 13.15,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 18,
+      "avg_txn": 12.85,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 19,
+      "avg_txn": 12.08,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 20,
+      "avg_txn": 11.85,
+      "days": 13
+    },
+    {
+      "dow": 1,
+      "hour": 21,
+      "avg_txn": 1.0,
+      "days": 2
+    },
+    {
+      "dow": 1,
+      "hour": 22,
+      "avg_txn": 0.0,
+      "days": 1
+    },
+    {
+      "dow": 2,
+      "hour": 6,
+      "avg_txn": 0.1,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 7,
+      "avg_txn": 6.0,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 8,
+      "avg_txn": 10.08,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 9,
+      "avg_txn": 11.77,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 10,
+      "avg_txn": 14.62,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 11,
+      "avg_txn": 15.15,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 12,
+      "avg_txn": 18.54,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 13,
+      "avg_txn": 16.69,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 14,
+      "avg_txn": 16.77,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 15,
+      "avg_txn": 14.77,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 16,
+      "avg_txn": 15.15,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 17,
+      "avg_txn": 14.08,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 18,
+      "avg_txn": 14.38,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 19,
+      "avg_txn": 14.92,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 20,
+      "avg_txn": 13.31,
+      "days": 13
+    },
+    {
+      "dow": 2,
+      "hour": 21,
+      "avg_txn": 1.0,
+      "days": 6
+    },
+    {
+      "dow": 3,
+      "hour": 6,
+      "avg_txn": 0.0,
+      "days": 7
+    },
+    {
+      "dow": 3,
+      "hour": 7,
+      "avg_txn": 6.85,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 8,
+      "avg_txn": 11.54,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 9,
+      "avg_txn": 12.69,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 10,
+      "avg_txn": 14.08,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 11,
+      "avg_txn": 17.69,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 12,
+      "avg_txn": 20.46,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 13,
+      "avg_txn": 19.15,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 14,
+      "avg_txn": 16.69,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 15,
+      "avg_txn": 15.77,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 16,
+      "avg_txn": 15.23,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 17,
+      "avg_txn": 14.92,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 18,
+      "avg_txn": 16.38,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 19,
+      "avg_txn": 12.62,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 20,
+      "avg_txn": 12.38,
+      "days": 13
+    },
+    {
+      "dow": 3,
+      "hour": 21,
+      "avg_txn": 0.75,
+      "days": 4
+    },
+    {
+      "dow": 3,
+      "hour": 22,
+      "avg_txn": 0.0,
+      "days": 1
+    },
+    {
+      "dow": 3,
+      "hour": 23,
+      "avg_txn": 0.0,
+      "days": 1
+    },
+    {
+      "dow": 4,
+      "hour": 6,
+      "avg_txn": 0.0,
+      "days": 5
+    },
+    {
+      "dow": 4,
+      "hour": 7,
+      "avg_txn": 6.25,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 8,
+      "avg_txn": 12.58,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 9,
+      "avg_txn": 13.0,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 10,
+      "avg_txn": 16.08,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 11,
+      "avg_txn": 16.75,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 12,
+      "avg_txn": 20.08,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 13,
+      "avg_txn": 18.33,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 14,
+      "avg_txn": 14.92,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 15,
+      "avg_txn": 16.17,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 16,
+      "avg_txn": 14.75,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 17,
+      "avg_txn": 12.75,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 18,
+      "avg_txn": 13.25,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 19,
+      "avg_txn": 14.42,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 20,
+      "avg_txn": 12.83,
+      "days": 12
+    },
+    {
+      "dow": 4,
+      "hour": 21,
+      "avg_txn": 0.67,
+      "days": 3
+    },
+    {
+      "dow": 4,
+      "hour": 22,
+      "avg_txn": 0.5,
+      "days": 2
+    },
+    {
+      "dow": 5,
+      "hour": 6,
+      "avg_txn": 0.12,
+      "days": 8
+    },
+    {
+      "dow": 5,
+      "hour": 7,
+      "avg_txn": 9.77,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 8,
+      "avg_txn": 14.46,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 9,
+      "avg_txn": 15.92,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 10,
+      "avg_txn": 16.23,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 11,
+      "avg_txn": 19.54,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 12,
+      "avg_txn": 24.85,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 13,
+      "avg_txn": 21.85,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 14,
+      "avg_txn": 20.0,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 15,
+      "avg_txn": 19.92,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 16,
+      "avg_txn": 18.46,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 17,
+      "avg_txn": 18.69,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 18,
+      "avg_txn": 16.38,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 19,
+      "avg_txn": 15.31,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 20,
+      "avg_txn": 11.08,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 21,
+      "avg_txn": 1.0,
+      "days": 4
+    },
+    {
+      "dow": 5,
+      "hour": 22,
+      "avg_txn": 0.0,
+      "days": 2
+    },
+    {
+      "dow": 6,
+      "hour": 7,
+      "avg_txn": 0.0,
+      "days": 3
+    },
+    {
+      "dow": 6,
+      "hour": 8,
+      "avg_txn": 8.92,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 9,
+      "avg_txn": 12.23,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 10,
+      "avg_txn": 18.54,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 11,
+      "avg_txn": 20.62,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 12,
+      "avg_txn": 21.15,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 13,
+      "avg_txn": 18.77,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 14,
+      "avg_txn": 16.69,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 15,
+      "avg_txn": 17.92,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 16,
+      "avg_txn": 14.0,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 17,
+      "avg_txn": 12.08,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 18,
+      "avg_txn": 11.15,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 19,
+      "avg_txn": 9.15,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 20,
+      "avg_txn": 7.85,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 21,
+      "avg_txn": 0.33,
+      "days": 3
+    }
+  ],
+  "margate": [
+    {
+      "dow": 0,
+      "hour": 9,
+      "avg_txn": 1.0,
+      "days": 3
+    },
+    {
+      "dow": 0,
+      "hour": 10,
+      "avg_txn": 9.36,
+      "days": 11
+    },
+    {
+      "dow": 0,
+      "hour": 11,
+      "avg_txn": 7.27,
+      "days": 11
+    },
+    {
+      "dow": 0,
+      "hour": 12,
+      "avg_txn": 10.18,
+      "days": 11
+    },
+    {
+      "dow": 0,
+      "hour": 13,
+      "avg_txn": 11.09,
+      "days": 11
+    },
+    {
+      "dow": 0,
+      "hour": 14,
+      "avg_txn": 8.55,
+      "days": 11
+    },
+    {
+      "dow": 0,
+      "hour": 15,
+      "avg_txn": 8.0,
+      "days": 10
+    },
+    {
+      "dow": 0,
+      "hour": 16,
+      "avg_txn": 7.4,
+      "days": 10
+    },
+    {
+      "dow": 0,
+      "hour": 17,
+      "avg_txn": 5.4,
+      "days": 10
+    },
+    {
+      "dow": 0,
+      "hour": 18,
+      "avg_txn": 5.2,
+      "days": 10
+    },
+    {
+      "dow": 0,
+      "hour": 19,
+      "avg_txn": 5.8,
+      "days": 10
+    },
+    {
+      "dow": 1,
+      "hour": 7,
+      "avg_txn": 3.11,
+      "days": 9
+    },
+    {
+      "dow": 1,
+      "hour": 8,
+      "avg_txn": 4.1,
+      "days": 10
+    },
+    {
+      "dow": 1,
+      "hour": 9,
+      "avg_txn": 6.4,
+      "days": 10
+    },
+    {
+      "dow": 1,
+      "hour": 10,
+      "avg_txn": 7.09,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 11,
+      "avg_txn": 5.82,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 12,
+      "avg_txn": 9.18,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 13,
+      "avg_txn": 7.45,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 14,
+      "avg_txn": 6.55,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 15,
+      "avg_txn": 7.91,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 16,
+      "avg_txn": 7.45,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 17,
+      "avg_txn": 6.45,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 18,
+      "avg_txn": 5.91,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 19,
+      "avg_txn": 6.36,
+      "days": 11
+    },
+    {
+      "dow": 1,
+      "hour": 20,
+      "avg_txn": 5.73,
+      "days": 11
+    },
+    {
+      "dow": 2,
+      "hour": 7,
+      "avg_txn": 4.0,
+      "days": 8
+    },
+    {
+      "dow": 2,
+      "hour": 8,
+      "avg_txn": 5.0,
+      "days": 9
+    },
+    {
+      "dow": 2,
+      "hour": 9,
+      "avg_txn": 9.0,
+      "days": 9
+    },
+    {
+      "dow": 2,
+      "hour": 10,
+      "avg_txn": 10.5,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 11,
+      "avg_txn": 8.4,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 12,
+      "avg_txn": 11.3,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 13,
+      "avg_txn": 9.6,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 14,
+      "avg_txn": 9.0,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 15,
+      "avg_txn": 7.2,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 16,
+      "avg_txn": 7.8,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 17,
+      "avg_txn": 6.7,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 18,
+      "avg_txn": 8.5,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 19,
+      "avg_txn": 6.6,
+      "days": 10
+    },
+    {
+      "dow": 2,
+      "hour": 20,
+      "avg_txn": 5.8,
+      "days": 10
+    },
+    {
+      "dow": 3,
+      "hour": 7,
+      "avg_txn": 3.56,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 8,
+      "avg_txn": 4.67,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 9,
+      "avg_txn": 6.44,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 10,
+      "avg_txn": 7.44,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 11,
+      "avg_txn": 8.33,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 12,
+      "avg_txn": 7.67,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 13,
+      "avg_txn": 8.89,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 14,
+      "avg_txn": 8.56,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 15,
+      "avg_txn": 8.22,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 16,
+      "avg_txn": 6.33,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 17,
+      "avg_txn": 5.67,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 18,
+      "avg_txn": 7.33,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 19,
+      "avg_txn": 8.67,
+      "days": 9
+    },
+    {
+      "dow": 3,
+      "hour": 20,
+      "avg_txn": 5.44,
+      "days": 9
+    },
+    {
+      "dow": 4,
+      "hour": 7,
+      "avg_txn": 3.91,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 8,
+      "avg_txn": 7.0,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 9,
+      "avg_txn": 8.27,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 10,
+      "avg_txn": 9.82,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 11,
+      "avg_txn": 9.64,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 12,
+      "avg_txn": 8.82,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 13,
+      "avg_txn": 10.18,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 14,
+      "avg_txn": 9.27,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 15,
+      "avg_txn": 7.18,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 16,
+      "avg_txn": 8.91,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 17,
+      "avg_txn": 7.0,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 18,
+      "avg_txn": 7.09,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 19,
+      "avg_txn": 5.55,
+      "days": 11
+    },
+    {
+      "dow": 4,
+      "hour": 20,
+      "avg_txn": 4.0,
+      "days": 11
+    },
+    {
+      "dow": 5,
+      "hour": 7,
+      "avg_txn": 4.82,
+      "days": 11
+    },
+    {
+      "dow": 5,
+      "hour": 8,
+      "avg_txn": 8.64,
+      "days": 11
+    },
+    {
+      "dow": 5,
+      "hour": 9,
+      "avg_txn": 12.17,
+      "days": 12
+    },
+    {
+      "dow": 5,
+      "hour": 10,
+      "avg_txn": 10.08,
+      "days": 13
+    },
+    {
+      "dow": 5,
+      "hour": 11,
+      "avg_txn": 10.21,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 12,
+      "avg_txn": 13.14,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 13,
+      "avg_txn": 12.36,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 14,
+      "avg_txn": 11.64,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 15,
+      "avg_txn": 12.0,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 16,
+      "avg_txn": 8.14,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 17,
+      "avg_txn": 10.71,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 18,
+      "avg_txn": 8.21,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 19,
+      "avg_txn": 8.93,
+      "days": 14
+    },
+    {
+      "dow": 5,
+      "hour": 20,
+      "avg_txn": 6.43,
+      "days": 14
+    },
+    {
+      "dow": 6,
+      "hour": 8,
+      "avg_txn": 4.23,
+      "days": 13
+    },
+    {
+      "dow": 6,
+      "hour": 9,
+      "avg_txn": 7.5,
+      "days": 14
+    },
+    {
+      "dow": 6,
+      "hour": 10,
+      "avg_txn": 10.36,
+      "days": 14
+    },
+    {
+      "dow": 6,
+      "hour": 11,
+      "avg_txn": 10.29,
+      "days": 14
+    },
+    {
+      "dow": 6,
+      "hour": 12,
+      "avg_txn": 11.86,
+      "days": 14
+    },
+    {
+      "dow": 6,
+      "hour": 13,
+      "avg_txn": 11.4,
+      "days": 15
+    },
+    {
+      "dow": 6,
+      "hour": 14,
+      "avg_txn": 11.27,
+      "days": 15
+    },
+    {
+      "dow": 6,
+      "hour": 15,
+      "avg_txn": 9.6,
+      "days": 15
+    },
+    {
+      "dow": 6,
+      "hour": 16,
+      "avg_txn": 8.2,
+      "days": 15
+    },
+    {
+      "dow": 6,
+      "hour": 17,
+      "avg_txn": 6.8,
+      "days": 15
+    },
+    {
+      "dow": 6,
+      "hour": 18,
+      "avg_txn": 6.6,
+      "days": 15
+    },
+    {
+      "dow": 6,
+      "hour": 19,
+      "avg_txn": 6.93,
+      "days": 15
+    },
+    {
+      "dow": 6,
+      "hour": 20,
+      "avg_txn": 5.6,
+      "days": 15
+    }
+  ]
+}

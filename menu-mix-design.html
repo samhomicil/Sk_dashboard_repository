@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu Mix & Velocity — SK Wellness</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+  .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04); }
+  .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .pill-green { background: #d1fae5; color: #059669; }
+  .pill-red   { background: #fee2e2; color: #dc2626; }
+  .pill-amber { background: #fef3c7; color: #d97706; }
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ── Embedded data (L90D, All Stores) ─────────────────────────────
+const DATA = {"refreshedAt":"2026-06-22T00:00:00+00:00","thruDate":"2026-06-22","period":"l90d","store":"all","categories":[{"subcategory":"Smoothies","qty":45426,"sales":380505.41,"pctOfTotal":0.857},{"subcategory":"Smoothie Bowls","qty":5202,"sales":61213.78,"pctOfTotal":0.138},{"subcategory":"Food","qty":3258,"sales":13658.08,"pctOfTotal":0.031},{"subcategory":"Retail Products","qty":14667,"sales":8149.7,"pctOfTotal":0.018},{"subcategory":"Retail Goods","qty":59,"sales":228.31,"pctOfTotal":0.0005},{"subcategory":"Discounts","qty":7167,"sales":-19792.73,"pctOfTotal":-0.0446}],"products":{"Discounts":[{"product":"9999-DISCOUNT","subcategory":"Discounts","qty":7167,"sales":-19792.73,"cogsPct":null,"avgPrice":null}],"Food":[{"product":"Hearty 8 Grain Loaded Toast Egg & Avocado","subcategory":"Food","qty":968,"sales":5348.5,"cogsPct":0.252987,"avgPrice":5.4747},{"product":"Hearty 8 Grain Loaded Toast Peanut Butter","subcategory":"Food","qty":883,"sales":3011,"cogsPct":0.248015,"avgPrice":3.3989},{"product":"Hearty 8 Grain Loaded Toast Avocado","subcategory":"Food","qty":645,"sales":2337.43,"cogsPct":0.249454,"avgPrice":3.72419},{"product":"Hearty 8 Grain Loaded Toast Chocolate Hazelnut","subcategory":"Food","qty":507,"sales":1580.05,"cogsPct":0.392739,"avgPrice":3.11282},{"product":"FlatBread Chicken","subcategory":"Food","qty":79,"sales":475.01,"cogsPct":0.279009,"avgPrice":6.00875},{"product":"Egg & Cheese ProteinBox","subcategory":"Food","qty":52,"sales":382.38,"cogsPct":0.286376,"avgPrice":7.19039},{"product":"PB ProteinBox","subcategory":"Food","qty":18,"sales":130.02,"cogsPct":null,"avgPrice":7.06},{"product":"Chicken Bites","subcategory":"Food","qty":11,"sales":76.89,"cogsPct":0.237521,"avgPrice":6.99},{"product":"Add On - Hard Boiled Egg","subcategory":"Food","qty":19,"sales":19.11,"cogsPct":0.385642,"avgPrice":1},{"product":"Add On - Red Pepper Flakes","subcategory":"Food","qty":10,"sales":10.2,"cogsPct":0.00905,"avgPrice":1.04}],"Retail Goods":[{"product":"RETAIL - CORE - Barebells C&Crml","subcategory":"Retail Goods","qty":14,"sales":60.06,"cogsPct":null,"avgPrice":4.29},{"product":"RETAIL - L&L Ck-fied BIG C&C","subcategory":"Retail Goods","qty":16,"sales":55.84,"cogsPct":null,"avgPrice":3.49},{"product":"RETAIL - Bloom RTD 12oz CrspApl","subcategory":"Retail Goods","qty":13,"sales":47.97,"cogsPct":null,"avgPrice":3.69},{"product":"RETAIL - CORE - Barebells CrmyCrsp","subcategory":"Retail Goods","qty":9,"sales":38.61,"cogsPct":null,"avgPrice":4.29},{"product":"RETAIL - Bloom RTD 12oz GlcrCrsh","subcategory":"Retail Goods","qty":7,"sales":25.83,"cogsPct":null,"avgPrice":3.69}],"Retail Products":[{"product":"RETAIL - Bread Cappuccino Chocolate Chip","subcategory":"Retail Products","qty":139,"sales":400.25,"cogsPct":null,"avgPrice":2.9375},{"product":"RETAIL - SK Gladiator 2016 2lb Vanilla","subcategory":"Retail Products","qty":8,"sales":399.92,"cogsPct":null,"avgPrice":49.99},{"product":"RETAIL - CORE - SK G16 2Lb Choc","subcategory":"Retail Products","qty":7,"sales":344.93,"cogsPct":null,"avgPrice":48.74},{"product":"RETAIL - CORE - SK Snk Ygrt Prtzls 3oz","subcategory":"Retail Products","qty":76,"sales":318.44,"cogsPct":0.378902,"avgPrice":4.19},{"product":"RETAIL - Bread Banana Chocolate Chip","subcategory":"Retail Products","qty":112,"sales":311,"cogsPct":null,"avgPrice":2.85714},{"product":"RETAIL - CORE - SK Snk Chc Almonds 5oz","subcategory":"Retail Products","qty":68,"sales":284.92,"cogsPct":0.931981,"avgPrice":4.19},{"product":"RETAIL - Bread Banana","subcategory":"Retail Products","qty":89,"sales":256,"cogsPct":null,"avgPrice":3},{"product":"RETAIL - GH PB 5.5oz Salt","subcategory":"Retail Products","qty":72,"sales":219.78,"cogsPct":0.628489,"avgPrice":3.02614},{"product":"RETAIL - CORE - SK water 500mL","subcategory":"Retail Products","qty":127,"sales":188.97,"cogsPct":0.564517,"avgPrice":1.48167},{"product":"RETAIL - CORE - SK water 1L","subcategory":"Retail Products","qty":80,"sales":184.31,"cogsPct":0.6568,"avgPrice":2.29222},{"product":"RETAIL - Jax chip SwtPt 1oz SS","subcategory":"Retail Products","qty":128,"sales":171.62,"cogsPct":0.509922,"avgPrice":1.45667},{"product":"RETAIL - Lulu Platanitos Plantain w Lemon 3oz","subcategory":"Retail Products","qty":72,"sales":154.44,"cogsPct":0.294628,"avgPrice":2.145},{"product":"RETAIL - Bloom RTD 12oz PchMngo","subcategory":"Retail Products","qty":41,"sales":151.29,"cogsPct":null,"avgPrice":3.69},{"product":"RETAIL - SK Snks Dark Chocolate Cashews","subcategory":"Retail Products","qty":34,"sales":146.21,"cogsPct":0.915636,"avgPrice":4.13289},{"product":"RETAIL - Pink Sea Salt Plantain Chip 2oz","subcategory":"Retail Products","qty":40,"sales":143.6,"cogsPct":0.499536,"avgPrice":3.59}],"Smoothie Bowls":[{"product":"BOWL - PB Swizzle","subcategory":"Smoothie Bowls","qty":1700,"sales":20272.93,"cogsPct":0.325192,"avgPrice":11.79271},{"product":"BOWL - Acai Cocoa Haze","subcategory":"Smoothie Bowls","qty":1154,"sales":13810.27,"cogsPct":0.335339,"avgPrice":11.86299},{"product":"BOWL - Go-Go-Goji Crunch","subcategory":"Smoothie Bowls","qty":912,"sales":10765.06,"cogsPct":0.335004,"avgPrice":11.71084},{"product":"BOWL - Go Coconuts","subcategory":"Smoothie Bowls","qty":245,"sales":2911.32,"cogsPct":0.360075,"avgPrice":11.80074},{"product":"BOWL - Bee Berry Sting","subcategory":"Smoothie Bowls","qty":229,"sales":2829.99,"cogsPct":0.34851,"avgPrice":12.39717},{"product":"BOWL - Greek Berry","subcategory":"Smoothie Bowls","qty":246,"sales":2507.05,"cogsPct":0.402188,"avgPrice":10.23743},{"product":"BOWL - Greek PB Banana","subcategory":"Smoothie Bowls","qty":248,"sales":2506.05,"cogsPct":0.330314,"avgPrice":10.10958},{"product":"BOWL - Coco Colada","subcategory":"Smoothie Bowls","qty":187,"sales":2198,"cogsPct":0.351185,"avgPrice":11.81871},{"product":"BOWL - Berry Goji Getaway","subcategory":"Smoothie Bowls","qty":138,"sales":1693.76,"cogsPct":0.268488,"avgPrice":12.11445},{"product":"BOWL - PB Delight","subcategory":"Smoothie Bowls","qty":111,"sales":1320.51,"cogsPct":0.312359,"avgPrice":11.82893}],"Smoothies":[{"product":"20OZ - Angel Food","subcategory":"Smoothies","qty":2536,"sales":15547.16,"cogsPct":0.128466,"avgPrice":6.04639},{"product":"32OZ - Angel Food","subcategory":"Smoothies","qty":1724,"sales":15539.26,"cogsPct":0.153797,"avgPrice":8.91396},{"product":"20OZ & Toast Bundle","subcategory":"Smoothies","qty":1261,"sales":13237.5,"cogsPct":null,"avgPrice":10.50125},{"product":"32OZ - The Hulk Strawberry","subcategory":"Smoothies","qty":1113,"sales":10780.05,"cogsPct":0.316995,"avgPrice":9.69572},{"product":"20OZ - Peanut Power Plus Chocolate","subcategory":"Smoothies","qty":1256,"sales":9945.33,"cogsPct":0.121547,"avgPrice":7.7791},{"product":"20OZ - The Hulk Strawberry","subcategory":"Smoothies","qty":1239,"sales":9828.2,"cogsPct":0.252798,"avgPrice":7.90511},{"product":"32OZ - Peanut Power Plus Chocolate","subcategory":"Smoothies","qty":972,"sales":9219.17,"cogsPct":0.157485,"avgPrice":9.40536},{"product":"32OZ - Gladiator Vanilla","subcategory":"Smoothies","qty":865,"sales":8384.66,"cogsPct":0.201528,"avgPrice":9.63014},{"product":"20OZ - Gladiator Vanilla","subcategory":"Smoothies","qty":1046,"sales":8324.87,"cogsPct":0.23181,"avgPrice":7.83267},{"product":"20OZ - The Hulk Vanilla","subcategory":"Smoothies","qty":1046,"sales":8228.51,"cogsPct":0.188435,"avgPrice":7.83622},{"product":"32OZ - The Hulk Vanilla","subcategory":"Smoothies","qty":825,"sales":7925.4,"cogsPct":0.243633,"avgPrice":9.59167},{"product":"32OZ - Gladiator Chocolate","subcategory":"Smoothies","qty":693,"sales":6707.93,"cogsPct":0.193141,"avgPrice":9.64773},{"product":"32OZ - Peanut Power - Peanut Butter","subcategory":"Smoothies","qty":670,"sales":6512.84,"cogsPct":0.136501,"avgPrice":9.67295},{"product":"20OZ - Gladiator Strawberry","subcategory":"Smoothies","qty":756,"sales":6000.08,"cogsPct":0.226781,"avgPrice":7.82413},{"product":"32OZ - Gladiator Strawberry","subcategory":"Smoothies","qty":615,"sales":5858.32,"cogsPct":0.210567,"avgPrice":9.52067},{"product":"32OZ - Peanut Power Plus Strawberry","subcategory":"Smoothies","qty":608,"sales":5739.39,"cogsPct":0.203426,"avgPrice":9.36484},{"product":"32OZ - Caribbean Way","subcategory":"Smoothies","qty":634,"sales":5700.72,"cogsPct":0.180863,"avgPrice":8.95021},{"product":"20OZ - Island Impact","subcategory":"Smoothies","qty":961,"sales":5454.68,"cogsPct":0.186844,"avgPrice":5.67924},{"product":"20OZ - Peanut Power - Peanut Butter","subcategory":"Smoothies","qty":683,"sales":5432.54,"cogsPct":0.107228,"avgPrice":7.84301},{"product":"32OZ - Island Impact","subcategory":"Smoothies","qty":592,"sales":5373.97,"cogsPct":0.212382,"avgPrice":9.00511},{"product":"20OZ - Gladiator Chocolate","subcategory":"Smoothies","qty":667,"sales":5303.17,"cogsPct":0.233341,"avgPrice":7.8279},{"product":"20OZ - Caribbean Way","subcategory":"Smoothies","qty":845,"sales":5205.59,"cogsPct":0.151595,"avgPrice":6.0317},{"product":"32OZ - Pineapple Surf","subcategory":"Smoothies","qty":582,"sales":5185.19,"cogsPct":0.243527,"avgPrice":8.82775},{"product":"32OZ - Banana Boat","subcategory":"Smoothies","qty":561,"sales":5030.07,"cogsPct":0.167506,"avgPrice":8.84262},{"product":"20OZ - Pineapple Surf","subcategory":"Smoothies","qty":817,"sales":4947.56,"cogsPct":0.207714,"avgPrice":5.95906},{"product":"20OZ - Peanut Power Plus Strawberry","subcategory":"Smoothies","qty":583,"sales":4545.45,"cogsPct":0.157589,"avgPrice":7.75546},{"product":"20OZ - Banana Boat","subcategory":"Smoothies","qty":801,"sales":4483.66,"cogsPct":0.140712,"avgPrice":5.54916},{"product":"44OZ - Angel Food","subcategory":"Smoothies","qty":316,"sales":3985.71,"cogsPct":0.149154,"avgPrice":12.42348},{"product":"20OZ - Strawberry Kiwi Breeze","subcategory":"Smoothies","qty":574,"sales":3466.4,"cogsPct":0.192219,"avgPrice":5.92866},{"product":"KIDS - Angel Food","subcategory":"Smoothies","qty":631,"sales":3442.6,"cogsPct":0.136819,"avgPrice":5.37361}]},"modifiers":[{"product":"CHOICE - Banana","subcategory":"Modifiers","qty":3485,"sales":0,"cogsPct":null,"avgPrice":null},{"product":"Add On - Peanut Butter","subcategory":"Modifiers","qty":2653,"sales":3389.16,"cogsPct":0.129721,"avgPrice":1.269},{"product":"CHOICE - Strawberries","subcategory":"Modifiers","qty":1587,"sales":0,"cogsPct":null,"avgPrice":null},{"product":"CHOICE - Peanut Butter","subcategory":"Modifiers","qty":1544,"sales":0,"cogsPct":null,"avgPrice":null},{"product":"Add On - Multivitamin","subcategory":"Modifiers","qty":1141,"sales":1495.15,"cogsPct":0.027912,"avgPrice":1.30723},{"product":"Add On - Muscle Builder","subcategory":"Modifiers","qty":1141,"sales":1469.54,"cogsPct":0.062358,"avgPrice":1.27935},{"product":"Add On - Protein - Whey","subcategory":"Modifiers","qty":1025,"sales":1318.55,"cogsPct":0.133688,"avgPrice":1.26617},{"product":"CHOICE - STRAWBERRIES W SUGAR","subcategory":"Modifiers","qty":973,"sales":0,"cogsPct":null,"avgPrice":null},{"product":"CHOICE - Blueberry-Wild","subcategory":"Modifiers","qty":824,"sales":0,"cogsPct":null,"avgPrice":null},{"product":"Add On - Immune Support","subcategory":"Modifiers","qty":804,"sales":1038.85,"cogsPct":0.038343,"avgPrice":1.28666},{"product":"Add On - Joint Health and Collagen","subcategory":"Modifiers","qty":741,"sales":968.32,"cogsPct":0.166323,"avgPrice":1.30465},{"product":"Add On - Banana","subcategory":"Modifiers","qty":716,"sales":926.53,"cogsPct":0.097689,"avgPrice":1.29323},{"product":"Add On - Mango - IQF","subcategory":"Modifiers","qty":641,"sales":819.52,"cogsPct":0.239068,"avgPrice":1.27551},{"product":"Add On - Blueberries IQF","subcategory":"Modifiers","qty":624,"sales":795.67,"cogsPct":0.336714,"avgPrice":1.27401},{"product":"Add On - Strawberries - IQF","subcategory":"Modifiers","qty":594,"sales":773.8,"cogsPct":0.276857,"avgPrice":1.28955},{"product":"Add On - Frozen Yogurt","subcategory":"Modifiers","qty":585,"sales":748.7,"cogsPct":0.100856,"avgPrice":1.27073},{"product":"Add On - Energy Boost","subcategory":"Modifiers","qty":539,"sales":684.39,"cogsPct":0.060314,"avgPrice":1.26289},{"product":"Add On - Gut Health","subcategory":"Modifiers","qty":530,"sales":685.23,"cogsPct":0.095715,"avgPrice":1.28951},{"product":"Add On - Fiber","subcategory":"Modifiers","qty":522,"sales":672.61,"cogsPct":0.060269,"avgPrice":1.2848},{"product":"Sub - Almond Milk","subcategory":"Modifiers","qty":601,"sales":0,"cogsPct":null,"avgPrice":null}]};
+
+// ── Helpers ───────────────────────────────────────────────────────
+const $ = n => n < 0
+  ? `-$${Math.abs(Math.round(n)).toLocaleString()}`
+  : `$${Math.round(n).toLocaleString()}`;
+const pct = n => `${(n * 100).toFixed(1)}%`;
+const num = n => n.toLocaleString();
+const cogsColor = v => v === null ? '' : v < 0.28 ? 'text-emerald-600 font-semibold' : v < 0.35 ? 'text-amber-600 font-semibold' : 'text-red-600 font-semibold';
+
+const CAT_COLOR = {
+  'Smoothies':      { bg: 'bg-teal-500',   dot: '#14b8a6' },
+  'Smoothie Bowls': { bg: 'bg-violet-500', dot: '#8b5cf6' },
+  'Food':           { bg: 'bg-amber-500',  dot: '#f59e0b' },
+  'Retail Products':{ bg: 'bg-blue-400',   dot: '#60a5fa' },
+  'Retail Goods':   { bg: 'bg-slate-400',  dot: '#94a3b8' },
+};
+const CAT_ORDER = ['Smoothies', 'Smoothie Bowls', 'Food', 'Retail Products', 'Retail Goods'];
+
+function parseSize(name) {
+  const m = name.match(/^(\d+OZ|KIDS|44OZ)/i);
+  return m ? m[1].toUpperCase() : name.split(' ')[0];
+}
+function parseFlavor(name) {
+  return name.replace(/^\d+OZ\s*-\s*/i,'').replace(/^KIDS\s*-\s*/i,'').replace(/^BOWL\s*-\s*/i,'').replace(/^RETAIL\s*-\s*/i,'').trim();
+}
+
+// ── Product table ─────────────────────────────────────────────────
+function productTable(rows, totalSales, showSize) {
+  if (!rows.length) return '<p class="text-xs text-slate-400 py-2">No data</p>';
+  return `
+  <div class="overflow-x-auto">
+    <table class="w-full text-xs">
+      <thead>
+        <tr class="text-slate-400 uppercase border-b border-slate-100">
+          <th class="text-left pb-2 font-medium">Product</th>
+          ${showSize ? '<th class="text-right pb-2 font-medium w-14">Size</th>' : ''}
+          <th class="text-right pb-2 font-medium w-16">Units</th>
+          <th class="text-right pb-2 font-medium w-20">Avg Price</th>
+          <th class="text-right pb-2 font-medium w-16">COGS%</th>
+          <th class="text-right pb-2 font-medium w-20">Revenue</th>
+          <th class="text-right pb-2 font-medium w-14">% Mix</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(p => {
+          const mix = totalSales > 0 ? p.sales / totalSales : 0;
+          return `
+          <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="py-1.5 pr-2 font-medium text-slate-700 max-w-[200px] truncate">${parseFlavor(p.product)}</td>
+            ${showSize ? `<td class="text-right py-1.5 text-slate-500">${parseSize(p.product)}</td>` : ''}
+            <td class="text-right py-1.5 text-slate-600">${num(p.qty)}</td>
+            <td class="text-right py-1.5 text-slate-600">${p.avgPrice !== null ? `$${p.avgPrice.toFixed(2)}` : '—'}</td>
+            <td class="text-right py-1.5 ${cogsColor(p.cogsPct)}">${p.cogsPct !== null ? pct(p.cogsPct) : '—'}</td>
+            <td class="text-right py-1.5 font-semibold text-slate-700">${$(p.sales)}</td>
+            <td class="text-right py-1.5">
+              <div class="flex items-center justify-end gap-1">
+                <div class="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-teal-400 rounded-full" style="width:${Math.min(mix * 5, 1) * 100}%"></div>
+                </div>
+                <span class="text-slate-500 w-8 text-right">${pct(mix)}</span>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ── Smoothies section with tabs ───────────────────────────────────
+function smoothiesSection(products, totalSales) {
+  const bySize = {};
+  const byFlavor = {};
+  for (const p of products) {
+    const sz = parseSize(p.product);
+    if (!bySize[sz]) bySize[sz] = { product: sz, qty: 0, sales: 0, cogsPct: null, avgPrice: null };
+    bySize[sz].qty += p.qty; bySize[sz].sales += p.sales;
+
+    const fl = parseFlavor(p.product);
+    if (!byFlavor[fl]) byFlavor[fl] = { product: fl, qty: 0, sales: 0, cogsPct: null, avgPrice: null, _count: 0 };
+    byFlavor[fl].qty += p.qty; byFlavor[fl].sales += p.sales;
+    if (p.cogsPct !== null) {
+      byFlavor[fl].cogsPct = byFlavor[fl].cogsPct !== null
+        ? (byFlavor[fl].cogsPct * byFlavor[fl]._count + p.cogsPct) / (byFlavor[fl]._count + 1)
+        : p.cogsPct;
+      byFlavor[fl]._count++;
+    }
+  }
+  const sizeRows   = Object.values(bySize).sort((a,b) => b.sales - a.sales);
+  const flavorRows = Object.values(byFlavor).sort((a,b) => b.sales - a.sales).slice(0, 25);
+
+  return `
+  <div>
+    <div class="flex gap-1 mb-3" id="smTabs">
+      <button onclick="showSmTab('all')"    id="smTab-all"    class="px-3 py-1 text-xs rounded-full font-medium bg-teal-600 text-white">All Items</button>
+      <button onclick="showSmTab('size')"   id="smTab-size"   class="px-3 py-1 text-xs rounded-full font-medium bg-slate-100 text-slate-500 hover:bg-slate-200">By Size</button>
+      <button onclick="showSmTab('flavor')" id="smTab-flavor" class="px-3 py-1 text-xs rounded-full font-medium bg-slate-100 text-slate-500 hover:bg-slate-200">By Flavor</button>
+    </div>
+    <div id="smPane-all">${productTable(products.slice(0, 30), totalSales, true)}</div>
+    <div id="smPane-size" class="hidden">${productTable(sizeRows, totalSales, false)}</div>
+    <div id="smPane-flavor" class="hidden">${productTable(flavorRows, totalSales, false)}</div>
+  </div>`;
+}
+
+// ── Category card ─────────────────────────────────────────────────
+function categoryCard(cat, products, totalSales, isFirst) {
+  const cc = CAT_COLOR[cat] ?? { bg: 'bg-slate-400', dot: '#94a3b8' };
+  const catSales = products.reduce((s,p) => s + p.sales, 0);
+  const catQty   = products.reduce((s,p) => s + p.qty, 0);
+  const cogsItems = products.filter(p => p.cogsPct !== null);
+  const avgCogs   = cogsItems.length ? cogsItems.reduce((s,p) => s + p.cogsPct, 0) / cogsItems.length : 0;
+  const id = cat.replace(/\s+/g,'_');
+  const inner = cat === 'Smoothies'
+    ? smoothiesSection(products, totalSales)
+    : productTable(products.slice(0, 25), totalSales, false);
+
+  return `
+  <div class="card">
+    <button onclick="toggleCat('${id}')" class="w-full flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-2.5 h-2.5 rounded-full ${cc.bg}"></div>
+        <span class="font-bold text-slate-700">${cat}</span>
+        <span class="text-sm text-slate-400">${products.length} items</span>
+      </div>
+      <div class="flex items-center gap-6 text-sm">
+        <div class="text-right hidden sm:block">
+          <div class="text-xs text-slate-400">Units / Day</div>
+          <div class="font-semibold text-slate-700">${(catQty / 90).toFixed(1)}</div>
+        </div>
+        ${avgCogs > 0 ? `
+        <div class="text-right hidden sm:block">
+          <div class="text-xs text-slate-400">Avg COGS%</div>
+          <div class="font-semibold ${avgCogs < 0.28 ? 'text-emerald-600' : 'text-amber-600'}">${pct(avgCogs)}</div>
+        </div>` : ''}
+        <div class="text-right">
+          <div class="text-xs text-slate-400">Revenue</div>
+          <div class="font-bold text-slate-800">${$(catSales)}</div>
+        </div>
+        <span class="text-slate-400 text-xs" id="arrow-${id}">${isFirst ? '▲' : '▼'}</span>
+      </div>
+    </button>
+    <div id="body-${id}" class="${isFirst ? '' : 'hidden'} mt-4 pt-4 border-t border-slate-100">
+      ${inner}
+    </div>
+  </div>`;
+}
+
+// ── Modifiers card ────────────────────────────────────────────────
+function modifiersCard(mods, coreUnits) {
+  const modTotal = mods.reduce((s,m) => s + m.sales, 0);
+  const modUnits = mods.reduce((s,m) => s + m.qty, 0);
+  const attach   = coreUnits > 0 ? modUnits / coreUnits : 0;
+  return `
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <div>
+        <div class="font-bold text-slate-700">Add-Ons (Modifiers)</div>
+        <div class="text-xs text-slate-400 mt-0.5">Not included in category mix — tracked separately</div>
+      </div>
+      <div class="flex gap-6 text-sm text-right">
+        <div>
+          <div class="text-xs text-slate-400">Attach Rate</div>
+          <div class="font-bold text-slate-700">${pct(attach)}</div>
+          <div class="text-xs text-slate-400">add-ons / units sold</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400">Revenue</div>
+          <div class="font-bold text-slate-700">${$(modTotal)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="text-slate-400 uppercase border-b border-slate-100">
+            <th class="text-left pb-2 font-medium">Add-On</th>
+            <th class="text-right pb-2 font-medium w-16">Units</th>
+            <th class="text-right pb-2 font-medium w-16">Attach%</th>
+            <th class="text-right pb-2 font-medium w-16">COGS%</th>
+            <th class="text-right pb-2 font-medium w-20">Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${mods.map(m => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="py-1.5 font-medium text-slate-700">${m.product.replace(/^CHOICE\s*-\s*/,'').replace(/^Add On\s*-\s*/,'')}</td>
+            <td class="text-right py-1.5 text-slate-600">${num(m.qty)}</td>
+            <td class="text-right py-1.5 text-slate-600">${coreUnits > 0 ? pct(m.qty / coreUnits) : '—'}</td>
+            <td class="text-right py-1.5 ${cogsColor(m.cogsPct)}">${m.cogsPct !== null ? pct(m.cogsPct) : '—'}</td>
+            <td class="text-right py-1.5 font-semibold text-slate-700">${m.sales > 0 ? $(m.sales) : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function render() {
+  const d = DATA;
+  const coreCats = d.categories.filter(c => c.subcategory !== 'Discounts' && c.sales > 0);
+  const coreTotal = coreCats.reduce((s,c) => s + c.sales, 0);
+  const coreUnits = coreCats.reduce((s,c) => s + c.qty, 0);
+
+  const mixBar = coreCats.map(c => {
+    const cc = CAT_COLOR[c.subcategory] ?? { bg: 'bg-slate-400' };
+    return `<div class="${cc.bg} transition-all" style="width:${pct(c.pctOfTotal)}" title="${c.subcategory}: ${pct(c.pctOfTotal)}"></div>`;
+  }).join('');
+
+  const catCircles = coreCats.map(c => {
+    const cc = CAT_COLOR[c.subcategory] ?? { bg: 'bg-slate-400' };
+    return `
+    <div class="text-center">
+      <div class="w-10 h-10 rounded-full mx-auto mb-2 flex items-center justify-center ${cc.bg}">
+        <span class="text-white text-xs font-bold">${(c.pctOfTotal * 100).toFixed(0)}%</span>
+      </div>
+      <div class="text-xs font-semibold text-slate-700">${c.subcategory}</div>
+      <div class="text-base font-bold text-slate-800">${pct(c.pctOfTotal)}</div>
+      <div class="text-xs text-slate-400">${$(c.sales)} · ${num(c.qty)} units</div>
+    </div>`;
+  }).join('');
+
+  const catCards = CAT_ORDER.map((cat, i) => {
+    const products = d.products[cat] ?? [];
+    if (!products.length) return '';
+    return categoryCard(cat, products, coreTotal, i === 0);
+  }).join('');
+
+  document.getElementById('app').innerHTML = `
+  <div class="min-h-screen bg-slate-50 p-4 md:p-6">
+
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-slate-800">Menu Mix &amp; Velocity</h1>
+        <p class="text-xs text-slate-400 mt-0.5">Data through ${d.thruDate} · L90D · All Stores</p>
+      </div>
+      <div class="flex gap-2">
+        <div class="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
+          <button class="px-3 py-1.5 text-xs font-medium text-slate-500">MTD</button>
+          <button class="px-3 py-1.5 text-xs font-medium text-slate-500">Last Month</button>
+          <button class="px-3 py-1.5 text-xs font-medium bg-slate-800 text-white">Last 90 Days</button>
+        </div>
+        <div class="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
+          <button class="px-3 py-1.5 text-xs font-medium bg-slate-800 text-white">All Stores</button>
+          <button class="px-3 py-1.5 text-xs font-medium text-slate-500">Pines</button>
+          <button class="px-3 py-1.5 text-xs font-medium text-slate-500">Miramar</button>
+          <button class="px-3 py-1.5 text-xs font-medium text-slate-500">Margate</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+
+      <!-- Category Mix Summary -->
+      <div class="card">
+        <div class="text-sm font-bold text-slate-700 mb-4">Category Mix</div>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+          ${catCircles}
+        </div>
+        <div class="flex h-3 rounded-full overflow-hidden gap-px">
+          ${mixBar}
+        </div>
+        <div class="mt-2 text-xs text-slate-400 text-right">
+          Core total: ${$(coreTotal)} · ${num(coreUnits)} units — Modifiers &amp; Discounts excluded from mix %
+        </div>
+      </div>
+
+      <!-- Category drill-downs -->
+      ${catCards}
+
+      <!-- Modifiers -->
+      ${modifiersCard(d.modifiers, coreUnits)}
+
+    </div>
+  </div>`;
+}
+
+// ── Interactivity ─────────────────────────────────────────────────
+function toggleCat(id) {
+  const body  = document.getElementById('body-' + id);
+  const arrow = document.getElementById('arrow-' + id);
+  body.classList.toggle('hidden');
+  arrow.textContent = body.classList.contains('hidden') ? '▼' : '▲';
+}
+
+let _smTab = 'all';
+function showSmTab(tab) {
+  ['all','size','flavor'].forEach(t => {
+    document.getElementById('smPane-' + t).classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById('smTab-' + t);
+    if (t === tab) { btn.classList.remove('bg-slate-100','text-slate-500'); btn.classList.add('bg-teal-600','text-white'); }
+    else           { btn.classList.add('bg-slate-100','text-slate-500');    btn.classList.remove('bg-teal-600','text-white'); }
+  });
+  _smTab = tab;
+}
+
+render();
+</script>
+</body>
+</html>

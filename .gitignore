@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+cache.json
+
+# Sigma MCP patch files (temp)
+data/sigma-patch.json
+data/mcp-patch.json

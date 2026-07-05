@@ -1,12 +1,29 @@
 """
 Import labor (timecard) and till history files into Azure SQL.
-Usage: python3 src/scripts/import_labor_till.py
 
-Reads the most recent downloaded files from ~/Downloads automatically.
+Usage:
+  python3 src/scripts/import_labor_till.py
+      Local manual mode (default) -- reads whatever's in ~/Downloads matching
+      the timecard/till filename patterns.
+
+  python3 src/scripts/import_labor_till.py --timecard-dir DIR --till-dir DIR
+      Explicit-directory mode -- imports every file found in each directory
+      (all files in --timecard-dir are treated as timecards, all files in
+      --till-dir as till history; the caller -- e.g. the cloud routine after
+      downloading from the Drive "Labor"/"Till" subfolders -- is responsible
+      for sorting files into the right directory by type). Store identity is
+      still auto-detected per-file from the store code on line 1, same as
+      the local ~/Downloads mode.
+
+Connects directly to Azure SQL when AZURE_SQL_SERVER etc are set as env vars
+(as in the cloud routine); falls back to the local proxy otherwise -- same
+pattern as src/pfg_extractor/pfg/db.py.
 """
 
-import re
+import argparse
 import json
+import os
+import re
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -16,8 +33,23 @@ DOWNLOADS = Path.home() / 'Downloads'
 
 STORE_MAP = {'SK-1392': 'Pines', 'SK-1892': 'Miramar', 'SK-2384': 'Margate'}
 
-# ── Proxy helper ─────────────────────────────────────────────────
+# ── DB helper (direct Azure SQL if configured, else local proxy) ──
 def sql(query: str):
+    if os.environ.get('AZURE_SQL_SERVER'):
+        import pymssql
+        conn = pymssql.connect(
+            server=os.environ['AZURE_SQL_SERVER'],
+            user=os.environ['AZURE_SQL_USER'],
+            password=os.environ['AZURE_SQL_PASSWORD'],
+            database=os.environ.get('AZURE_SQL_DATABASE', 'master'),
+            as_dict=True,
+        )
+        cursor = conn.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall() if cursor.description else []
+        conn.commit()
+        conn.close()
+        return rows
     body = json.dumps({'query': query}).encode()
     req  = urllib.request.Request(PROXY, data=body, headers={'Content-Type': 'application/json'})
     resp = json.loads(urllib.request.urlopen(req).read())
@@ -189,27 +221,41 @@ def insert_till(records: list[dict]):
         )
         sql(f'INSERT INTO smoothieking.tillhistory ({cols}) VALUES {vals}')
 
+def _parse_args():
+    p = argparse.ArgumentParser(description='Import labor/till files into Azure SQL')
+    p.add_argument('--timecard-dir', help='Import every file in this directory as a timecard')
+    p.add_argument('--till-dir', help='Import every file in this directory as a till history report')
+    return p.parse_args()
+
+
 # ── MAIN ─────────────────────────────────────────────────────────
 def main():
+    args = _parse_args()
+    using_proxy = not os.environ.get('AZURE_SQL_SERVER')
+
     # Test connection
     try:
         sql('SELECT 1 AS ok')
-        print('✅ Connected to proxy')
+        print('✅ Connected via proxy' if using_proxy else '✅ Connected directly to Azure SQL')
     except Exception:
-        print('❌ Cannot reach proxy — run: python3 /Users/sam/azure-sql-proxy.py')
+        if using_proxy:
+            print('❌ Cannot reach proxy — run: python3 /Users/sam/azure-sql-proxy.py')
+        else:
+            print('❌ Cannot reach Azure SQL directly — check AZURE_SQL_* env vars')
         return
 
-    # (6) = Pines Jun 15-23 | (7) = Miramar Jun 15-23 | (8) = Margate Jun 15-23
-    timecard_files = [
-        DOWNLOADS / 'Employee Timecard (6).txt',  # Pines
-        DOWNLOADS / 'Employee Timecard (7).txt',  # Miramar
-        DOWNLOADS / 'Employee Timecard (8).txt',  # Margate
-    ]
-    till_files = [
-        DOWNLOADS / 'Till History.txt',
-        DOWNLOADS / 'Till History (1).txt',
-        DOWNLOADS / 'Till History (2).txt',
-    ]
+    if args.timecard_dir or args.till_dir:
+        # Explicit-directory mode (e.g. cloud routine, files staged from Drive) --
+        # every file in the directory is treated as that type; store identity is
+        # still auto-detected per-file from line 1, same as local mode.
+        timecard_files = sorted(Path(args.timecard_dir).iterdir()) if args.timecard_dir else []
+        till_files = sorted(Path(args.till_dir).iterdir()) if args.till_dir else []
+    else:
+        # Local manual mode: most-recent files per store in ~/Downloads, identified
+        # by filename pattern (store identity still comes from file content, not
+        # the filename -- these globs just narrow down which downloads to look at).
+        timecard_files = best_file('Employee Timecard*.txt')[:3]
+        till_files = best_file('Till History*.txt')[:3]
 
     # ── Labor ────────────────────────────────────────────────────
     print('\n⏳ Parsing timecards...')

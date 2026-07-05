@@ -44,3 +44,10 @@ cache.json
 # Sigma MCP patch files (temp)
 data/sigma-patch.json
 data/mcp-patch.json
+
+# pfg_extractor: local-only state/output, never needed in the cloud routine
+# (which uses Azure SQL watermarks instead) or in this repo's history
+src/pfg_extractor/pfg_state.json
+src/pfg_extractor/out/
+src/pfg_extractor/credentials.json
+src/pfg_extractor/token.json

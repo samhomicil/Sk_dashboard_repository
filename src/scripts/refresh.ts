@@ -6,12 +6,26 @@
  * data, and writes data/cache.json.
  */
 
-import { writeFileSync, mkdirSync } from 'fs'
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { format } from 'date-fns'
 import { PROXY_URL } from '../lib/config'
 import { buildCacheData } from '../lib/cache-builder'
 import { writeCacheToDb } from '../lib/azure-cache'
+
+// tsx doesn't auto-load .env.local the way Next.js does — load it manually
+// (same approach sigma-fetch.py uses) so local direct-DB writes actually work.
+function loadEnvLocal() {
+  const path = join(process.cwd(), '.env.local')
+  if (!existsSync(path)) return
+  for (const line of readFileSync(path, 'utf-8').split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue
+    const [key, ...rest] = trimmed.split('=')
+    if (!(key in process.env)) process.env[key] = rest.join('=').trim()
+  }
+}
+loadEnvLocal()
 
 async function testConnection() {
   if (process.env.AZURE_SQL_SERVER) return  // mssql connects lazily on first query

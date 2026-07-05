@@ -30,19 +30,19 @@ const HOURS = Array.from({ length: 15 }, (_, i) => {
   return { num: h, label: `${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}` }
 })
 
-// Color by UPLH (units sold per labor hour) — thresholds calibrated to
-// this store group's observed range (~0-40 UPLH per hour cell).
+// Color by UPLH (real units sold, excluding modifiers/discounts, per labor
+// hour) against Sam's benchmark of 18 UPLH: below is overstaffed, above is
+// understaffed, with a tolerance band around the target treated as optimal.
+const UPLH_TARGET = 18
 function heatBg(v: number): string {
-  if (!v)      return '#f8fafc'
-  if (v < 8)   return '#dbeafe'
-  if (v <= 16) return '#ccfbf1'
-  if (v <= 24) return '#0d9488'
-  if (v <= 32) return '#f59e0b'
-  return '#ef4444'
+  if (!v)                     return '#f8fafc'
+  if (v < UPLH_TARGET * 0.78) return '#dbeafe' // overstaffed
+  if (v <= UPLH_TARGET * 1.22) return '#0d9488' // optimal (~14-22)
+  if (v <= UPLH_TARGET * 1.55) return '#f59e0b' // understaffed (~22-28)
+  return '#ef4444'                              // critically understaffed
 }
 function heatFg(v: number): string {
-  if (!v || v < 8) return '#93c5fd'
-  if (v <= 16)     return '#0f766e'
+  if (!v || v < UPLH_TARGET * 0.78) return '#93c5fd'
   return '#fff'
 }
 
@@ -141,9 +141,10 @@ export default function Heatmap({ data, store, period, dates, unitsWindow, loadi
             Staffing: {laborRange}{volumeRange ? <> · Sales volume benchmark: 90-day avg ({volumeRange})</> : null}
           </div>
           <div className="text-xs text-slate-400 mt-0.5">
-            <span className="font-semibold text-blue-400">Blue &lt;8</span> overstaffed &nbsp;·&nbsp;
-            <span className="font-semibold text-teal-600">Teal 8–16</span> optimal &nbsp;·&nbsp;
-            <span className="font-semibold text-amber-500">Amber &gt;24</span> understaffed
+            Target 18 UPLH &nbsp;·&nbsp;
+            <span className="font-semibold text-blue-400">Blue &lt;14</span> overstaffed &nbsp;·&nbsp;
+            <span className="font-semibold text-teal-600">Teal 14–22</span> optimal &nbsp;·&nbsp;
+            <span className="font-semibold text-amber-500">Amber/Red &gt;22</span> understaffed
             {showEmployees ? ' · hover for names' : ' · switch to weekly to see employees'}
           </div>
         </div>

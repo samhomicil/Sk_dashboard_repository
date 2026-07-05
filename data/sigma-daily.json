@@ -1,6 +1,6 @@
 {
-  "refreshedAt": "2026-07-04T18:57:42.735Z",
-  "thruDate": "2026-07-03",
+  "refreshedAt": "2026-07-05T20:00:00.000Z",
+  "thruDate": "2026-07-04",
   "sales": [
     {
       "date": "2025-01-01",
@@ -11447,6 +11447,30 @@
       "gross_sales": 1374.21,
       "voids_amount": 52.64,
       "orders": 112
+    },
+    {
+      "date": "2026-07-04",
+      "location": "1392 - Pembroke Pines, FL",
+      "net_sales": 983.0,
+      "gross_sales": 1047.03,
+      "voids_amount": 24.97,
+      "orders": 78
+    },
+    {
+      "date": "2026-07-04",
+      "location": "1892 - Miramar, FL",
+      "net_sales": 1115.57,
+      "gross_sales": 1188.26,
+      "voids_amount": 58.93,
+      "orders": 90
+    },
+    {
+      "date": "2026-07-04",
+      "location": "2384 - Margate, FL",
+      "net_sales": 653.67,
+      "gross_sales": 694.92,
+      "voids_amount": 18.08,
+      "orders": 60
     }
   ],
   "cogs": [
@@ -13733,7 +13757,7 @@
       "date": "2025-12-22",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D’Nasia",
+      "first_name": "D\u2019Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -13821,7 +13845,7 @@
       "date": "2025-12-23",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D’Nasia",
+      "first_name": "D\u2019Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -14239,7 +14263,7 @@
       "date": "2025-12-29",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D’Nasia",
+      "first_name": "D\u2019Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -14360,7 +14384,7 @@
       "date": "2025-12-30",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D’Nasia",
+      "first_name": "D\u2019Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -15042,7 +15066,7 @@
       "date": "2026-01-07",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D’Nasia",
+      "first_name": "D\u2019Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -32362,6 +32386,72 @@
       "rate": 13.5,
       "hours": 6.03,
       "pay": 84.42
+    },
+    {
+      "date": "2026-07-04",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Khayden",
+      "last_name": "Woods",
+      "position": "Team Captain",
+      "rate": 14.25,
+      "hours": 11.28,
+      "pay": 160.74
+    },
+    {
+      "date": "2026-07-04",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Nicholas",
+      "last_name": "Ion",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 8.08,
+      "pay": 113.12
+    },
+    {
+      "date": "2026-07-04",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Rebecca",
+      "last_name": "Craig",
+      "position": "Assistant General Manager",
+      "rate": 20.5,
+      "hours": 4.65,
+      "pay": 95.33
+    },
+    {
+      "date": "2026-07-04",
+      "location_code": "1892",
+      "location": "1892 - Miramar, FL",
+      "first_name": "Catlyn",
+      "last_name": "Simmons",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 6.79,
+      "pay": 95.06
+    },
+    {
+      "date": "2026-07-04",
+      "location_code": "1892",
+      "location": "1892 - Miramar, FL",
+      "first_name": "Sebastian",
+      "last_name": "Mercado",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 4.51,
+      "pay": 63.14
+    },
+    {
+      "date": "2026-07-04",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Tariq",
+      "last_name": "Leon",
+      "position": "Team Captain",
+      "rate": 14.0,
+      "hours": 0.56,
+      "pay": 7.84
     }
   ]
 }

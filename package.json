@@ -14,8 +14,8 @@
     "refresh": "npx tsx src/scripts/refresh.ts",
     "refresh-all": "npm run sigma && npm run refresh",
     "go": "concurrently -n proxy,dashboard -c cyan,teal \"python3 /Users/sam/azure-sql-proxy.py\" \"npm run dev\"",
-    "deploy": "vercel --prod",
-    "ship": "npm run refresh && vercel --prod",
+    "deploy": "git add data && (git commit -m 'Refresh data' || true) && git push",
+    "ship": "npm run refresh && npm run deploy",
     "refresh:full": "npm run inject && npm run ship"
   },
   "dependencies": {

@@ -49,6 +49,21 @@ function heatFg(v: number): string {
 function StoreGrid({ name, cells, compact, showEmployees }: { name: string; cells: StaffingCell[]; compact: boolean; showEmployees: boolean }) {
   const map = new Map(cells.map(c => [`${c.hourNum}|${c.day}`, c]))
 
+  // Per-day totals: sum(units)/sum(labor-hours) across all displayed hours for
+  // that day -- NOT an average of the hourly UPLH values, which would weight
+  // every hour equally regardless of volume. Grand total does the same across
+  // every cell in the grid.
+  const dayTotals = [0,1,2,3,4,5,6].map(dow => {
+    let units = 0, hours = 0
+    for (const { num } of HOURS) {
+      const c = map.get(`${num}|${dow}`)
+      if (c) { units += c.avgUnits; hours += c.count }
+    }
+    return { units, hours, uplh: hours > 0 ? Math.round((units / hours) * 10) / 10 : 0 }
+  })
+  const grand = dayTotals.reduce((acc, d) => ({ units: acc.units + d.units, hours: acc.hours + d.hours }), { units: 0, hours: 0 })
+  const grandUplh = grand.hours > 0 ? Math.round((grand.units / grand.hours) * 10) / 10 : 0
+
   return (
     <div className="min-w-0">
       {compact && (
@@ -64,6 +79,9 @@ function StoreGrid({ name, cells, compact, showEmployees }: { name: string; cell
                 {compact ? d[0] : d}
               </th>
             ))}
+            <th className="text-center text-slate-500 font-bold pb-1">
+              {compact ? 'Σ' : 'Total'}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -108,8 +126,34 @@ function StoreGrid({ name, cells, compact, showEmployees }: { name: string; cell
                   </td>
                 )
               })}
+              <td className={compact ? 'px-0.5 py-0.5' : 'py-1 px-1'} />
             </tr>
           ))}
+          <tr className="border-t-2 border-slate-200">
+            <td className={`text-right text-slate-500 font-bold whitespace-nowrap ${compact ? 'pr-1 py-1' : 'pr-3 py-1.5'}`}>
+              {compact ? 'Σ' : 'Total'}
+            </td>
+            {dayTotals.map((d, dow) => (
+              <td key={dow} className={compact ? 'px-0.5 py-1' : 'py-1.5 px-1'}>
+                <div
+                  className={`w-full flex items-center justify-center rounded font-bold cursor-default ${compact ? 'h-5 text-[9px]' : 'h-9 text-[11px]'}`}
+                  style={{ background: heatBg(d.uplh), color: heatFg(d.uplh) }}
+                  title={`${d.units.toFixed(1)} units · ${d.hours.toFixed(1)} labor hrs → ${d.uplh.toFixed(1)} UPLH`}
+                >
+                  {d.uplh > 0 ? d.uplh.toFixed(d.uplh % 1 === 0 ? 0 : 1) : ''}
+                </div>
+              </td>
+            ))}
+            <td className={compact ? 'px-0.5 py-1' : 'py-1.5 px-1'}>
+              <div
+                className={`w-full flex items-center justify-center rounded font-bold cursor-default ${compact ? 'h-5 text-[9px]' : 'h-9 text-[11px]'}`}
+                style={{ background: heatBg(grandUplh), color: heatFg(grandUplh) }}
+                title={`Grand total: ${grand.units.toFixed(1)} units · ${grand.hours.toFixed(1)} labor hrs → ${grandUplh.toFixed(1)} UPLH`}
+              >
+                {grandUplh > 0 ? grandUplh.toFixed(grandUplh % 1 === 0 ? 0 : 1) : ''}
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

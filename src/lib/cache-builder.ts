@@ -907,10 +907,7 @@ export async function buildCacheData() {
   const staffingData: Record<string, StaffingData> = {}
   for (const period of PERIODS) {
     const r = dr[period]
-    const staffStart = period === 'weekly'
-      ? format(subWeeks(new Date(r.end + 'T00:00:00'), 4), 'yyyy-MM-dd')
-      : r.start
-    staffingData[period] = await fetchStaffing(staffStart, r.end)
+    staffingData[period] = await fetchStaffing(r.start, r.end)
   }
 
   const prodData: Record<string, Record<string, ProductRow[]>> = {}

@@ -12,16 +12,10 @@ interface Props {
   loading:     boolean
 }
 
-// Labor-hours staffing counts follow the selected period's own date range,
-// EXCEPT "weekly" which deliberately averages the last 4 weeks (L4W) ending
-// on that week, not just the single most-recent week — see cache-builder.ts.
-function laborRangeLabel(period: string, dates: DateRange): string {
-  if (period !== 'weekly') return `${weekLabel(dates.start)}–${weekLabel(dates.end)}`
-  const end = new Date(dates.end + 'T00:00:00')
-  const start = new Date(end)
-  start.setDate(start.getDate() - 27) // 4 weeks back from the period end, inclusive
-  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return `${weekLabel(iso(start))}–${weekLabel(dates.end)} (last 4 wks)`
+// Labor-hours staffing counts follow the selected period's own date range —
+// see cache-builder.ts.
+function laborRangeLabel(dates: DateRange): string {
+  return `${weekLabel(dates.start)}–${weekLabel(dates.end)}`
 }
 
 const DAYS  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -203,7 +197,7 @@ export default function Heatmap({ data, store, period, dates, unitsWindow, loadi
   const isAll = store === 'all'
   const showEmployees = period === 'weekly'
   const visibleStores = isAll ? STORE_KEYS : STORE_KEYS.filter(s => s.key === store)
-  const laborRange  = laborRangeLabel(period, dates)
+  const laborRange  = laborRangeLabel(dates)
   const volumeRange = unitsWindow ? `${weekLabel(unitsWindow.start)}–${weekLabel(unitsWindow.end)}` : null
   const singleTarget = !isAll ? STORE_TARGETS[visibleStores[0]?.key ?? 'pines'] : null
 

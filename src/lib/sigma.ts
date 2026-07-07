@@ -434,6 +434,37 @@ export function sigmaHeatmap(store: Store): HeatCell[] {
     }))
 }
 
+const HEATMAP_WEEKLY_PATH = join(process.cwd(), 'data', 'heatmap-weekly.json')
+interface HeatWeeklyRow  { dow: number; hour: number; units: number }
+interface HeatWeeklyFile { weekStart: string; weekEnd: string; pines: HeatWeeklyRow[]; miramar: HeatWeeklyRow[]; margate: HeatWeeklyRow[] }
+
+// Real (non-averaged) units sold for the single most-recent Mon-Sun week, by
+// (day-of-week, hour) — used for the Weekly heatmap tab so its "units" side
+// reflects actual sales from the same week as its staffing hours, instead of
+// the 90-day average used by Monthly/Quarterly/YTD. Refreshed weekly.
+export function sigmaHeatmapWeeklyWindow(): { start: string; end: string } | null {
+  if (!existsSync(HEATMAP_WEEKLY_PATH)) return null
+  const data = JSON.parse(readFileSync(HEATMAP_WEEKLY_PATH, 'utf-8')) as HeatWeeklyFile
+  if (!data.weekStart || !data.weekEnd) return null
+  return { start: data.weekStart, end: data.weekEnd }
+}
+
+export function sigmaHeatmapWeekly(store: Store): Map<string, number> {
+  const map = new Map<string, number>()
+  if (!existsSync(HEATMAP_WEEKLY_PATH)) return map
+  const data = JSON.parse(readFileSync(HEATMAP_WEEKLY_PATH, 'utf-8')) as HeatWeeklyFile
+  const rows = store === 'pines'   ? data.pines
+    :          store === 'miramar' ? data.miramar
+    :          store === 'margate' ? data.margate
+    :          [...data.pines, ...data.miramar, ...data.margate]
+  for (const r of rows) {
+    if (r.hour < 7 || r.hour > 21) continue
+    const key = `${r.dow}|${r.hour}`
+    map.set(key, (map.get(key) ?? 0) + r.units)
+  }
+  return map
+}
+
 // Labor Actual V2 location code → store key
 const LABOR_CODE_TO_STORE: Record<string, Store> = {
   '1392': 'pines',

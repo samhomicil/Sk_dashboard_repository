@@ -14,7 +14,7 @@ import { PROXY_URL, TARGETS } from './config'
 import {
   sigmaSales, sigmaCogs, sigmaMonthSales, sigmaWeeklySales, sigmaDailySales,
   sigmaOrders, sigmaChannels, sigmaThruDate, sigmaCogsActualThruDate,
-  sigmaEmployees, sigmaAllEmpKeys, sigmaEEByDate, sigmaEEDailyPct, sigmaHeatmap,
+  sigmaEmployees, sigmaAllEmpKeys, sigmaEEByDate, sigmaEEDailyPct, sigmaHeatmap, sigmaHeatmapWeekly,
 } from './sigma'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
@@ -386,7 +386,7 @@ function reverseEmpName(n: string): string {
   return p.length === 2 ? `${p[1].trim()} ${p[0].trim()}` : n
 }
 
-async function fetchStaffing(start: string, end: string): Promise<StaffingData> {
+async function fetchStaffing(start: string, end: string, useRealUnits: boolean): Promise<StaffingData> {
   const rows = await dbQuery<{
     store: string; employee: string; shift_date: string
     shift_start: string; shift_end: string
@@ -441,8 +441,12 @@ async function fetchStaffing(start: string, end: string): Promise<StaffingData> 
     pines: new Map(), miramar: new Map(), margate: new Map(),
   }
   for (const sk of ['pines', 'miramar', 'margate'] as (keyof StaffingData)[]) {
-    for (const c of sigmaHeatmap(sk as Store)) {
-      unitMaps[sk].set(`${c.day}|${c.hourNum}`, c.rawUnits)
+    if (useRealUnits) {
+      unitMaps[sk] = sigmaHeatmapWeekly(sk as Store)
+    } else {
+      for (const c of sigmaHeatmap(sk as Store)) {
+        unitMaps[sk].set(`${c.day}|${c.hourNum}`, c.rawUnits)
+      }
     }
   }
 
@@ -907,7 +911,7 @@ export async function buildCacheData() {
   const staffingData: Record<string, StaffingData> = {}
   for (const period of PERIODS) {
     const r = dr[period]
-    staffingData[period] = await fetchStaffing(r.start, r.end)
+    staffingData[period] = await fetchStaffing(r.start, r.end, period === 'weekly')
   }
 
   const prodData: Record<string, Record<string, ProductRow[]>> = {}

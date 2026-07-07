@@ -65,7 +65,9 @@ function StoreGrid({ name, target, cells, compact, showEmployees }: { name: stri
       {compact && (
         <div className="text-center mb-1.5">
           <div className="text-[11px] font-bold text-slate-600 tracking-wide">{name}</div>
-          <div className="text-[8px] text-slate-400">target {target}</div>
+          <div className="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-slate-100 text-[9px] font-bold text-slate-600">
+            Target {target}
+          </div>
         </div>
       )}
       {/* No overflow-x-auto in compact; table-fixed makes it fit its container */}
@@ -195,7 +197,8 @@ export default function Heatmap({ data, store, period, dates, unitsWindow, loadi
   if (!data)   return null
 
   const isAll = store === 'all'
-  const showEmployees = period === 'weekly'
+  const isWeekly = period === 'weekly'
+  const showEmployees = isWeekly
   const visibleStores = isAll ? STORE_KEYS : STORE_KEYS.filter(s => s.key === store)
   const laborRange  = laborRangeLabel(dates)
   const volumeRange = unitsWindow ? `${weekLabel(unitsWindow.start)}–${weekLabel(unitsWindow.end)}` : null
@@ -207,11 +210,14 @@ export default function Heatmap({ data, store, period, dates, unitsWindow, loadi
         <div>
           <div className="text-sm font-bold text-slate-700">Staff Schedule — Units / Labor Hour by Hour</div>
           <div className="text-xs text-slate-400 mt-0.5">
-            Staffing: {laborRange}{volumeRange ? <> · Sales volume benchmark: 90-day avg ({volumeRange})</> : null}
+            {isWeekly
+              ? <>Staffing &amp; sales: {laborRange} (actual)</>
+              : <>Staffing: {laborRange}{volumeRange ? <> · Sales volume benchmark: 90-day avg ({volumeRange})</> : null}</>
+            }
           </div>
           {isAll ? (
             <div className="text-xs text-slate-400 mt-0.5">
-              Target UPLH per store shown below store name &nbsp;·&nbsp;
+              Targets — <span className="font-bold text-slate-600">Pines {STORE_TARGETS.pines}</span> · <span className="font-bold text-slate-600">Miramar {STORE_TARGETS.miramar}</span> · <span className="font-bold text-slate-600">Margate {STORE_TARGETS.margate}</span> UPLH &nbsp;·&nbsp;
               <span className="font-semibold text-blue-400">Blue</span> below target (overstaffed) &nbsp;·&nbsp;
               <span className="font-semibold text-teal-600">Teal</span> at target (optimal) &nbsp;·&nbsp;
               <span className="font-semibold text-amber-500">Amber/Red</span> above target (understaffed)

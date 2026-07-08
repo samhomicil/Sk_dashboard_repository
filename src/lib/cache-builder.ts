@@ -420,8 +420,10 @@ async function fetchStaffing(start: string, end: string, useRealUnits: boolean):
     const dt  = new Date(row.shift_date + 'T00:00:00')
     const dow = dt.getDay()
     const sH  = parseHour24(row.shift_start)
-    const eH  = parseHour24(row.shift_end)
-    if (sH === null || eH === null || eH <= sH) continue
+    let   eH  = parseHour24(row.shift_end)
+    if (sH === null || eH === null) continue
+    if (eH < sH) eH += 24   // shift closes after midnight — count it through to closing, not off the grid
+    if (eH <= sH) continue  // still invalid: same-minute clock-in/out, bad data
 
     const dowKey = `${sk}|${dow}`
     if (!storeDowDates.has(dowKey)) storeDowDates.set(dowKey, new Set())

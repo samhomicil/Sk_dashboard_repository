@@ -313,43 +313,9 @@ export function sigmaEEByDate(start: string): {
   return empty
 }
 
-// Daily EE% (ee/sm) for a store on a specific date — from ee-daily.json
-const LABOR_DAILY_PATH = join(process.cwd(), 'data', 'labor-daily.json')
-interface LaborDailyRow  { date: string; labor: number; hours: number }
-interface LaborDailyFile { pines: LaborDailyRow[]; miramar: LaborDailyRow[]; margate: LaborDailyRow[]; thruDate?: string }
-
-function loadLaborDailyRows(data: LaborDailyFile, store: Store): LaborDailyRow[] {
-  if (store === 'pines')   return data.pines
-  if (store === 'miramar') return data.miramar
-  if (store === 'margate') return data.margate
-  return [...data.pines, ...data.miramar, ...data.margate]
-}
-
-export function sigmaLaborDay(store: Store, date: string): { labor: number; hours: number } {
-  if (!existsSync(LABOR_DAILY_PATH)) return { labor: 0, hours: 0 }
-  const data = JSON.parse(readFileSync(LABOR_DAILY_PATH, 'utf-8')) as LaborDailyFile
-  if (store === 'all') {
-    const rows = loadLaborDailyRows(data, 'all').filter(r => r.date === date)
-    return { labor: rows.reduce((s, r) => s + r.labor, 0), hours: rows.reduce((s, r) => s + r.hours, 0) }
-  }
-  const row = loadLaborDailyRows(data, store).find(r => r.date === date)
-  return { labor: row?.labor ?? 0, hours: row?.hours ?? 0 }
-}
-
-export function sigmaLaborRange(store: Store, start: string, end: string): number {
-  if (!existsSync(LABOR_DAILY_PATH)) return 0
-  const data = JSON.parse(readFileSync(LABOR_DAILY_PATH, 'utf-8')) as LaborDailyFile
-  return loadLaborDailyRows(data, store)
-    .filter(r => r.date >= start && r.date <= end)
-    .reduce((s, r) => s + r.labor, 0)
-}
-
-export function sigmaLaborData(store: Store, start: string, end: string): { labor: number; hours: number } {
-  if (!existsSync(LABOR_DAILY_PATH)) return { labor: 0, hours: 0 }
-  const data = JSON.parse(readFileSync(LABOR_DAILY_PATH, 'utf-8')) as LaborDailyFile
-  const rows = loadLaborDailyRows(data, store).filter(r => r.date >= start && r.date <= end)
-  return { labor: rows.reduce((s, r) => s + r.labor, 0), hours: rows.reduce((s, r) => s + r.hours, 0) }
-}
+// Labor cost/hours come from smoothieking.labor in Azure SQL (see
+// api/kpis/route.ts and api/daily/route.ts) — not from a bundled Sigma file,
+// which would go stale between manual refreshes.
 
 const EE_DAILY_PATH = join(process.cwd(), 'data', 'ee-daily.json')
 interface EEDailyRow  { date: string; sm: number; ee: number }

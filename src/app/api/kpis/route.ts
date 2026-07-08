@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { cacheKpisAsync } from '@/lib/cache'
-import { sigmaSales, sigmaOrders, sigmaCogs, sigmaCogsActualThruDate, sigmaEERange, sigmaLaborData } from '@/lib/sigma'
+import { sigmaSales, sigmaOrders, sigmaCogs, sigmaCogsActualThruDate, sigmaEERange } from '@/lib/sigma'
 import { query, dateFilter } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
@@ -51,17 +51,21 @@ export async function GET(req: NextRequest) {
   const discountPct = sig.gross_sales > 0
     ? Math.max(0, sig.gross_sales - sig.net_sales - sig.voids_amount) / sig.gross_sales : 0
 
-  const { labor: laborCost, hours: laborHours } = sigmaLaborData(store, start, end)
-  let pfsTot = 0, wmTot = 0, tillVar = 0
+  let pfsTot = 0, wmTot = 0, tillVar = 0, laborCost = 0, laborHours = 0
   try {
-    const [pfsR, wmR, tillR] = await Promise.allSettled([
+    const [pfsR, wmR, tillR, laborR] = await Promise.allSettled([
       query<{ v: number }[]>(`SELECT SUM(line_total) AS v FROM smoothieking.pfg_order_line_items WHERE ${sfPfs(store)} AND ${dateFilter(start, end, 'order_date')}`),
       query<{ v: number }[]>(`SELECT SUM(item_subtotal) AS v FROM smoothieking.walmart_spend WHERE ${sfWm(store)}  AND ${dateFilter(start, end, 'order_date')}`),
       query<{ v: number }[]>(`SELECT ABS(SUM(over_short)) AS v FROM smoothieking.tillhistory WHERE ${sfDb(store)}  AND ${dateFilter(start, end, 'till_date')}`),
+      query<{ total_pay: number; total_hrs: number }[]>(`SELECT SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs FROM smoothieking.labor WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'shift_date')}`),
     ])
     if (pfsR.status  === 'fulfilled') pfsTot  = Number(pfsR.value[0]?.v)  || 0
     if (wmR.status   === 'fulfilled') wmTot   = Number(wmR.value[0]?.v)   || 0
     if (tillR.status === 'fulfilled') tillVar = Number(tillR.value[0]?.v) || 0
+    if (laborR.status === 'fulfilled') {
+      laborCost  = Number(laborR.value[0]?.total_pay) || 0
+      laborHours = Number(laborR.value[0]?.total_hrs) || 0
+    }
   } catch { /* proxy not available — DB metrics will show 0 */ }
 
   let cogsActualPct: number | null = null

@@ -1,19 +1,43 @@
 import { NextRequest } from 'next/server'
 import { cacheDailyAsync } from '@/lib/cache'
-import { sigmaDailyFull, sigmaEEDailyPct, sigmaLaborDay } from '@/lib/sigma'
+import { sigmaDailyFull, sigmaEEDailyPct } from '@/lib/sigma'
+import { query, dateFilter } from '@/lib/db'
 import type { Store, DailyRow } from '@/lib/types'
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
+
+function sfDb(store: Store) {
+  if (store === 'all') return '1=1'
+  return `store = '${DB_STORE[store]}'`
+}
+
+async function fetchLaborByDay(store: Store, start: string, end: string): Promise<Map<string, { labor: number; hours: number }>> {
+  const map = new Map<string, { labor: number; hours: number }>()
+  try {
+    const rows = await query<{ d: string; total_pay: number; total_hrs: number }[]>(`
+      SELECT CAST(shift_date AS DATE) AS d, SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs
+      FROM smoothieking.labor
+      WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'shift_date')}
+      GROUP BY CAST(shift_date AS DATE)
+    `)
+    for (const r of rows) {
+      map.set(new Date(r.d).toISOString().slice(0, 10), { labor: Number(r.total_pay) || 0, hours: Number(r.total_hrs) || 0 })
+    }
+  } catch { /* proxy not available — labor will show blank for this range */ }
+  return map
+}
 
 async function buildRange(store: Store, start: string, end: string): Promise<DailyRow[]> {
-  const sigMap = sigmaDailyFull(store, start, end)
+  const sigMap   = sigmaDailyFull(store, start, end)
+  const laborMap = await fetchLaborByDay(store, start, end)
   const rows: DailyRow[] = []
   const endDate = new Date(end + 'T00:00:00')
 
   for (let d = new Date(start + 'T00:00:00'); d <= endDate; d.setDate(d.getDate() + 1)) {
     const dateStr    = d.toISOString().slice(0, 10)
     const sig        = sigMap.get(dateStr)
-    const laborData  = sigmaLaborDay(store, dateStr)
+    const laborData  = laborMap.get(dateStr) ?? { labor: 0, hours: 0 }
 
     rows.push({
       date:        dateStr,

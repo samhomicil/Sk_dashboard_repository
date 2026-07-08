@@ -2,6 +2,10 @@ import { PROXY_URL, STORE_CODES } from './config'
 import type { Store } from './types'
 
 export async function query<T = Record<string, unknown>[]>(sql: string): Promise<T> {
+  if (process.env.AZURE_SQL_SERVER) {
+    const { azureSqlQuery } = await import('./azure-cache')
+    return azureSqlQuery<T>(sql)
+  }
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

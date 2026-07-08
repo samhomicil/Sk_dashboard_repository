@@ -11,6 +11,7 @@ import { join } from 'path'
 import { format } from 'date-fns'
 import { PROXY_URL } from '../lib/config'
 import { buildCacheData } from '../lib/cache-builder'
+import { buildPurchasingData } from '../lib/purchasing-builder'
 import { writeCacheToDb } from '../lib/azure-cache'
 
 // tsx doesn't auto-load .env.local the way Next.js does — load it manually
@@ -55,6 +56,11 @@ async function main() {
 
   mkdirSync(join(process.cwd(), 'data'), { recursive: true })
   writeFileSync(join(process.cwd(), 'data', 'cache.json'), JSON.stringify(cache, null, 2))
+
+  console.log('⏳ Building purchasing data...')
+  const purchasing = await buildPurchasingData()
+  writeFileSync(join(process.cwd(), 'data', 'purchasing.json'), JSON.stringify(purchasing, null, 2))
+  console.log('✅ data/purchasing.json written')
 
   // Production reads from smoothieking.dashboard_cache (see src/lib/cache.ts
   // getCacheAsync), not the deployed cache.json file — the DB row must be

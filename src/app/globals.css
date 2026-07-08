@@ -42,3 +42,99 @@ body {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ============================================================
+   App sidebar (ported from sk-bills' AppSidebar pattern)
+   ============================================================ */
+.sk-side {
+  width: 248px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #1E293B 0%, #111827 100%);
+  color: #CBD5E1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  transition: width 0.18s ease;
+}
+.sk-side.collapsed { width: 70px; }
+
+.sk-brand { display: flex; align-items: center; gap: 11px; padding: 20px 18px 18px; text-decoration: none; }
+.sk-brand .sk-mark {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: linear-gradient(135deg, #14B8A6, #0f766e); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; flex-shrink: 0; box-shadow: 0 2px 6px rgba(15, 118, 110, 0.35);
+}
+.sk-brand .sk-nm { font-size: 15px; font-weight: 700; color: #F8FAFC; white-space: nowrap; }
+.sk-side.collapsed .sk-brand .sk-nm { display: none; }
+.sk-side.collapsed .sk-brand { justify-content: center; padding: 20px 0 18px; }
+
+.sk-navlabel { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748B; padding: 6px 20px 6px; }
+.sk-side.collapsed .sk-navlabel { text-align: center; padding: 6px 0; font-size: 8px; }
+
+.sk-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; }
+.sk-side.collapsed .sk-nav { padding: 0 10px; }
+.sk-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 9px;
+  color: #CBD5E1; cursor: pointer; font-size: 13.5px; font-weight: 500; position: relative;
+  text-decoration: none; transition: background 0.12s, color 0.12s; white-space: nowrap;
+  background: none; border: none; width: 100%; font-family: inherit; text-align: left;
+}
+.sk-item svg.sk-ico { width: 19px; height: 19px; flex-shrink: 0; stroke: currentColor; }
+.sk-item:hover { background: rgba(148, 163, 184, 0.10); color: #F1F5F9; }
+.sk-item.active { background: rgba(148, 163, 184, 0.14); color: #fff; font-weight: 600; }
+.sk-item.section { color: #F1F5F9; }
+.sk-item.active::before {
+  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 22px; border-radius: 0 3px 3px 0; background: #2DD4BF;
+}
+.sk-item .sk-lbl { min-width: 0; }
+.sk-side.collapsed .sk-item { justify-content: center; padding: 11px 0; }
+.sk-side.collapsed .sk-item .sk-lbl, .sk-side.collapsed .sk-chev { display: none; }
+
+.sk-chev { margin-left: auto; width: 16px; height: 16px; stroke: #94A3B8; transition: transform 0.2s; flex-shrink: 0; padding: 2px; border-radius: 5px; }
+.sk-chev:hover { background: rgba(148, 163, 184, 0.15); }
+.sk-chev.closed { transform: rotate(-90deg); }
+
+.sk-subnav { max-height: 0; overflow: hidden; transition: max-height 0.2s ease; }
+.sk-subnav.open { max-height: 260px; }
+.sk-subwrap { margin: 2px 0 4px 27px; padding-left: 8px; border-left: 1px solid rgba(148, 163, 184, 0.20); display: flex; flex-direction: column; gap: 1px; }
+.sk-subitem { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; color: #94A3B8; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.sk-subitem .sk-sdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; flex-shrink: 0; }
+.sk-subitem:hover { background: rgba(148, 163, 184, 0.10); color: #E2E8F0; }
+.sk-subitem.active { color: #fff; background: rgba(148, 163, 184, 0.14); font-weight: 600; }
+.sk-side.collapsed .sk-subnav { display: none; }
+
+.sk-spring { flex: 1; }
+
+.sk-foot { border-top: 1px solid rgba(148, 163, 184, 0.12); padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+.sk-foot-actions { display: flex; gap: 6px; }
+.sk-fbtn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px; border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08); color: #94A3B8; cursor: pointer; font-size: 12px; font-weight: 600;
+  border: none; font-family: inherit; text-decoration: none;
+}
+.sk-fbtn:hover { background: rgba(148, 163, 184, 0.16); color: #E2E8F0; }
+.sk-fbtn svg { width: 16px; height: 16px; stroke: currentColor; }
+.sk-side.collapsed .sk-fbtn .sk-fl { display: none; }
+.sk-side.collapsed .sk-foot-actions { flex-direction: column; }
+
+/* Icon-only rail on tablet widths — same visual treatment as .collapsed,
+   applied unconditionally so it doesn't fight the manual toggle state. */
+@media (max-width: 767px) {
+  .sk-side { width: 70px; }
+  .sk-side .sk-brand .sk-nm,
+  .sk-side .sk-navlabel,
+  .sk-side .sk-item .sk-lbl,
+  .sk-side .sk-chev,
+  .sk-side .sk-subnav,
+  .sk-side .sk-fbtn .sk-fl,
+  .sk-side .sk-collapse-toggle { display: none; }
+  .sk-side .sk-brand { justify-content: center; padding: 20px 0 18px; }
+  .sk-side .sk-nav { padding: 0 10px; }
+  .sk-side .sk-item { justify-content: center; padding: 11px 0; }
+  .sk-side .sk-foot-actions { flex-direction: column; }
+}
+
+/* Below that, drop the rail entirely — no room for even the icon strip. */
+@media (max-width: 480px) { .sk-side { display: none; } }

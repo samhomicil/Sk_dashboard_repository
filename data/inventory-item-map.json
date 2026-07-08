@@ -1,0 +1,52 @@
+{
+  "items": [
+    {
+      "itemFamilyId": "gladiator-vanilla",
+      "displayName": "Gladiator Vanilla",
+      "sigmaProductNames": ["P6 - Gladiator - Vanilla"],
+      "pfgItemCodes": ["RA182", "798132"],
+      "unitSize": 25,
+      "unitOfMeasure": "lb"
+    },
+    {
+      "itemFamilyId": "gladiator-chocolate",
+      "displayName": "Gladiator Chocolate",
+      "sigmaProductNames": ["P7 - Gladiator - Chocolate"],
+      "pfgItemCodes": ["RA284", "621056"],
+      "unitSize": 25,
+      "unitOfMeasure": "lb"
+    },
+    {
+      "itemFamilyId": "gladiator-strawberry",
+      "displayName": "Gladiator Strawberry",
+      "sigmaProductNames": ["P8 - Gladiator - Strawberry"],
+      "pfgItemCodes": ["RA270", "609573"],
+      "unitSize": 25,
+      "unitOfMeasure": "lb"
+    },
+    {
+      "itemFamilyId": "protein-blend-vanilla",
+      "displayName": "Protein Blend Vanilla 2.0",
+      "sigmaProductNames": ["P3 - Protein Blend"],
+      "pfgItemCodes": ["RF278", "203037"],
+      "unitSize": 25,
+      "unitOfMeasure": "lb"
+    },
+    {
+      "itemFamilyId": "hulk-vanilla",
+      "displayName": "Powder Hulk Vanilla",
+      "sigmaProductNames": ["P5 - Hulk Blend"],
+      "pfgItemCodes": ["RA198", "727267"],
+      "unitSize": 25,
+      "unitOfMeasure": "lb"
+    },
+    {
+      "itemFamilyId": "whey-vanilla",
+      "displayName": "Protein Whey Vanilla",
+      "sigmaProductNames": ["P9 - Whey Protein"],
+      "pfgItemCodes": ["ATT56"],
+      "unitSize": 25,
+      "unitOfMeasure": "lb"
+    }
+  ]
+}

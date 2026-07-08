@@ -1,0 +1,30 @@
+{
+  "refreshedAt": "2026-07-08T01:00:00.000Z",
+  "periodStart": "2026-01-02",
+  "note": "Pulled via an interactive Sigma MCP session against the Inventory v2 connection table — this cannot be automated end-to-end today (no REST credentials configured), so this file only updates when someone re-runs the pull manually. See src/lib/inventoryWatchlist.ts for how periodEnd (per row) is used to derive a weekly rate.",
+  "rows": [
+    { "itemFamilyId": "gladiator-vanilla",     "store": "pines",   "periodEnd": "2026-06-29", "theoreticalQty": 358.90, "actualQty": 391.22, "varianceQty": -32.32,  "purchasesQty": 411 },
+    { "itemFamilyId": "gladiator-vanilla",     "store": "miramar", "periodEnd": "2026-06-29", "theoreticalQty": 332.13, "actualQty": 241.00, "varianceQty": 91.13,   "purchasesQty": 310 },
+    { "itemFamilyId": "gladiator-vanilla",     "store": "margate", "periodEnd": "2026-07-06", "theoreticalQty": 133.70, "actualQty": 77.01,  "varianceQty": 56.69,   "purchasesQty": 130 },
+
+    { "itemFamilyId": "gladiator-chocolate",   "store": "pines",   "periodEnd": "2026-06-29", "theoreticalQty": 188.54, "actualQty": 201.66, "varianceQty": -13.12,  "purchasesQty": 246 },
+    { "itemFamilyId": "gladiator-chocolate",   "store": "miramar", "periodEnd": "2026-06-29", "theoreticalQty": 194.83, "actualQty": 163.50, "varianceQty": 31.33,   "purchasesQty": 215 },
+    { "itemFamilyId": "gladiator-chocolate",   "store": "margate", "periodEnd": "2026-07-06", "theoreticalQty": 96.52,  "actualQty": 46.99,  "varianceQty": 49.53,   "purchasesQty": 61  },
+
+    { "itemFamilyId": "gladiator-strawberry",  "store": "pines",   "periodEnd": "2026-06-29", "theoreticalQty": 213.43, "actualQty": 219.24, "varianceQty": -5.81,   "purchasesQty": 261 },
+    { "itemFamilyId": "gladiator-strawberry",  "store": "miramar", "periodEnd": "2026-06-29", "theoreticalQty": 171.55, "actualQty": 110.50, "varianceQty": 61.05,   "purchasesQty": 160 },
+    { "itemFamilyId": "gladiator-strawberry",  "store": "margate", "periodEnd": "2026-07-06", "theoreticalQty": 88.99,  "actualQty": 23.34,  "varianceQty": 65.65,   "purchasesQty": 25  },
+
+    { "itemFamilyId": "protein-blend-vanilla", "store": "pines",   "periodEnd": "2026-06-29", "theoreticalQty": 542.31, "actualQty": 685.37, "varianceQty": -143.06, "purchasesQty": 707 },
+    { "itemFamilyId": "protein-blend-vanilla", "store": "miramar", "periodEnd": "2026-06-29", "theoreticalQty": 573.64, "actualQty": 636.50, "varianceQty": -62.86,  "purchasesQty": 675 },
+    { "itemFamilyId": "protein-blend-vanilla", "store": "margate", "periodEnd": "2026-07-06", "theoreticalQty": 303.53, "actualQty": 321.90, "varianceQty": -18.37,  "purchasesQty": 337.5 },
+
+    { "itemFamilyId": "hulk-vanilla",          "store": "pines",   "periodEnd": "2026-06-29", "theoreticalQty": 731.65, "actualQty": 998.48, "varianceQty": -266.83, "purchasesQty": 1110 },
+    { "itemFamilyId": "hulk-vanilla",          "store": "miramar", "periodEnd": "2026-06-29", "theoreticalQty": 802.61, "actualQty": 754.50, "varianceQty": 48.11,   "purchasesQty": 800 },
+    { "itemFamilyId": "hulk-vanilla",          "store": "margate", "periodEnd": "2026-07-06", "theoreticalQty": 548.05, "actualQty": 321.28, "varianceQty": 226.77,  "purchasesQty": 375 },
+
+    { "itemFamilyId": "whey-vanilla",          "store": "pines",   "periodEnd": "2026-06-29", "theoreticalQty": 42.84,  "actualQty": 41.37,  "varianceQty": 1.47,    "purchasesQty": 55  },
+    { "itemFamilyId": "whey-vanilla",          "store": "miramar", "periodEnd": "2026-06-29", "theoreticalQty": 44.78,  "actualQty": 70.00,  "varianceQty": -25.22,  "purchasesQty": 100 },
+    { "itemFamilyId": "whey-vanilla",          "store": "margate", "periodEnd": "2026-07-06", "theoreticalQty": 21.93,  "actualQty": -2.73,  "varianceQty": 24.66,   "purchasesQty": 25  }
+  ]
+}

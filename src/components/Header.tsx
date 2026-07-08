@@ -1,8 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { STORE_LABELS } from '@/lib/config'
 import type { Store, Period } from '@/lib/types'
@@ -40,14 +38,8 @@ function fmtRefreshed(iso: string) {
     + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
-const NAV_LINKS = [
-  { href: '/',          label: 'Dashboard' },
-  { href: '/menu-mix',  label: 'Menu Mix'  },
-]
-
 export default function Header({ store, period, dates, onStore, onPeriod, onCustomRange, refreshedAt, onRefresh, refreshing, refreshMsg }: Props) {
   const { data: session } = useSession()
-  const pathname = usePathname()
   const [showCustom, setShowCustom] = useState(false)
   const [cStart, setCStart] = useState(dates.start)
   const [cEnd,   setCEnd]   = useState(dates.end)
@@ -76,27 +68,7 @@ export default function Header({ store, period, dates, onStore, onPeriod, onCust
     <div className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-screen-2xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          {/* Logo + nav */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-teal-700 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">SK</div>
-              <div className="hidden sm:block">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wide">SK Wellness</div>
-              </div>
-            </div>
-            <div className="flex gap-1">
-              {NAV_LINKS.map(({ href, label }) => (
-                <Link key={href} href={href}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    pathname === href
-                      ? 'bg-teal-700 text-white'
-                      : 'text-slate-500 hover:bg-slate-100'
-                  }`}>
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </div>
+          <h1 className="text-sm font-bold text-slate-700">Dashboard</h1>
 
           {/* Controls */}
           <div className="flex items-center gap-3 flex-wrap">

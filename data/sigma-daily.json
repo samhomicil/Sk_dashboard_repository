@@ -1,6 +1,6 @@
 {
-  "refreshedAt": "2026-07-07T12:00:00.000Z",
-  "thruDate": "2026-07-07",
+  "refreshedAt": "2026-07-09T13:22:08.787Z",
+  "thruDate": "2026-07-08",
   "sales": [
     {
       "date": "2025-01-01",
@@ -11451,7 +11451,7 @@
     {
       "date": "2026-07-04",
       "location": "1392 - Pembroke Pines, FL",
-      "net_sales": 983.0,
+      "net_sales": 983,
       "gross_sales": 1047.03,
       "voids_amount": 24.97,
       "orders": 78
@@ -11543,6 +11543,30 @@
       "gross_sales": 1192.99,
       "voids_amount": 7.19,
       "orders": 131
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1392 - Pembroke Pines, FL",
+      "net_sales": 2439.43,
+      "gross_sales": 2596.98,
+      "voids_amount": 31.96,
+      "orders": 304
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1892 - Miramar, FL",
+      "net_sales": 2642.92,
+      "gross_sales": 2813.13,
+      "voids_amount": 23.47,
+      "orders": 343
+    },
+    {
+      "date": "2026-07-08",
+      "location": "2384 - Margate, FL",
+      "net_sales": 1400.14,
+      "gross_sales": 1489.5,
+      "voids_amount": 40.04,
+      "orders": 206
     }
   ],
   "cogs": [
@@ -13829,7 +13853,7 @@
       "date": "2025-12-22",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D\u2019Nasia",
+      "first_name": "D’Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -13917,7 +13941,7 @@
       "date": "2025-12-23",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D\u2019Nasia",
+      "first_name": "D’Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -14335,7 +14359,7 @@
       "date": "2025-12-29",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D\u2019Nasia",
+      "first_name": "D’Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -14456,7 +14480,7 @@
       "date": "2025-12-30",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D\u2019Nasia",
+      "first_name": "D’Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -15138,7 +15162,7 @@
       "date": "2026-01-07",
       "location_code": "2384",
       "location": "2384 - Margate, FL",
-      "first_name": "D\u2019Nasia",
+      "first_name": "D’Nasia",
       "last_name": "Allen",
       "position": "Team Member",
       "rate": 13.75,
@@ -32521,7 +32545,7 @@
       "first_name": "Tariq",
       "last_name": "Leon",
       "position": "Team Captain",
-      "rate": 14.0,
+      "rate": 14,
       "hours": 0.56,
       "pay": 7.84
     },
@@ -32566,8 +32590,8 @@
       "last_name": "Ion",
       "position": "Team Member",
       "rate": 13.5,
-      "hours": 6.0,
-      "pay": 84.0
+      "hours": 6,
+      "pay": 84
     },
     {
       "date": "2026-07-05",
@@ -32620,7 +32644,7 @@
       "first_name": "Kayleigh",
       "last_name": "Edwards",
       "position": "Team Member",
-      "rate": 14.0,
+      "rate": 14,
       "hours": 5.73,
       "pay": 80.22
     },
@@ -32741,7 +32765,7 @@
       "first_name": "Kayleigh",
       "last_name": "Edwards",
       "position": "Team Member",
-      "rate": 14.0,
+      "rate": 14,
       "hours": 6.28,
       "pay": 87.92
     },
@@ -32752,7 +32776,7 @@
       "first_name": "Tariq",
       "last_name": "Leon",
       "position": "Team Captain",
-      "rate": 14.0,
+      "rate": 14,
       "hours": 9.03,
       "pay": 126.42
     },
@@ -32785,7 +32809,7 @@
       "first_name": "Tariq",
       "last_name": "Leon",
       "position": "Team Captain",
-      "rate": 14.0,
+      "rate": 14,
       "hours": 2.39,
       "pay": 33.46
     }

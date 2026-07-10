@@ -70,8 +70,10 @@ function StoreGrid({ name, target, cells, compact, showEmployees }: { name: stri
           </div>
         </div>
       )}
-      {/* No overflow-x-auto in compact; table-fixed makes it fit its container */}
-      <table className={`w-full table-fixed ${compact ? 'text-[9px]' : 'text-xs'}`}>
+      {/* min-width keeps cells at a readable size on narrow screens instead of
+          shrinking to fit -- overflow-x-auto lets you scroll to see the rest. */}
+      <div className="overflow-x-auto">
+      <table className={`table-fixed ${compact ? 'w-full min-w-[420px] text-[9px]' : 'w-full min-w-[560px] text-xs'}`}>
         <thead>
           <tr>
             <th className={`text-right text-slate-400 font-normal pb-1 ${compact ? 'w-[15%] pr-1' : 'w-[14%] pr-3'}`} />
@@ -182,6 +184,7 @@ function StoreGrid({ name, target, cells, compact, showEmployees }: { name: stri
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   )
 }
@@ -236,15 +239,13 @@ export default function Heatmap({ data, store, period, dates, unitsWindow, loadi
       </div>
 
       {isAll ? (
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {visibleStores.map(s => (
             <StoreGrid key={s.key} name={s.label} target={STORE_TARGETS[s.key]} cells={data[s.key]} compact={true} showEmployees={showEmployees} />
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <StoreGrid name={visibleStores[0]?.label ?? ''} target={singleTarget ?? 18} cells={data[visibleStores[0]?.key ?? 'pines']} compact={false} showEmployees={showEmployees} />
-        </div>
+        <StoreGrid name={visibleStores[0]?.label ?? ''} target={singleTarget ?? 18} cells={data[visibleStores[0]?.key ?? 'pines']} compact={false} showEmployees={showEmployees} />
       )}
     </div>
   )

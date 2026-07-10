@@ -88,7 +88,7 @@ export default function Dashboard() {
       setRefreshMsg('Failed — is the proxy running?')
     }
   }
-  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, unitsWindow, daily, dailyRange, loading, refreshedAt } = data
+  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, promotions, unitsWindow, daily, dailyRange, loading, refreshedAt } = data
   const k = kpis as KpiData | null
   const isAll      = state.store === 'all'
   const isCustom   = state.period === 'custom'
@@ -281,7 +281,7 @@ export default function Dashboard() {
 
         {/* Callouts + COGS panel — hidden for custom */}
         {!isCustom && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Callouts kpis={k} loading={loading} />
+          <Callouts kpis={k} loading={loading} period={state.period} promotions={promotions} />
           <div className="card">
             <div className="flex items-center justify-between mb-0.5">
               <div className="text-sm font-bold text-slate-700">Food Cost (COGS)</div>

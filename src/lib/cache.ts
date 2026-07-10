@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
-import type { KpiData, TrendPoint, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow, QuarterRow, Store, Period, DailyData, StaffingData } from './types'
+import type { KpiData, TrendPoint, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow, QuarterRow, Store, Period, DailyData, StaffingData, Promotion } from './types'
 import { readCacheFromDb } from './azure-cache'
 
 export interface CachePeriodKpis {
@@ -18,6 +18,7 @@ export interface Cache {
   employees:  Record<Store, Record<Period, EmployeeRow[]>>
   heatmap:    Record<Store, unknown[]>
   staffing:   Record<Period, StaffingData>
+  promotions: Record<Store, Promotion[]> // weekly-only for now
   products:   Record<Store, Record<Period, ProductRow[]>>
   categories: Record<Store, Record<Period, CategoryRow[]>>
   channels:   Record<Store, Record<Period, ChannelRow[]>>
@@ -179,4 +180,10 @@ export async function cacheDailyAsync(store: Store): Promise<DailyData | null> {
 export async function cacheStaffingAsync(period: Period): Promise<StaffingData | null> {
   const c = await getCacheAsync()
   return c?.staffing?.[period as keyof CachePeriodKpis] ?? null
+}
+
+// Weekly-only for now — see fetchPromotions in cache-builder.ts.
+export async function cachePromotionsAsync(store: Store): Promise<Promotion[]> {
+  const c = await getCacheAsync()
+  return c?.promotions?.[store] ?? []
 }

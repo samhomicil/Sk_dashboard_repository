@@ -1,11 +1,14 @@
 'use client'
 
-import type { KpiData } from '@/lib/types'
+import type { KpiData, Promotion, Period } from '@/lib/types'
 import { TARGETS } from '@/lib/config'
+import { weekLabel } from '@/lib/dates'
 
 interface Props {
-  kpis:    KpiData | null
-  loading: boolean
+  kpis:        KpiData | null
+  loading:     boolean
+  period?:     Period
+  promotions?: Promotion[]
 }
 
 interface Flag {
@@ -13,9 +16,11 @@ interface Flag {
   text:  string
 }
 
-export default function Callouts({ kpis, loading }: Props) {
+export default function Callouts({ kpis, loading, period, promotions = [] }: Props) {
   if (loading) return <div className="card md:col-span-2"><div className="skeleton h-32 w-full" /></div>
   if (!kpis) return null
+
+  const showPromotions = period === 'weekly' && promotions.length > 0
 
   const flags: Flag[] = []
 
@@ -99,10 +104,40 @@ export default function Callouts({ kpis, loading }: Props) {
 
   const icon = { red: '🔴', yellow: '🟡', green: '🟢' }
 
+  function formatOfferValue(p: Promotion): string | null {
+    if (p.offerValue == null) return null
+    switch (p.offerValueUnit) {
+      case 'dollars':      return `$${p.offerValue} off`
+      case 'percent':      return `${p.offerValue}% off`
+      case 'multiplier_x': return `${p.offerValue}x points`
+      case 'points':       return `${Math.round(p.offerValue).toLocaleString()} pts`
+      default:              return `${p.offerValue}${p.offerValueUnit ? ` ${p.offerValueUnit}` : ''}`
+    }
+  }
+
   return (
     <div className="card md:col-span-2">
       <div className="text-sm font-bold text-slate-700 mb-0.5">Weekly Callouts</div>
       <div className="text-xs text-slate-400 mb-3">Auto-generated flags from targets and L4W variance</div>
+
+      {showPromotions && (
+        <div className="mb-3 pb-3 border-b border-slate-100">
+          <div className="text-xs font-bold text-slate-500 mb-1.5">Promotions running this week</div>
+          <div className="space-y-2">
+            {promotions.map(p => (
+              <div key={p.offerName + p.startDate} className="flex items-start gap-2">
+                <span className="text-sm shrink-0">📣</span>
+                <div className="text-xs leading-5">
+                  <span className="font-semibold text-slate-700">{p.offerName}</span>
+                  {formatOfferValue(p) && <span className="text-slate-500"> — {formatOfferValue(p)}</span>}
+                  <span className="text-slate-400"> · {weekLabel(p.startDate)}–{weekLabel(p.endDate)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="divide-y divide-slate-50">
         {sorted.map((f, i) => (
           <div key={i} className="flex items-start gap-2 py-2">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { resolveDateRange } from '@/lib/dates'
-import type { Store, Period, DateRange, KpiData, TrendPoint, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow, QuarterRow, DailyData, DailyRangeData, StaffingData } from '@/lib/types'
+import type { Store, Period, DateRange, KpiData, TrendPoint, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow, QuarterRow, DailyData, DailyRangeData, StaffingData, Promotion } from '@/lib/types'
 
 interface DashboardState {
   store:    Store
@@ -22,6 +22,7 @@ interface DashboardData {
   channels:    ChannelRow[]
   quarters:    QuarterRow[]
   staffing:    StaffingData | null
+  promotions:  Promotion[]
   unitsWindow: { start: string; end: string } | null
   daily:       DailyData | null
   dailyRange:  DailyRangeData | null
@@ -44,7 +45,7 @@ export function useDashboard() {
 
   const [data, setData] = useState<DashboardData>({
     kpis: null, trend: [], stores: [], employees: [],
-    products: [], categories: [], channels: [], quarters: [], staffing: null, unitsWindow: null, daily: null, dailyRange: null,
+    products: [], categories: [], channels: [], quarters: [], staffing: null, promotions: [], unitsWindow: null, daily: null, dailyRange: null,
     loading: true, error: null, refreshedAt: null, hasCache: false,
   })
 
@@ -62,7 +63,7 @@ export function useDashboard() {
 
     try {
       const isCustom = s.period === 'custom'
-      const [kpisRes, trendRes, storesRes, empRes, prodRes, catRes, chRes, qRes, heatRes, metaRes, dailyRes, dailyRangeRes] = await Promise.all([
+      const [kpisRes, trendRes, storesRes, empRes, prodRes, catRes, chRes, qRes, heatRes, metaRes, dailyRes, dailyRangeRes, promoRes] = await Promise.all([
         fetch('/api/kpis'        + qs(p)).then(r => r.json()),
         fetch('/api/trend'       + qs(p)).then(r => r.json()),
         fetch('/api/stores'      + qs(p)).then(r => r.json()),
@@ -77,6 +78,7 @@ export function useDashboard() {
         isCustom
           ? fetch(`/api/daily?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}&pyStart=${s.dates.pyStart}&pyEnd=${s.dates.pyEnd}`).then(r => r.json())
           : Promise.resolve(null),
+        fetch(`/api/promotions?store=${s.store}`).then(r => r.json()),
       ])
 
       setData({
@@ -89,6 +91,7 @@ export function useDashboard() {
         channels:    Array.isArray(chRes)     ? chRes     : [],
         quarters:    Array.isArray(qRes)      ? qRes      : [],
         staffing:    heatRes?.pines ? heatRes : null,
+        promotions:  Array.isArray(promoRes) ? promoRes : [],
         unitsWindow: heatRes?.unitsWindowStart && heatRes?.unitsWindowEnd
           ? { start: heatRes.unitsWindowStart, end: heatRes.unitsWindowEnd }
           : null,

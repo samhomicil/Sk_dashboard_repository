@@ -18,7 +18,7 @@ import {
 } from './sigma'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
-  QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee,
+  QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee, Promotion,
 } from './types'
 
 // ── DB helper ────────────────────────────────────────────────────
@@ -473,6 +473,35 @@ async function fetchStaffing(start: string, end: string, useRealUnits: boolean):
   return result
 }
 
+// ── Promotions ────────────────────────────────────────────────────
+async function fetchPromotions(store: Store, start: string, end: string): Promise<Promotion[]> {
+  const rows = await dbQuery<{
+    offer_name: string; start_date: string; end_date: string
+    offer_type: string; offer_value: number | null; offer_value_unit: string | null
+    product_focus: string | null; offer_description: string; stores: string
+  }[]>(`
+    SELECT offer_name, CAST(start_date AS VARCHAR(10)) AS start_date, CAST(end_date AS VARCHAR(10)) AS end_date,
+           offer_type, offer_value, offer_value_unit, product_focus, offer_description, stores
+    FROM smoothieking.vw_marketing_promotions
+    WHERE start_date <= '${end}' AND end_date >= '${start}'
+    ORDER BY start_date
+  `).catch(() => [])
+
+  const storeName = DB_STORE_NAME[store]
+  return rows
+    .filter(r => store === 'all' || r.stores.split(',').map(s => s.trim()).includes(storeName))
+    .map(r => ({
+      offerName:      r.offer_name,
+      startDate:      r.start_date,
+      endDate:        r.end_date,
+      offerType:      r.offer_type,
+      offerValue:     r.offer_value,
+      offerValueUnit: r.offer_value_unit,
+      productFocus:   r.product_focus,
+      description:    r.offer_description,
+    }))
+}
+
 // ── Heatmap ───────────────────────────────────────────────────────
 function parseShiftHour(t: string): number | null {
   if (!t) return null
@@ -916,6 +945,12 @@ export async function buildCacheData() {
     staffingData[period] = await fetchStaffing(r.start, r.end, period === 'weekly')
   }
 
+  // Weekly-only for now — promotions running during the last full Mon-Sun week.
+  const promoData: Record<string, Promotion[]> = {}
+  for (const store of STORES) {
+    promoData[store] = await fetchPromotions(store, dr.weekly.start, dr.weekly.end)
+  }
+
   const prodData: Record<string, Record<string, ProductRow[]>> = {}
   for (const store of STORES) {
     prodData[store] = {}
@@ -965,6 +1000,7 @@ export async function buildCacheData() {
     employees:  empData,
     heatmap:    heatData,
     staffing:   staffingData,
+    promotions: promoData,
     products:   prodData,
     categories: catData,
     channels:   chanData,

@@ -144,6 +144,17 @@ export interface Callout {
   text: string
 }
 
+export interface Promotion {
+  offerName:      string
+  startDate:      string // YYYY-MM-DD
+  endDate:        string
+  offerType:      string
+  offerValue:     number | null
+  offerValueUnit: string | null
+  productFocus:   string | null
+  description:    string
+}
+
 export interface DailyRow {
   date:        string        // YYYY-MM-DD
   day:         string        // 'Sun' | 'Mon' | ...

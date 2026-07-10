@@ -12946,6 +12946,1672 @@
       "destination": "Uber Eats - Delivery",
       "orders": 2,
       "sales": 26.63
+    },
+    {
+      "date": "2026-06-24",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 13,
+      "sales": 168.64
+    },
+    {
+      "date": "2026-06-24",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 13,
+      "sales": 198.38
+    },
+    {
+      "date": "2026-06-24",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 67,
+      "sales": 596.79
+    },
+    {
+      "date": "2026-06-24",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 54.95
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1892 - Miramar, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 83.88
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 9.99
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 55,
+      "sales": 613.34
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1892 - Miramar, FL",
+      "destination": "Postmates - Delivery",
+      "orders": 1,
+      "sales": 11.49
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 5,
+      "sales": 81.91
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 143,
+      "sales": 1591.26
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 7,
+      "sales": 126.13
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 37,
+      "sales": 422.09
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 98.7
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 85,
+      "sales": 947.72
+    },
+    {
+      "date": "2026-06-24",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 109.99
+    },
+    {
+      "date": "2026-06-25",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 18,
+      "sales": 181.54
+    },
+    {
+      "date": "2026-06-25",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 99.32
+    },
+    {
+      "date": "2026-06-25",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 76,
+      "sales": 948.82
+    },
+    {
+      "date": "2026-06-25",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 31.55
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1892 - Miramar, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 30.15
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 44,
+      "sales": 508.07
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 4,
+      "sales": 49.09
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 144,
+      "sales": 1582.36
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 8,
+      "sales": 115.57
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 2,
+      "sales": 60.1
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 36,
+      "sales": 496
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 120.4
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 103,
+      "sales": 1253.6
+    },
+    {
+      "date": "2026-06-25",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 7,
+      "sales": 87.22
+    },
+    {
+      "date": "2026-06-26",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 15.56
+    },
+    {
+      "date": "2026-06-26",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 27,
+      "sales": 281.36
+    },
+    {
+      "date": "2026-06-26",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 9,
+      "sales": 157.19
+    },
+    {
+      "date": "2026-06-26",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 68,
+      "sales": 712.33
+    },
+    {
+      "date": "2026-06-26",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 41.08
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 15.98
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 60,
+      "sales": 672.69
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 3,
+      "sales": 45.14
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 140,
+      "sales": 1552.45
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 5,
+      "sales": 80.44
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 23.97
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 3,
+      "sales": 27.97
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 46,
+      "sales": 517.73
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 6,
+      "sales": 80.5
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 125,
+      "sales": 1327.99
+    },
+    {
+      "date": "2026-06-26",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 6,
+      "sales": 89.79
+    },
+    {
+      "date": "2026-06-27",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 17.16
+    },
+    {
+      "date": "2026-06-27",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 17,
+      "sales": 170.9
+    },
+    {
+      "date": "2026-06-27",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 5,
+      "sales": 73.62
+    },
+    {
+      "date": "2026-06-27",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 82,
+      "sales": 1093.9
+    },
+    {
+      "date": "2026-06-27",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 1,
+      "sales": 21.08
+    },
+    {
+      "date": "2026-06-27",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 36,
+      "sales": 417.1
+    },
+    {
+      "date": "2026-06-27",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 6,
+      "sales": 68.12
+    },
+    {
+      "date": "2026-06-27",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 142,
+      "sales": 1594.38
+    },
+    {
+      "date": "2026-06-27",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 5,
+      "sales": 77.37
+    },
+    {
+      "date": "2026-06-27",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 41,
+      "sales": 483.77
+    },
+    {
+      "date": "2026-06-27",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 111.6
+    },
+    {
+      "date": "2026-06-27",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 113,
+      "sales": 1457.83
+    },
+    {
+      "date": "2026-06-27",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 8,
+      "sales": 119.18
+    },
+    {
+      "date": "2026-06-28",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 23.15
+    },
+    {
+      "date": "2026-06-28",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 9,
+      "sales": 78.62
+    },
+    {
+      "date": "2026-06-28",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 4,
+      "sales": 51.33
+    },
+    {
+      "date": "2026-06-28",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 68,
+      "sales": 761.63
+    },
+    {
+      "date": "2026-06-28",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 56.58
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1892 - Miramar, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 10.27
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 15.98
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 31,
+      "sales": 471.31
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 3,
+      "sales": 31.02
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 101,
+      "sales": 1081.65
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 31.02
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 33,
+      "sales": 367.03
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 159.65
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 85,
+      "sales": 979.53
+    },
+    {
+      "date": "2026-06-28",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 99.48
+    },
+    {
+      "date": "2026-06-29",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 18,
+      "sales": 147.46
+    },
+    {
+      "date": "2026-06-29",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 6,
+      "sales": 81.63
+    },
+    {
+      "date": "2026-06-29",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 80,
+      "sales": 846.41
+    },
+    {
+      "date": "2026-06-29",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 67.02
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 49,
+      "sales": 513.5
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1892 - Miramar, FL",
+      "destination": "Postmates - Delivery",
+      "orders": 1,
+      "sales": 8.04
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 6,
+      "sales": 82.4
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 154,
+      "sales": 1583.79
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 77.49
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 7.99
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 43,
+      "sales": 494.12
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 8,
+      "sales": 104.8
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 109,
+      "sales": 1365.84
+    },
+    {
+      "date": "2026-06-29",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 6,
+      "sales": 154.88
+    },
+    {
+      "date": "2026-06-30",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 3,
+      "sales": 33.62
+    },
+    {
+      "date": "2026-06-30",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 21,
+      "sales": 199.79
+    },
+    {
+      "date": "2026-06-30",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 125.98
+    },
+    {
+      "date": "2026-06-30",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 68,
+      "sales": 708.36
+    },
+    {
+      "date": "2026-06-30",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 5,
+      "sales": 100.52
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 3,
+      "sales": 29.97
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 38,
+      "sales": 412.2
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1892 - Miramar, FL",
+      "destination": "Postmates - Delivery",
+      "orders": 1,
+      "sales": 13.79
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 8,
+      "sales": 138.9
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 163,
+      "sales": 1688.7
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 64.19
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 21.92
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 2,
+      "sales": 20.56
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 50,
+      "sales": 544.03
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 3,
+      "sales": 37.75
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 104,
+      "sales": 1177.87
+    },
+    {
+      "date": "2026-06-30",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 7,
+      "sales": 140.43
+    },
+    {
+      "date": "2026-07-01",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 14.75
+    },
+    {
+      "date": "2026-07-01",
+      "location": "2384 - Margate, FL",
+      "destination": "GrubHub - Delivery",
+      "orders": 1,
+      "sales": 24.82
+    },
+    {
+      "date": "2026-07-01",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 24,
+      "sales": 240.69
+    },
+    {
+      "date": "2026-07-01",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 5,
+      "sales": 69.59
+    },
+    {
+      "date": "2026-07-01",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 66,
+      "sales": 621.4
+    },
+    {
+      "date": "2026-07-01",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 22.37
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1892 - Miramar, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 13.76
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 45,
+      "sales": 576.77
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 4,
+      "sales": 59.77
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 128,
+      "sales": 1307.04
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 6,
+      "sales": 106.13
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 24.85
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 2,
+      "sales": 17.98
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 36,
+      "sales": 363.87
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 2,
+      "sales": 37.15
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 77,
+      "sales": 884.29
+    },
+    {
+      "date": "2026-07-01",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 48.1
+    },
+    {
+      "date": "2026-07-02",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 24,
+      "sales": 251.49
+    },
+    {
+      "date": "2026-07-02",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 6,
+      "sales": 83.15
+    },
+    {
+      "date": "2026-07-02",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 76,
+      "sales": 739.17
+    },
+    {
+      "date": "2026-07-02",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 5,
+      "sales": 121.13
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1892 - Miramar, FL",
+      "destination": "GrubHub - Delivery",
+      "orders": 1,
+      "sales": 13.79
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 46,
+      "sales": 505.19
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 4,
+      "sales": 56.47
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 133,
+      "sales": 1407.23
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 6,
+      "sales": 121.65
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 33,
+      "sales": 367.99
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 5,
+      "sales": 90.3
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 102,
+      "sales": 1245.46
+    },
+    {
+      "date": "2026-07-02",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 5,
+      "sales": 131.62
+    },
+    {
+      "date": "2026-07-03",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 22,
+      "sales": 279.58
+    },
+    {
+      "date": "2026-07-03",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 5,
+      "sales": 68.31
+    },
+    {
+      "date": "2026-07-03",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 84,
+      "sales": 920.79
+    },
+    {
+      "date": "2026-07-03",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 1,
+      "sales": 25.22
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1892 - Miramar, FL",
+      "destination": "Dispatch",
+      "orders": 3,
+      "sales": 35.49
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 8.28
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 48,
+      "sales": 598.08
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 5,
+      "sales": 75.85
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 136,
+      "sales": 1449.55
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 50.24
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 18.56
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 51,
+      "sales": 525.23
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 6,
+      "sales": 93.3
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 121,
+      "sales": 1483.62
+    },
+    {
+      "date": "2026-07-03",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 6,
+      "sales": 107.21
+    },
+    {
+      "date": "2026-07-04",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 15.08
+    },
+    {
+      "date": "2026-07-04",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 11,
+      "sales": 104.21
+    },
+    {
+      "date": "2026-07-04",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 46,
+      "sales": 502.71
+    },
+    {
+      "date": "2026-07-04",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 31.67
+    },
+    {
+      "date": "2026-07-04",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 17,
+      "sales": 224.81
+    },
+    {
+      "date": "2026-07-04",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 70,
+      "sales": 818.21
+    },
+    {
+      "date": "2026-07-04",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 72.55
+    },
+    {
+      "date": "2026-07-04",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 18,
+      "sales": 229.86
+    },
+    {
+      "date": "2026-07-04",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 59,
+      "sales": 739.51
+    },
+    {
+      "date": "2026-07-04",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 1,
+      "sales": 13.63
+    },
+    {
+      "date": "2026-07-05",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 8.35
+    },
+    {
+      "date": "2026-07-05",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 10,
+      "sales": 168.02
+    },
+    {
+      "date": "2026-07-05",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 5,
+      "sales": 87
+    },
+    {
+      "date": "2026-07-05",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 39,
+      "sales": 446.53
+    },
+    {
+      "date": "2026-07-05",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 83.72
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1892 - Miramar, FL",
+      "destination": "Dispatch",
+      "orders": 2,
+      "sales": 77.28
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 15,
+      "sales": 187.78
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 3,
+      "sales": 54.02
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 91,
+      "sales": 1107.4
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 56.01
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 2,
+      "sales": 24.56
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 28,
+      "sales": 356.17
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 116.95
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 50,
+      "sales": 627.47
+    },
+    {
+      "date": "2026-07-05",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 48.1
+    },
+    {
+      "date": "2026-07-06",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 17,
+      "sales": 191.38
+    },
+    {
+      "date": "2026-07-06",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 4,
+      "sales": 51.91
+    },
+    {
+      "date": "2026-07-06",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 59,
+      "sales": 620.99
+    },
+    {
+      "date": "2026-07-06",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 41.2
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 10.98
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 35,
+      "sales": 377.41
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 4,
+      "sales": 57.14
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 94,
+      "sales": 1092.42
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 72.7
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 23.98
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 29,
+      "sales": 384.47
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 2,
+      "sales": 32.55
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 83,
+      "sales": 1045.25
+    },
+    {
+      "date": "2026-07-06",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 60.4
+    },
+    {
+      "date": "2026-07-07",
+      "location": "2384 - Margate, FL",
+      "destination": "GrubHub - Delivery",
+      "orders": 1,
+      "sales": 26.74
+    },
+    {
+      "date": "2026-07-07",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 21,
+      "sales": 262.7
+    },
+    {
+      "date": "2026-07-07",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 1,
+      "sales": 19.53
+    },
+    {
+      "date": "2026-07-07",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 65,
+      "sales": 734.86
+    },
+    {
+      "date": "2026-07-07",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 5,
+      "sales": 77.24
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1892 - Miramar, FL",
+      "destination": "Dispatch",
+      "orders": 2,
+      "sales": 31.63
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 26.43
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 30,
+      "sales": 406.02
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 3,
+      "sales": 44.5
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 135,
+      "sales": 1346.36
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 57.8
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 2,
+      "sales": 17.21
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 2,
+      "sales": 21.48
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 35,
+      "sales": 380.35
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 6,
+      "sales": 70.9
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 100,
+      "sales": 1227.07
+    },
+    {
+      "date": "2026-07-07",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 1,
+      "sales": 22.98
+    },
+    {
+      "date": "2026-07-08",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 2,
+      "sales": 29.76
+    },
+    {
+      "date": "2026-07-08",
+      "location": "2384 - Margate, FL",
+      "destination": "GrubHub - Delivery",
+      "orders": 1,
+      "sales": 12.41
+    },
+    {
+      "date": "2026-07-08",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 26,
+      "sales": 279.46
+    },
+    {
+      "date": "2026-07-08",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 12,
+      "sales": 216.57
+    },
+    {
+      "date": "2026-07-08",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 80,
+      "sales": 784.79
+    },
+    {
+      "date": "2026-07-08",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 77.15
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 14.85
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 61,
+      "sales": 674.1
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1892 - Miramar, FL",
+      "destination": "Postmates - Delivery",
+      "orders": 1,
+      "sales": 9.19
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 3,
+      "sales": 45.65
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 159,
+      "sales": 1831.61
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 6,
+      "sales": 106.06
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 2,
+      "sales": 54.81
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 2,
+      "sales": 19.27
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 59,
+      "sales": 695.88
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 4,
+      "sales": 68.35
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 115,
+      "sales": 1474.4
+    },
+    {
+      "date": "2026-07-08",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 6,
+      "sales": 126.72
+    },
+    {
+      "date": "2026-07-09",
+      "location": "2384 - Margate, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 10.79
+    },
+    {
+      "date": "2026-07-09",
+      "location": "2384 - Margate, FL",
+      "destination": "GrubHub - Delivery",
+      "orders": 1,
+      "sales": 12.41
+    },
+    {
+      "date": "2026-07-09",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 29,
+      "sales": 311.93
+    },
+    {
+      "date": "2026-07-09",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 6,
+      "sales": 88.56
+    },
+    {
+      "date": "2026-07-09",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 80,
+      "sales": 863.33
+    },
+    {
+      "date": "2026-07-09",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 53.71
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 19.98
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 49,
+      "sales": 566.16
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 5,
+      "sales": 73.38
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 179,
+      "sales": 1868.47
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 5,
+      "sales": 71.59
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 48,
+      "sales": 449.55
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 151.85
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 129,
+      "sales": 1399.03
+    },
+    {
+      "date": "2026-07-09",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 49.73
     }
   ],
   "employees": [

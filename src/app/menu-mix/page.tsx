@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import type { MenuMixPayload, ProductSummary, CategorySummary } from '@/lib/menuMixUtils'
 import { parseSize, parseFlavor, blendedCogs } from '@/lib/menuMixUtils'
+import DaypartTrends from '@/components/DaypartTrends'
 
 // ── Formatting ────────────────────────────────────────────────────
 const money  = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
@@ -192,27 +193,6 @@ function TopSellers({ products, modifiers, coreUnits, days }: {
             })}
           </tbody>
         </table>
-      </div>
-    </div>
-  )
-}
-
-// ── Day-part empty state ──────────────────────────────────────────
-function DayPartCard() {
-  return (
-    <div className="card border-2 border-dashed border-slate-200" style={{ boxShadow: 'none', background: '#f8fafc' }}>
-      <div className="flex items-start gap-3">
-        <svg className="w-5 h-5 text-slate-300 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-        </svg>
-        <div>
-          <div className="font-bold text-slate-600">Day-Part &amp; Weekday Trends</div>
-          <div className="text-sm text-slate-500 mt-1 max-w-2xl">
-            This view is built on L90D product totals, which don&apos;t carry a time-of-day or weekday dimension.
-            Connect an order-level feed with timestamps and this section will populate with morning / midday / afternoon / evening mix
-            and a day-of-week breakdown per product and category.
-          </div>
-        </div>
       </div>
     </div>
   )
@@ -592,7 +572,7 @@ export default function MenuMixPage() {
             days={days}
           />
 
-          <DayPartCard />
+          <DaypartTrends store={store} />
 
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Drill Down</div>

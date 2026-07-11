@@ -1,0 +1,2059 @@
+{
+  "refreshedAt": "2026-07-11T02:08:21Z",
+  "windowStart": "2026-04-11",
+  "windowEnd": "2026-07-10",
+  "daypart": {
+    "pines": [
+      {
+        "name": "Breakfast",
+        "sales": 38964.77,
+        "qty": 6408
+      },
+      {
+        "name": "Lunch",
+        "sales": 53172.22,
+        "qty": 7858
+      },
+      {
+        "name": "Snack",
+        "sales": 47971.47,
+        "qty": 6949
+      },
+      {
+        "name": "Dinner",
+        "sales": 46556.23,
+        "qty": 6385
+      }
+    ],
+    "miramar": [
+      {
+        "name": "Breakfast",
+        "sales": 42108.88,
+        "qty": 6762
+      },
+      {
+        "name": "Lunch",
+        "sales": 60306.57,
+        "qty": 8926
+      },
+      {
+        "name": "Snack",
+        "sales": 52103.59,
+        "qty": 7311
+      },
+      {
+        "name": "Dinner",
+        "sales": 54948.08,
+        "qty": 7441
+      }
+    ],
+    "margate": [
+      {
+        "name": "Breakfast",
+        "sales": 25408.41,
+        "qty": 4213
+      },
+      {
+        "name": "Lunch",
+        "sales": 31526.62,
+        "qty": 4857
+      },
+      {
+        "name": "Snack",
+        "sales": 26499.89,
+        "qty": 3979
+      },
+      {
+        "name": "Dinner",
+        "sales": 27554.09,
+        "qty": 4020
+      }
+    ],
+    "all": [
+      {
+        "name": "Breakfast",
+        "sales": 106482.06,
+        "qty": 17383
+      },
+      {
+        "name": "Lunch",
+        "sales": 145005.41,
+        "qty": 21641
+      },
+      {
+        "name": "Snack",
+        "sales": 126574.95,
+        "qty": 18239
+      },
+      {
+        "name": "Dinner",
+        "sales": 128407.96,
+        "qty": 17763
+      }
+    ]
+  },
+  "weekday": {
+    "pines": [
+      {
+        "dow": 0,
+        "sales": 21075.62,
+        "qty": 3030,
+        "days": 13
+      },
+      {
+        "dow": 1,
+        "sales": 24958.73,
+        "qty": 3618,
+        "days": 13
+      },
+      {
+        "dow": 2,
+        "sales": 25287.74,
+        "qty": 3786,
+        "days": 13
+      },
+      {
+        "dow": 3,
+        "sales": 26009.12,
+        "qty": 3845,
+        "days": 13
+      },
+      {
+        "dow": 4,
+        "sales": 27209.59,
+        "qty": 3963,
+        "days": 13
+      },
+      {
+        "dow": 5,
+        "sales": 32044.47,
+        "qty": 5085,
+        "days": 13
+      },
+      {
+        "dow": 6,
+        "sales": 29766.94,
+        "qty": 4236,
+        "days": 13
+      }
+    ],
+    "miramar": [
+      {
+        "dow": 0,
+        "sales": 22814.28,
+        "qty": 3167,
+        "days": 13
+      },
+      {
+        "dow": 1,
+        "sales": 28947.2,
+        "qty": 4186,
+        "days": 13
+      },
+      {
+        "dow": 2,
+        "sales": 29776.14,
+        "qty": 4274,
+        "days": 13
+      },
+      {
+        "dow": 3,
+        "sales": 32311.88,
+        "qty": 4775,
+        "days": 13
+      },
+      {
+        "dow": 4,
+        "sales": 31978.38,
+        "qty": 4663,
+        "days": 13
+      },
+      {
+        "dow": 5,
+        "sales": 34045.16,
+        "qty": 5237,
+        "days": 13
+      },
+      {
+        "dow": 6,
+        "sales": 29304.66,
+        "qty": 4099,
+        "days": 13
+      }
+    ],
+    "margate": [
+      {
+        "dow": 0,
+        "sales": 12978.68,
+        "qty": 1944,
+        "days": 13
+      },
+      {
+        "dow": 1,
+        "sales": 14124.32,
+        "qty": 2132,
+        "days": 13
+      },
+      {
+        "dow": 2,
+        "sales": 16442.14,
+        "qty": 2519,
+        "days": 13
+      },
+      {
+        "dow": 3,
+        "sales": 15399.42,
+        "qty": 2360,
+        "days": 13
+      },
+      {
+        "dow": 4,
+        "sales": 16511.92,
+        "qty": 2527,
+        "days": 13
+      },
+      {
+        "dow": 5,
+        "sales": 18586.65,
+        "qty": 3049,
+        "days": 13
+      },
+      {
+        "dow": 6,
+        "sales": 16897.34,
+        "qty": 2531,
+        "days": 13
+      }
+    ],
+    "all": [
+      {
+        "dow": 0,
+        "sales": 56868.58,
+        "qty": 8141,
+        "days": 13
+      },
+      {
+        "dow": 1,
+        "sales": 68030.25,
+        "qty": 9936,
+        "days": 13
+      },
+      {
+        "dow": 2,
+        "sales": 71506.02,
+        "qty": 10579,
+        "days": 13
+      },
+      {
+        "dow": 3,
+        "sales": 73720.42,
+        "qty": 10980,
+        "days": 13
+      },
+      {
+        "dow": 4,
+        "sales": 75699.89,
+        "qty": 11153,
+        "days": 13
+      },
+      {
+        "dow": 5,
+        "sales": 84676.28,
+        "qty": 13371,
+        "days": 13
+      },
+      {
+        "dow": 6,
+        "sales": 75968.94,
+        "qty": 10866,
+        "days": 13
+      }
+    ]
+  },
+  "categories": {
+    "margate": {
+      "Breakfast": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 20613.92,
+          "qty": 2608
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 2502.21,
+          "qty": 227
+        },
+        {
+          "subcategory": "Food",
+          "sales": 1821.59,
+          "qty": 408
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 427.1,
+          "qty": 959
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 43.59,
+          "qty": 11
+        }
+      ],
+      "Lunch": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 25802.92,
+          "qty": 3205
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 3794.45,
+          "qty": 343
+        },
+        {
+          "subcategory": "Food",
+          "sales": 1490.74,
+          "qty": 332
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 422.95,
+          "qty": 973
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 15.56,
+          "qty": 4
+        }
+      ],
+      "Snack": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 21336.12,
+          "qty": 2696
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 3880.99,
+          "qty": 349
+        },
+        {
+          "subcategory": "Food",
+          "sales": 796.5,
+          "qty": 191
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 459.05,
+          "qty": 736
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 27.23,
+          "qty": 7
+        }
+      ],
+      "Dinner": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 21645.55,
+          "qty": 2674
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 4678.48,
+          "qty": 420
+        },
+        {
+          "subcategory": "Food",
+          "sales": 758.17,
+          "qty": 161
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 454.73,
+          "qty": 761
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 17.16,
+          "qty": 4
+        }
+      ]
+    },
+    "miramar": {
+      "Breakfast": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 35253.32,
+          "qty": 4218
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 3592.05,
+          "qty": 305
+        },
+        {
+          "subcategory": "Food",
+          "sales": 2527.9,
+          "qty": 576
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 724.54,
+          "qty": 1660
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 11.07,
+          "qty": 3
+        }
+      ],
+      "Lunch": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 49448.14,
+          "qty": 5928
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 7620.15,
+          "qty": 645
+        },
+        {
+          "subcategory": "Food",
+          "sales": 2251.65,
+          "qty": 527
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 978.05,
+          "qty": 1824
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 8.58,
+          "qty": 2
+        }
+      ],
+      "Snack": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 41966.63,
+          "qty": 4997
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 7869.01,
+          "qty": 659
+        },
+        {
+          "subcategory": "Food",
+          "sales": 1331.66,
+          "qty": 286
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 909.06,
+          "qty": 1362
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 27.23,
+          "qty": 7
+        }
+      ],
+      "Dinner": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 41797.47,
+          "qty": 4908
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 10760.09,
+          "qty": 901
+        },
+        {
+          "subcategory": "Food",
+          "sales": 1478.79,
+          "qty": 288
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 869.94,
+          "qty": 1333
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 41.79,
+          "qty": 11
+        }
+      ]
+    },
+    "pines": {
+      "Breakfast": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 32792.38,
+          "qty": 3917
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 3410.36,
+          "qty": 283
+        },
+        {
+          "subcategory": "Food",
+          "sales": 2097.44,
+          "qty": 466
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 639.96,
+          "qty": 1735
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 24.63,
+          "qty": 7
+        }
+      ],
+      "Lunch": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 45504.24,
+          "qty": 5302
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 5509.26,
+          "qty": 455
+        },
+        {
+          "subcategory": "Food",
+          "sales": 1398.22,
+          "qty": 351
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 715.82,
+          "qty": 1738
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 44.68,
+          "qty": 12
+        }
+      ],
+      "Snack": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 41037.74,
+          "qty": 4809
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 5279.14,
+          "qty": 435
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 826.96,
+          "qty": 1510
+        },
+        {
+          "subcategory": "Food",
+          "sales": 803.89,
+          "qty": 189
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 23.74,
+          "qty": 6
+        }
+      ],
+      "Dinner": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 38848.07,
+          "qty": 4488
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 6330.83,
+          "qty": 521
+        },
+        {
+          "subcategory": "Food",
+          "sales": 763.35,
+          "qty": 159
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 589.84,
+          "qty": 1211
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 24.14,
+          "qty": 6
+        }
+      ]
+    },
+    "all": {
+      "Breakfast": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 88659.62,
+          "qty": 10743
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 9504.62,
+          "qty": 815
+        },
+        {
+          "subcategory": "Food",
+          "sales": 6446.93,
+          "qty": 1450
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 1791.6,
+          "qty": 4354
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 79.29,
+          "qty": 21
+        }
+      ],
+      "Lunch": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 120755.3,
+          "qty": 14435
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 16923.86,
+          "qty": 1443
+        },
+        {
+          "subcategory": "Food",
+          "sales": 5140.61,
+          "qty": 1210
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 2116.82,
+          "qty": 4535
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 68.82,
+          "qty": 18
+        }
+      ],
+      "Snack": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 104340.49,
+          "qty": 12502
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 17029.14,
+          "qty": 1443
+        },
+        {
+          "subcategory": "Food",
+          "sales": 2932.05,
+          "qty": 666
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 2195.07,
+          "qty": 3608
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 78.2,
+          "qty": 20
+        }
+      ],
+      "Dinner": [
+        {
+          "subcategory": "Smoothies",
+          "sales": 101791.72,
+          "qty": 12011
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "sales": 21624.32,
+          "qty": 1830
+        },
+        {
+          "subcategory": "Food",
+          "sales": 2994.32,
+          "qty": 607
+        },
+        {
+          "subcategory": "Retail Products",
+          "sales": 1914.51,
+          "qty": 3294
+        },
+        {
+          "subcategory": "Retail Goods",
+          "sales": 83.09,
+          "qty": 21
+        }
+      ]
+    }
+  },
+  "products": {
+    "margate": {
+      "Breakfast": [
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 1435.69,
+          "qty": 135
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 783.42,
+          "qty": 84
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 778.11,
+          "qty": 143
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 687.87,
+          "qty": 63
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 683.97,
+          "qty": 90
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 627.04,
+          "qty": 76
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Vanilla",
+          "sales": 595.64,
+          "qty": 80
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Vanilla",
+          "sales": 558.41,
+          "qty": 60
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Strawberry",
+          "sales": 542.83,
+          "qty": 57
+        },
+        {
+          "subcategory": "Food",
+          "product": "Hearty 8 Grain Loaded Toast Egg & Avocado",
+          "sales": 504.19,
+          "qty": 103
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 485.03,
+          "qty": 43
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Vegan Mango Kale",
+          "sales": 474.57,
+          "qty": 53
+        }
+      ],
+      "Lunch": [
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 1165.27,
+          "qty": 111
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 1087.01,
+          "qty": 131
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 1019.59,
+          "qty": 104
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 923.63,
+          "qty": 85
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 844.95,
+          "qty": 147
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 804.05,
+          "qty": 107
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 799.56,
+          "qty": 72
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 763.95,
+          "qty": 69
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Chocolate",
+          "sales": 653.12,
+          "qty": 68
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Vanilla",
+          "sales": 634.22,
+          "qty": 66
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Vanilla",
+          "sales": 596.75,
+          "qty": 80
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Caribbean Way",
+          "sales": 572.93,
+          "qty": 69
+        }
+      ],
+      "Snack": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 1114.09,
+          "qty": 101
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 1108.16,
+          "qty": 100
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 977.03,
+          "qty": 117
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 870.32,
+          "qty": 158
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 715.38,
+          "qty": 72
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 711.26,
+          "qty": 68
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 701.9,
+          "qty": 64
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Vanilla",
+          "sales": 621.87,
+          "qty": 84
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 555.79,
+          "qty": 77
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 518.06,
+          "qty": 68
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Vanilla",
+          "sales": 505.88,
+          "qty": 52
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Caribbean Way",
+          "sales": 492.26,
+          "qty": 60
+        }
+      ],
+      "Dinner": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 1592.64,
+          "qty": 144
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 1388.73,
+          "qty": 123
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 886.42,
+          "qty": 156
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 754.14,
+          "qty": 77
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 740.36,
+          "qty": 92
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 640.36,
+          "qty": 85
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Vanilla",
+          "sales": 595.64,
+          "qty": 80
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Vanilla",
+          "sales": 531.05,
+          "qty": 56
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 496.89,
+          "qty": 45
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 494.32,
+          "qty": 68
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 464.77,
+          "qty": 45
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Island Impact",
+          "sales": 432.93,
+          "qty": 72
+        }
+      ]
+    },
+    "miramar": {
+      "Breakfast": [
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 2142.89,
+          "qty": 205
+        },
+        {
+          "subcategory": "Food",
+          "product": "Hearty 8 Grain Loaded Toast Egg & Avocado",
+          "sales": 1032.73,
+          "qty": 177
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Vanilla",
+          "sales": 1007.53,
+          "qty": 97
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 983.41,
+          "qty": 109
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 971.59,
+          "qty": 121
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 954.41,
+          "qty": 79
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 946.8,
+          "qty": 178
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 877.3,
+          "qty": 90
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 810.59,
+          "qty": 101
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 668.45,
+          "qty": 55
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Vanilla",
+          "sales": 650.34,
+          "qty": 66
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power - Peanut Butter",
+          "sales": 642.35,
+          "qty": 65
+        }
+      ],
+      "Lunch": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 2895.6,
+          "qty": 240
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 2089.21,
+          "qty": 201
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 1863.54,
+          "qty": 307
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 1697.67,
+          "qty": 183
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 1452.19,
+          "qty": 181
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 1423.83,
+          "qty": 177
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 1342.3,
+          "qty": 110
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 1248.84,
+          "qty": 156
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 1248.09,
+          "qty": 131
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 1206.2,
+          "qty": 100
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Vanilla",
+          "sales": 1186.12,
+          "qty": 148
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Chocolate",
+          "sales": 984.5,
+          "qty": 100
+        }
+      ],
+      "Snack": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 2610.83,
+          "qty": 217
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 2037.14,
+          "qty": 166
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 1641.96,
+          "qty": 256
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 1538.3,
+          "qty": 170
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 1164.96,
+          "qty": 144
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 1137.86,
+          "qty": 94
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 1065.07,
+          "qty": 133
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 995.56,
+          "qty": 124
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Chocolate",
+          "sales": 990.45,
+          "qty": 105
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 904.07,
+          "qty": 87
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 882.56,
+          "qty": 94
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Chocolate",
+          "sales": 856.13,
+          "qty": 107
+        }
+      ],
+      "Dinner": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 3601.21,
+          "qty": 299
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 2442.39,
+          "qty": 201
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 1936.4,
+          "qty": 160
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 1826.49,
+          "qty": 201
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 1723.74,
+          "qty": 257
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 1316.36,
+          "qty": 164
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Vanilla",
+          "sales": 1260.43,
+          "qty": 157
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 1192.12,
+          "qty": 148
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Vanilla",
+          "sales": 1075.37,
+          "qty": 113
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 1071.28,
+          "qty": 112
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Vanilla",
+          "sales": 947.51,
+          "qty": 99
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Strawberry",
+          "sales": 891.07,
+          "qty": 93
+        }
+      ]
+    },
+    "pines": {
+      "Breakfast": [
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 1785.37,
+          "qty": 167
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 1508.38,
+          "qty": 124
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Strawberry",
+          "sales": 1427.5,
+          "qty": 177
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 1315.68,
+          "qty": 141
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 1091.9,
+          "qty": 203
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Chocolate",
+          "sales": 1060.92,
+          "qty": 110
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 1001.57,
+          "qty": 124
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Chocolate",
+          "sales": 952.54,
+          "qty": 100
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 922.45,
+          "qty": 115
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 856.72,
+          "qty": 71
+        },
+        {
+          "subcategory": "Food",
+          "product": "Hearty 8 Grain Loaded Toast Egg & Avocado",
+          "sales": 855.83,
+          "qty": 149
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Strawberry",
+          "sales": 801.66,
+          "qty": 84
+        }
+      ],
+      "Lunch": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 2139.75,
+          "qty": 175
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 2111.13,
+          "qty": 331
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 1780.6,
+          "qty": 220
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 1633.84,
+          "qty": 175
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 1513.94,
+          "qty": 142
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 1449.82,
+          "qty": 150
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Chocolate",
+          "sales": 1369.58,
+          "qty": 143
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 1149.5,
+          "qty": 141
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 1131.94,
+          "qty": 92
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Vanilla",
+          "sales": 1101.89,
+          "qty": 111
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 1077.94,
+          "qty": 89
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 970.39,
+          "qty": 121
+        }
+      ],
+      "Snack": [
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 2334.22,
+          "qty": 350
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 2021.45,
+          "qty": 216
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 1859.74,
+          "qty": 153
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 1502.54,
+          "qty": 187
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 1474.95,
+          "qty": 120
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Chocolate",
+          "sales": 1466.01,
+          "qty": 152
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 1209.51,
+          "qty": 122
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Vanilla",
+          "sales": 934.04,
+          "qty": 97
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 912.47,
+          "qty": 113
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Strawberry",
+          "sales": 912.07,
+          "qty": 114
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 843.45,
+          "qty": 103
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 757.87,
+          "qty": 72
+        }
+      ],
+      "Dinner": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 2380.13,
+          "qty": 194
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 2049.69,
+          "qty": 299
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 2004.39,
+          "qty": 217
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 1570.19,
+          "qty": 129
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Vanilla",
+          "sales": 1288.17,
+          "qty": 133
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 1154.16,
+          "qty": 144
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Chocolate",
+          "sales": 1151.29,
+          "qty": 121
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 1141.52,
+          "qty": 94
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 1117.81,
+          "qty": 139
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 1013.59,
+          "qty": 105
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Vanilla",
+          "sales": 905.15,
+          "qty": 95
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 857.34,
+          "qty": 107
+        }
+      ]
+    },
+    "all": {
+      "Breakfast": [
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 5363.95,
+          "qty": 507
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 2947.82,
+          "qty": 246
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 2926.13,
+          "qty": 326
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 2816.81,
+          "qty": 524
+        },
+        {
+          "subcategory": "Food",
+          "product": "Hearty 8 Grain Loaded Toast Egg & Avocado",
+          "sales": 2392.75,
+          "qty": 429
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 2222.08,
+          "qty": 281
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 2213.04,
+          "qty": 189
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 2151.76,
+          "qty": 226
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Strawberry",
+          "sales": 2120.61,
+          "qty": 266
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Vanilla",
+          "sales": 2004.68,
+          "qty": 202
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Chocolate",
+          "sales": 1973.89,
+          "qty": 208
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 1941.07,
+          "qty": 244
+        }
+      ],
+      "Lunch": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 5834.91,
+          "qty": 487
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 4819.62,
+          "qty": 785
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 4768.42,
+          "qty": 454
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 4418.52,
+          "qty": 489
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 3717.5,
+          "qty": 385
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 3572.2,
+          "qty": 448
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 3405.74,
+          "qty": 429
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 3238.19,
+          "qty": 271
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 3207.77,
+          "qty": 274
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Chocolate",
+          "sales": 2769.03,
+          "qty": 292
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 2766.09,
+          "qty": 351
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Vanilla",
+          "sales": 2682.57,
+          "qty": 340
+        }
+      ],
+      "Snack": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 5584.66,
+          "qty": 471
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 4846.5,
+          "qty": 764
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 4620.25,
+          "qty": 386
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 4536.78,
+          "qty": 503
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 3053.89,
+          "qty": 388
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Peanut Power Plus Chocolate",
+          "sales": 2858.35,
+          "qty": 302
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 2807.45,
+          "qty": 288
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 2556.2,
+          "qty": 217
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 2426.58,
+          "qty": 304
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ & Toast Bundle",
+          "sales": 2373.2,
+          "qty": 227
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 2285.46,
+          "qty": 285
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Vanilla",
+          "sales": 2198.4,
+          "qty": 231
+        }
+      ],
+      "Dinner": [
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - PB Swizzle",
+          "sales": 7573.98,
+          "qty": 637
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Acai Cocoa Haze",
+          "sales": 5401.31,
+          "qty": 453
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Angel Food",
+          "sales": 4659.85,
+          "qty": 712
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Angel Food",
+          "sales": 4571.24,
+          "qty": 510
+        },
+        {
+          "subcategory": "Smoothie Bowls",
+          "product": "BOWL - Go-Go-Goji Crunch",
+          "sales": 3574.81,
+          "qty": 299
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Strawberry",
+          "sales": 2839.01,
+          "qty": 294
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Strawberry",
+          "sales": 2814.06,
+          "qty": 356
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - Gladiator Vanilla",
+          "sales": 2609.39,
+          "qty": 271
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - The Hulk Vanilla",
+          "sales": 2587.98,
+          "qty": 328
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Gladiator Vanilla",
+          "sales": 2546.92,
+          "qty": 319
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "32OZ - The Hulk Vanilla",
+          "sales": 2511.57,
+          "qty": 264
+        },
+        {
+          "subcategory": "Smoothies",
+          "product": "20OZ - Peanut Power Plus Chocolate",
+          "sales": 2486.64,
+          "qty": 316
+        }
+      ]
+    }
+  },
+  "ee": {
+    "margate": [
+      {
+        "dow": 0,
+        "sm": 1030,
+        "ee": 486
+      },
+      {
+        "dow": 1,
+        "sm": 1204,
+        "ee": 605
+      },
+      {
+        "dow": 2,
+        "sm": 1413,
+        "ee": 714
+      },
+      {
+        "dow": 3,
+        "sm": 1352,
+        "ee": 661
+      },
+      {
+        "dow": 4,
+        "sm": 1410,
+        "ee": 698
+      },
+      {
+        "dow": 5,
+        "sm": 1707,
+        "ee": 847
+      },
+      {
+        "dow": 6,
+        "sm": 1391,
+        "ee": 678
+      }
+    ],
+    "miramar": [
+      {
+        "dow": 0,
+        "sm": 1796,
+        "ee": 853
+      },
+      {
+        "dow": 1,
+        "sm": 2438,
+        "ee": 1220
+      },
+      {
+        "dow": 2,
+        "sm": 2573,
+        "ee": 1304
+      },
+      {
+        "dow": 3,
+        "sm": 2734,
+        "ee": 1412
+      },
+      {
+        "dow": 4,
+        "sm": 2718,
+        "ee": 1376
+      },
+      {
+        "dow": 5,
+        "sm": 3062,
+        "ee": 1457
+      },
+      {
+        "dow": 6,
+        "sm": 2325,
+        "ee": 1211
+      }
+    ],
+    "pines": [
+      {
+        "dow": 0,
+        "sm": 1610,
+        "ee": 802
+      },
+      {
+        "dow": 1,
+        "sm": 2022,
+        "ee": 1102
+      },
+      {
+        "dow": 2,
+        "sm": 2075,
+        "ee": 1081
+      },
+      {
+        "dow": 3,
+        "sm": 2104,
+        "ee": 1131
+      },
+      {
+        "dow": 4,
+        "sm": 2203,
+        "ee": 1163
+      },
+      {
+        "dow": 5,
+        "sm": 2800,
+        "ee": 1431
+      },
+      {
+        "dow": 6,
+        "sm": 2177,
+        "ee": 1178
+      }
+    ],
+    "all": [
+      {
+        "dow": 0,
+        "sm": 4436,
+        "ee": 2141
+      },
+      {
+        "dow": 1,
+        "sm": 5664,
+        "ee": 2927
+      },
+      {
+        "dow": 2,
+        "sm": 6061,
+        "ee": 3099
+      },
+      {
+        "dow": 3,
+        "sm": 6190,
+        "ee": 3204
+      },
+      {
+        "dow": 4,
+        "sm": 6331,
+        "ee": 3237
+      },
+      {
+        "dow": 5,
+        "sm": 7569,
+        "ee": 3735
+      },
+      {
+        "dow": 6,
+        "sm": 5893,
+        "ee": 3067
+      }
+    ]
+  }
+}

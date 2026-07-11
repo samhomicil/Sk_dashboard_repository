@@ -27,6 +27,51 @@ export interface MenuMixPayload {
   modifiers:    ProductSummary[]
 }
 
+export interface DaypartRow {
+  name:  string
+  sales: number
+  qty:   number
+}
+
+export interface WeekdayRow {
+  dow:   number
+  sales: number
+  qty:   number
+  days:  number
+}
+
+export interface EeRow {
+  dow: number
+  sm:  number
+  ee:  number
+}
+
+export interface DaypartCategoryRow {
+  subcategory: string
+  sales:       number
+  qty:         number
+}
+
+export interface DaypartProductRow {
+  subcategory: string
+  product:     string
+  sales:       number
+  qty:         number
+}
+
+export interface DaypartPayload {
+  refreshedAt: string
+  windowStart: string
+  windowEnd:   string
+  daypart:     DaypartRow[]
+  weekday:     WeekdayRow[]
+  categories:  Record<string, DaypartCategoryRow[]>
+  products:    Record<string, DaypartProductRow[]>
+  ee:          EeRow[]
+  weekdayByStore?: Record<'pines' | 'miramar' | 'margate', WeekdayRow[]>
+  eeByStore?:      Record<'pines' | 'miramar' | 'margate', EeRow[]>
+}
+
 export function parseSize(product: string): string {
   const m = product.match(/^(\d+OZ|KIDS|44OZ)/i)
   return m ? m[1].toUpperCase() : product.split(' ')[0]

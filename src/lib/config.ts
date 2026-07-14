@@ -1,7 +1,7 @@
 export const TARGETS = {
   laborPct: 0.25,
-  eePct: 0.80,
-  cogsPct: 0.167,       // 16.7% business COGS target
+  eePct: 0.60,
+  cogsPct: 0.25,        // 25% business COGS target
   voidPct: 0.02,
   discountPct: 0.08,
   salesGrowthYoY: 0.10,

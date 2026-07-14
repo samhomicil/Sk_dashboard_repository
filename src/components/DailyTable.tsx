@@ -104,7 +104,7 @@ export default function DailyTable({ data, loading }: Props) {
                 </td>
                 <td className="py-1.5 text-right">
                   {row.eePct != null ? (
-                    <span className={row.eePct >= TARGETS.eePct ? 'text-emerald-600 font-semibold' : row.eePct >= 0.6 ? 'text-amber-600' : 'text-red-500'}>
+                    <span className={row.eePct >= TARGETS.eePct ? 'text-emerald-600 font-semibold' : row.eePct >= TARGETS.eePct * 0.75 ? 'text-amber-600' : 'text-red-500'}>
                       {pct(row.eePct, 0)}
                     </span>
                   ) : <span className="text-slate-300">—</span>}

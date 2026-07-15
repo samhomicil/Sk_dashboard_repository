@@ -4,7 +4,7 @@
  */
 
 import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { dataPath } from './dataDir'
 import {
   startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   startOfQuarter, endOfQuarter, startOfYear, endOfYear,
@@ -558,7 +558,7 @@ async function fetchHeatmap(store: Store): Promise<unknown[]> {
 }
 
 // ── Products ──────────────────────────────────────────────────────
-const MENU_MIX_PATH = join(process.cwd(), 'data', 'menu-mix.json')
+const MENU_MIX_PATH = () => dataPath('menu-mix.json')
 const MM_LOC_STORE: Record<string, Store> = {
   '1392 - Pembroke Pines, FL': 'pines',
   '1892 - Miramar, FL':        'miramar',
@@ -580,8 +580,8 @@ function mmMonthDays(month: string, thruDate: string): number {
 }
 
 async function fetchProducts(store: Store, start: string, end: string): Promise<ProductRow[]> {
-  if (!existsSync(MENU_MIX_PATH)) return []
-  const mm = JSON.parse(readFileSync(MENU_MIX_PATH, 'utf-8')) as MixFile
+  if (!existsSync(MENU_MIX_PATH())) return []
+  const mm = JSON.parse(readFileSync(MENU_MIX_PATH(), 'utf-8')) as MixFile
 
   const startMonth = start.slice(0, 7)
   const endMonth   = end.slice(0, 7)
@@ -633,8 +633,8 @@ const SUBCAT_LABEL: Record<string, string> = {
 }
 
 function fetchCategories(store: Store, start: string, end: string): CategoryRow[] {
-  if (!existsSync(MENU_MIX_PATH)) return []
-  const mm = JSON.parse(readFileSync(MENU_MIX_PATH, 'utf-8')) as MixFile
+  if (!existsSync(MENU_MIX_PATH())) return []
+  const mm = JSON.parse(readFileSync(MENU_MIX_PATH(), 'utf-8')) as MixFile
   const startMonth = start.slice(0, 7)
   const endMonth   = end.slice(0, 7)
 

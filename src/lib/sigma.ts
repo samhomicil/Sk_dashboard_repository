@@ -9,10 +9,10 @@
  */
 
 import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
 import type { Store } from './types'
+import { dataPath } from './dataDir'
 
-const SIGMA_PATH = join(process.cwd(), 'data', 'sigma-daily.json')
+const SIGMA_PATH = () => dataPath('sigma-daily.json')
 
 // Sigma location name → dashboard store key
 const LOCATION_TO_STORE: Record<string, Store> = {
@@ -40,10 +40,10 @@ let _cache: SigmaFile | null = null
 let _cacheAt = 0
 
 function load(): SigmaFile | null {
-  if (!existsSync(SIGMA_PATH)) return null
-  const mtime = require('fs').statSync(SIGMA_PATH).mtimeMs
+  if (!existsSync(SIGMA_PATH())) return null
+  const mtime = require('fs').statSync(SIGMA_PATH()).mtimeMs
   if (_cache && _cacheAt === mtime) return _cache
-  _cache  = JSON.parse(readFileSync(SIGMA_PATH, 'utf-8')) as SigmaFile
+  _cache  = JSON.parse(readFileSync(SIGMA_PATH(), 'utf-8')) as SigmaFile
   _cacheAt = mtime
   return _cache
 }
@@ -222,9 +222,9 @@ export function sigmaChannels(store: Store, start: string, end: string): Map<str
 
 // ── EE% and Heatmap data ─────────────────────────────────────────────
 
-const EE_PERIODS_PATH = join(process.cwd(), 'data', 'ee-periods.json')
-const EMP_KEY_MAP_PATH = join(process.cwd(), 'data', 'employee-key-map.json')
-const HEATMAP_PATH     = join(process.cwd(), 'data', 'heatmap-daily.json')
+const EE_PERIODS_PATH = () => dataPath('ee-periods.json')
+const EMP_KEY_MAP_PATH = () => dataPath('employee-key-map.json')
+const HEATMAP_PATH     = () => dataPath('heatmap-daily.json')
 
 interface EEEntry { ee: number; sm: number; sales?: number }
 interface EEChannelSplit { inStore: EEEntry; digital: EEEntry }
@@ -247,16 +247,16 @@ let _empRevMap:  Map<string, number>  | null = null
 
 function loadEEPeriods(): EEPeriodsFile | null {
   if (_eePeriods) return _eePeriods
-  if (!existsSync(EE_PERIODS_PATH)) return null
-  _eePeriods = JSON.parse(readFileSync(EE_PERIODS_PATH, 'utf-8'))
+  if (!existsSync(EE_PERIODS_PATH())) return null
+  _eePeriods = JSON.parse(readFileSync(EE_PERIODS_PATH(), 'utf-8'))
   return _eePeriods
 }
 
 function getEmpRevMap(): Map<string, number> {
   if (_empRevMap) return _empRevMap
   _empRevMap = new Map()
-  if (!existsSync(EMP_KEY_MAP_PATH)) return _empRevMap
-  const raw = JSON.parse(readFileSync(EMP_KEY_MAP_PATH, 'utf-8')) as Record<string, EmpKeyEntry>
+  if (!existsSync(EMP_KEY_MAP_PATH())) return _empRevMap
+  const raw = JSON.parse(readFileSync(EMP_KEY_MAP_PATH(), 'utf-8')) as Record<string, EmpKeyEntry>
   for (const [key, val] of Object.entries(raw)) {
     // Name-only key (emp_key is per person, not per store — handles cross-store shifts)
     _empRevMap.set(`${val.first_name.toLowerCase()}|${val.last_name.toLowerCase()}`, Number(key))
@@ -276,8 +276,8 @@ export function sigmaEmpKey(firstName: string, lastName: string, locCode: string
 
 // All emp_keys for a person across all stores (multi-store employees have one key per loc)
 export function sigmaAllEmpKeys(firstName: string, lastName: string): number[] {
-  if (!existsSync(EMP_KEY_MAP_PATH)) return []
-  const raw = JSON.parse(readFileSync(EMP_KEY_MAP_PATH, 'utf-8')) as Record<string, EmpKeyEntry>
+  if (!existsSync(EMP_KEY_MAP_PATH())) return []
+  const raw = JSON.parse(readFileSync(EMP_KEY_MAP_PATH(), 'utf-8')) as Record<string, EmpKeyEntry>
   const nameKey = `${firstName.toLowerCase()}|${lastName.toLowerCase()}`
   return Object.entries(raw)
     .filter(([, v]) => `${v.first_name.toLowerCase()}|${v.last_name.toLowerCase()}` === nameKey)
@@ -286,8 +286,8 @@ export function sigmaAllEmpKeys(firstName: string, lastName: string): number[] {
 
 // Return the home loc_code for a given emp_key (from key map)
 export function sigmaEmpHomeLocCode(empKey: number): string | null {
-  if (!existsSync(EMP_KEY_MAP_PATH)) return null
-  const raw = JSON.parse(readFileSync(EMP_KEY_MAP_PATH, 'utf-8')) as Record<string, { loc_code: string }>
+  if (!existsSync(EMP_KEY_MAP_PATH())) return null
+  const raw = JSON.parse(readFileSync(EMP_KEY_MAP_PATH(), 'utf-8')) as Record<string, { loc_code: string }>
   return raw[String(empKey)]?.loc_code ?? null
 }
 
@@ -317,7 +317,7 @@ export function sigmaEEByDate(start: string): {
 // api/kpis/route.ts and api/daily/route.ts) — not from a bundled Sigma file,
 // which would go stale between manual refreshes.
 
-const EE_DAILY_PATH = join(process.cwd(), 'data', 'ee-daily.json')
+const EE_DAILY_PATH = () => dataPath('ee-daily.json')
 interface EEDailyRow  { date: string; sm: number; ee: number }
 interface EEDailyFile { pines: EEDailyRow[]; miramar: EEDailyRow[]; margate: EEDailyRow[]; weekStart?: string; thruDate?: string }
 
@@ -329,8 +329,8 @@ function loadEEDailyStoreRows(data: EEDailyFile, store: Store): EEDailyRow[] {
 }
 
 export function sigmaEEDailyPct(store: Store, date: string): number | null {
-  if (!existsSync(EE_DAILY_PATH)) return null
-  const data = JSON.parse(readFileSync(EE_DAILY_PATH, 'utf-8')) as EEDailyFile
+  if (!existsSync(EE_DAILY_PATH())) return null
+  const data = JSON.parse(readFileSync(EE_DAILY_PATH(), 'utf-8')) as EEDailyFile
   if (store === 'all') {
     const allRows = loadEEDailyStoreRows(data, 'all')
     const sm = allRows.filter(r => r.date === date).reduce((s, r) => s + r.sm, 0)
@@ -343,8 +343,8 @@ export function sigmaEEDailyPct(store: Store, date: string): number | null {
 
 // Aggregate EE% for a store across a date range from ee-daily.json
 export function sigmaEERange(store: Store, start: string, end: string): { ee: number; sm: number } {
-  if (!existsSync(EE_DAILY_PATH)) return { ee: 0, sm: 0 }
-  const data = JSON.parse(readFileSync(EE_DAILY_PATH, 'utf-8')) as EEDailyFile
+  if (!existsSync(EE_DAILY_PATH())) return { ee: 0, sm: 0 }
+  const data = JSON.parse(readFileSync(EE_DAILY_PATH(), 'utf-8')) as EEDailyFile
   const rows = loadEEDailyStoreRows(data, store).filter(r => r.date >= start && r.date <= end)
   return { sm: rows.reduce((s, r) => s + r.sm, 0), ee: rows.reduce((s, r) => s + r.ee, 0) }
 }
@@ -355,15 +355,15 @@ export interface HeatCell { hourNum: number; day: number; uplh: number; rawUnits
 // refreshed independently of the selected dashboard period — surfaced so the
 // UI can label what window the numbers actually reflect.
 export function sigmaHeatmapWindow(): { start: string; end: string } | null {
-  if (!existsSync(HEATMAP_PATH)) return null
-  const data = JSON.parse(readFileSync(HEATMAP_PATH, 'utf-8')) as HeatFile
+  if (!existsSync(HEATMAP_PATH())) return null
+  const data = JSON.parse(readFileSync(HEATMAP_PATH(), 'utf-8')) as HeatFile
   if (!data.unitsWindowStart || !data.unitsWindowEnd) return null
   return { start: data.unitsWindowStart, end: data.unitsWindowEnd }
 }
 
 export function sigmaHeatmap(store: Store): HeatCell[] {
-  if (!existsSync(HEATMAP_PATH)) return []
-  const data = JSON.parse(readFileSync(HEATMAP_PATH, 'utf-8')) as HeatFile
+  if (!existsSync(HEATMAP_PATH())) return []
+  const data = JSON.parse(readFileSync(HEATMAP_PATH(), 'utf-8')) as HeatFile
   const STAFF = 2
 
   let rows: HeatRow[]
@@ -400,7 +400,7 @@ export function sigmaHeatmap(store: Store): HeatCell[] {
     }))
 }
 
-const HEATMAP_WEEKLY_PATH = join(process.cwd(), 'data', 'heatmap-weekly.json')
+const HEATMAP_WEEKLY_PATH = () => dataPath('heatmap-weekly.json')
 interface HeatWeeklyRow  { dow: number; hour: number; units: number }
 interface HeatWeeklyFile { weekStart: string; weekEnd: string; pines: HeatWeeklyRow[]; miramar: HeatWeeklyRow[]; margate: HeatWeeklyRow[] }
 
@@ -409,16 +409,16 @@ interface HeatWeeklyFile { weekStart: string; weekEnd: string; pines: HeatWeekly
 // reflects actual sales from the same week as its staffing hours, instead of
 // the 90-day average used by Monthly/Quarterly/YTD. Refreshed weekly.
 export function sigmaHeatmapWeeklyWindow(): { start: string; end: string } | null {
-  if (!existsSync(HEATMAP_WEEKLY_PATH)) return null
-  const data = JSON.parse(readFileSync(HEATMAP_WEEKLY_PATH, 'utf-8')) as HeatWeeklyFile
+  if (!existsSync(HEATMAP_WEEKLY_PATH())) return null
+  const data = JSON.parse(readFileSync(HEATMAP_WEEKLY_PATH(), 'utf-8')) as HeatWeeklyFile
   if (!data.weekStart || !data.weekEnd) return null
   return { start: data.weekStart, end: data.weekEnd }
 }
 
 export function sigmaHeatmapWeekly(store: Store): Map<string, number> {
   const map = new Map<string, number>()
-  if (!existsSync(HEATMAP_WEEKLY_PATH)) return map
-  const data = JSON.parse(readFileSync(HEATMAP_WEEKLY_PATH, 'utf-8')) as HeatWeeklyFile
+  if (!existsSync(HEATMAP_WEEKLY_PATH())) return map
+  const data = JSON.parse(readFileSync(HEATMAP_WEEKLY_PATH(), 'utf-8')) as HeatWeeklyFile
   const rows = store === 'pines'   ? data.pines
     :          store === 'miramar' ? data.miramar
     :          store === 'margate' ? data.margate

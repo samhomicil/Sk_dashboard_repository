@@ -1,6 +1,6 @@
 {
-  "refreshedAt": "2026-07-12T15:30:00Z",
-  "thruDate": "2026-07-11",
+  "refreshedAt": "2026-07-15T11:33:58Z",
+  "thruDate": "2026-07-14",
   "sales": [
     {
       "date": "2025-01-01",
@@ -11639,6 +11639,78 @@
       "gross_sales": 1196.97,
       "voids_amount": 28.87,
       "orders": 145
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1392 - Pembroke Pines, FL",
+      "net_sales": 1559.74,
+      "gross_sales": 1658.06,
+      "voids_amount": 50.95,
+      "orders": 189
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1892 - Miramar, FL",
+      "net_sales": 1556.08,
+      "gross_sales": 1656.41,
+      "voids_amount": 55.94,
+      "orders": 190
+    },
+    {
+      "date": "2026-07-12",
+      "location": "2384 - Margate, FL",
+      "net_sales": 1154.18,
+      "gross_sales": 1227.55,
+      "voids_amount": 7.39,
+      "orders": 152
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1392 - Pembroke Pines, FL",
+      "net_sales": 2141.67,
+      "gross_sales": 2275.22,
+      "voids_amount": 9.99,
+      "orders": 267
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1892 - Miramar, FL",
+      "net_sales": 2393.73,
+      "gross_sales": 2543.77,
+      "voids_amount": 38.95,
+      "orders": 296
+    },
+    {
+      "date": "2026-07-13",
+      "location": "2384 - Margate, FL",
+      "net_sales": 1068.82,
+      "gross_sales": 1136.16,
+      "voids_amount": 8.99,
+      "orders": 134
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1392 - Pembroke Pines, FL",
+      "net_sales": 2028.91,
+      "gross_sales": 2157.13,
+      "voids_amount": 28.97,
+      "orders": 228
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1892 - Miramar, FL",
+      "net_sales": 2064.63,
+      "gross_sales": 2200.33,
+      "voids_amount": 61.94,
+      "orders": 249
+    },
+    {
+      "date": "2026-07-14",
+      "location": "2384 - Margate, FL",
+      "net_sales": 1392.51,
+      "gross_sales": 1482.31,
+      "voids_amount": 21.17,
+      "orders": 181
     }
   ],
   "cogs": [
@@ -14869,6 +14941,300 @@
       "destination": "Rails - Delivery",
       "orders": 5,
       "sales": 79.35
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 83,
+      "sales": 1087.53
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 28,
+      "sales": 329.99
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 5,
+      "sales": 93.41
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 2,
+      "sales": 30.25
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 18.56
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 96,
+      "sales": 1188.43
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 22,
+      "sales": 256.41
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 4,
+      "sales": 61.22
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1892 - Miramar, FL",
+      "destination": "Dispatch",
+      "orders": 2,
+      "sales": 33.37
+    },
+    {
+      "date": "2026-07-12",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 1,
+      "sales": 16.65
+    },
+    {
+      "date": "2026-07-12",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 72,
+      "sales": 905.59
+    },
+    {
+      "date": "2026-07-12",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 12,
+      "sales": 116.19
+    },
+    {
+      "date": "2026-07-12",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 8,
+      "sales": 114.38
+    },
+    {
+      "date": "2026-07-12",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 18.02
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 116,
+      "sales": 1328.33
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 46,
+      "sales": 586.37
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 9,
+      "sales": 167.43
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 3,
+      "sales": 51.55
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 7.99
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 173,
+      "sales": 1823.12
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 39,
+      "sales": 460.31
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 60.25
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 2,
+      "sales": 36.77
+    },
+    {
+      "date": "2026-07-13",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 1,
+      "sales": 13.28
+    },
+    {
+      "date": "2026-07-13",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 72,
+      "sales": 771.03
+    },
+    {
+      "date": "2026-07-13",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 18,
+      "sales": 209.56
+    },
+    {
+      "date": "2026-07-13",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 4,
+      "sales": 52.57
+    },
+    {
+      "date": "2026-07-13",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 35.66
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "To Go",
+      "orders": 103,
+      "sales": 1319.04
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Online Ordering",
+      "orders": 36,
+      "sales": 458.49
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 7,
+      "sales": 147.71
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Rails - Delivery",
+      "orders": 7,
+      "sales": 91.1
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1392 - Pembroke Pines, FL",
+      "destination": "Dispatch",
+      "orders": 1,
+      "sales": 12.57
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1892 - Miramar, FL",
+      "destination": "To Go",
+      "orders": 152,
+      "sales": 1640.07
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online Ordering",
+      "orders": 32,
+      "sales": 317.05
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1892 - Miramar, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 3,
+      "sales": 62.39
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1892 - Miramar, FL",
+      "destination": "Rails - Delivery",
+      "orders": 2,
+      "sales": 22.98
+    },
+    {
+      "date": "2026-07-14",
+      "location": "1892 - Miramar, FL",
+      "destination": "Online - Google",
+      "orders": 2,
+      "sales": 22.14
+    },
+    {
+      "date": "2026-07-14",
+      "location": "2384 - Margate, FL",
+      "destination": "To Go",
+      "orders": 88,
+      "sales": 973.37
+    },
+    {
+      "date": "2026-07-14",
+      "location": "2384 - Margate, FL",
+      "destination": "Online Ordering",
+      "orders": 28,
+      "sales": 322.57
+    },
+    {
+      "date": "2026-07-14",
+      "location": "2384 - Margate, FL",
+      "destination": "Rails - Delivery",
+      "orders": 3,
+      "sales": 72.82
+    },
+    {
+      "date": "2026-07-14",
+      "location": "2384 - Margate, FL",
+      "destination": "Uber Eats - Delivery",
+      "orders": 2,
+      "sales": 23.75
     }
   ],
   "employees": [
@@ -34946,6 +35312,314 @@
       "rate": 13.5,
       "hours": 1.1,
       "pay": 15.4
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Rebecca",
+      "last_name": "Craig",
+      "position": "Assistant General Manager",
+      "rate": 20.5,
+      "hours": 2.92,
+      "pay": 59.86
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Laury",
+      "last_name": "Lara",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 7.2,
+      "pay": 100.8
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Nicolas",
+      "last_name": "Quintero",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 1.45,
+      "pay": 20.3
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Gianna",
+      "last_name": "Ramirez",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 1.42,
+      "pay": 19.88
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Isabella",
+      "last_name": "Vasquez-Escobar",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 5.67,
+      "pay": 79.38
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Blen",
+      "last_name": "Ayalew",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 4.8,
+      "pay": 67.2
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Daniel",
+      "last_name": "Aybar",
+      "position": "Franchisee",
+      "rate": 0,
+      "hours": 7.63,
+      "pay": 0
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Isiah",
+      "last_name": "Chambers",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 6.17,
+      "pay": 86.38
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Tia",
+      "last_name": "Schirmer",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 3.77,
+      "pay": 52.78
+    },
+    {
+      "date": "2026-07-12",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Eutonya",
+      "last_name": "Steers",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 6.1,
+      "pay": 85.4
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Jonathan",
+      "last_name": "Bachman",
+      "position": "Team Member",
+      "rate": 14,
+      "hours": 5.6,
+      "pay": 78.4
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Laury",
+      "last_name": "Lara",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 6.27,
+      "pay": 87.78
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Nicolas",
+      "last_name": "Quintero",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 4.72,
+      "pay": 66.08
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Joshua",
+      "last_name": "Saintil",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 6.92,
+      "pay": 96.88
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Khayden",
+      "last_name": "Woods",
+      "position": "Team Captain",
+      "rate": 14.25,
+      "hours": 8.87,
+      "pay": 126.4
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "1892",
+      "location": "1892 - Miramar, FL",
+      "first_name": "Gaby",
+      "last_name": "Tome",
+      "position": "Team Captain",
+      "rate": 16.5,
+      "hours": 2.61,
+      "pay": 43.07
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "1892",
+      "location": "1892 - Miramar, FL",
+      "first_name": "Isabella",
+      "last_name": "Tome",
+      "position": "Team Captain",
+      "rate": 16.5,
+      "hours": 4.01,
+      "pay": 66.17
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Blen",
+      "last_name": "Ayalew",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 5.27,
+      "pay": 73.78
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Tariq",
+      "last_name": "Leon",
+      "position": "Team Captain",
+      "rate": 14,
+      "hours": 9.85,
+      "pay": 137.9
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Daniel",
+      "last_name": "Madaffari",
+      "position": "Manager - Salary",
+      "rate": 0,
+      "hours": 16.13,
+      "pay": 0
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Danielle",
+      "last_name": "Taylor",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 3.2,
+      "pay": 44.8
+    },
+    {
+      "date": "2026-07-13",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Isaac",
+      "last_name": "Vilcin",
+      "position": "Team Member",
+      "rate": 13.75,
+      "hours": 4.4,
+      "pay": 61.6
+    },
+    {
+      "date": "2026-07-14",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Jonathan",
+      "last_name": "Bachman",
+      "position": "Team Member",
+      "rate": 14,
+      "hours": 7.78,
+      "pay": 108.92
+    },
+    {
+      "date": "2026-07-14",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Laury",
+      "last_name": "Lara",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 4.68,
+      "pay": 65.52
+    },
+    {
+      "date": "2026-07-14",
+      "location_code": "1392",
+      "location": "1392 - Pembroke Pines, FL",
+      "first_name": "Nicolas",
+      "last_name": "Quintero",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 8.95,
+      "pay": 125.3
+    },
+    {
+      "date": "2026-07-14",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Tariq",
+      "last_name": "Leon",
+      "position": "Team Captain",
+      "rate": 14,
+      "hours": 8.62,
+      "pay": 120.68
+    },
+    {
+      "date": "2026-07-14",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Daniel",
+      "last_name": "Madaffari",
+      "position": "Manager - Salary",
+      "rate": 0,
+      "hours": 4.81,
+      "pay": 0
+    },
+    {
+      "date": "2026-07-14",
+      "location_code": "2384",
+      "location": "2384 - Margate, FL",
+      "first_name": "Gabriel",
+      "last_name": "Sjostrom",
+      "position": "Team Member",
+      "rate": 13.5,
+      "hours": 5.87,
+      "pay": 82.18
     }
   ]
 }

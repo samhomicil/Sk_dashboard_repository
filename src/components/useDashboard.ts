@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { resolveDateRange } from '@/lib/dates'
 import type { Store, Period, DateRange, KpiData, TrendPoint, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow, QuarterRow, DailyData, DailyRangeData, StaffingData, Promotion } from '@/lib/types'
+import type { SopData } from './SopCard'
 
 interface DashboardState {
   store:    Store
@@ -26,6 +27,7 @@ interface DashboardData {
   unitsWindow: { start: string; end: string } | null
   daily:       DailyData | null
   dailyRange:  DailyRangeData | null
+  jolt:        SopData | null
   loading:     boolean
   error:       string | null
   refreshedAt: string | null
@@ -45,7 +47,7 @@ export function useDashboard() {
 
   const [data, setData] = useState<DashboardData>({
     kpis: null, trend: [], stores: [], employees: [],
-    products: [], categories: [], channels: [], quarters: [], staffing: null, promotions: [], unitsWindow: null, daily: null, dailyRange: null,
+    products: [], categories: [], channels: [], quarters: [], staffing: null, promotions: [], unitsWindow: null, daily: null, dailyRange: null, jolt: null,
     loading: true, error: null, refreshedAt: null, hasCache: false,
   })
 
@@ -63,7 +65,7 @@ export function useDashboard() {
 
     try {
       const isCustom = s.period === 'custom'
-      const [kpisRes, trendRes, storesRes, empRes, prodRes, catRes, chRes, qRes, heatRes, metaRes, dailyRes, dailyRangeRes, promoRes] = await Promise.all([
+      const [kpisRes, trendRes, storesRes, empRes, prodRes, catRes, chRes, qRes, heatRes, metaRes, dailyRes, dailyRangeRes, promoRes, joltRes] = await Promise.all([
         fetch('/api/kpis'        + qs(p)).then(r => r.json()),
         fetch('/api/trend'       + qs(p)).then(r => r.json()),
         fetch('/api/stores'      + qs(p)).then(r => r.json()),
@@ -79,6 +81,7 @@ export function useDashboard() {
           ? fetch(`/api/daily?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}&pyStart=${s.dates.pyStart}&pyEnd=${s.dates.pyEnd}`).then(r => r.json())
           : Promise.resolve(null),
         fetch(`/api/promotions?store=${s.store}`).then(r => r.json()),
+        fetch(`/api/jolt?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
       ])
 
       setData({
@@ -97,6 +100,7 @@ export function useDashboard() {
           : null,
         daily:       dailyRes?.thisWeek ? dailyRes : null,
         dailyRange:  dailyRangeRes?.current ? dailyRangeRes : null,
+        jolt:        joltRes?.locations ? joltRes : null,
         refreshedAt: metaRes?.refreshedAt ?? null,
         hasCache:    metaRes?.hasCache ?? false,
         loading: false,

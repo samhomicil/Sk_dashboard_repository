@@ -22,7 +22,7 @@ async function fetchSalesByDay(store: Store, start: string, end: string): Promis
       SELECT CONVERT(char(10), closed_datetime, 23) AS d,
         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales   ELSE 0 END) AS net,
         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) AS gross,
-        SUM(CASE WHEN voided=1 AND is_modifier=0 THEN net_sales   ELSE 0 END) AS voids,
+        SUM(CASE WHEN voided=1 AND is_modifier=0 THEN price       ELSE 0 END) AS voids,
         COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END)                              AS orders,
         COUNT(DISTINCT CASE WHEN voided=0 AND is_modifier=0 THEN order_id END)            AS sm,
         COUNT(DISTINCT CASE WHEN voided=0 AND revenue_center='Modifiers' THEN order_id END) AS ee

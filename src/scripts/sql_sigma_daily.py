@@ -37,7 +37,7 @@ def main():
       SELECT CONVERT(char(10), closed_datetime, 23) d, store,
         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales   ELSE 0 END) net,
         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) gross,
-        SUM(CASE WHEN voided=1 AND is_modifier=0 THEN net_sales   ELSE 0 END) voids,
+        SUM(CASE WHEN voided=1 AND is_modifier=0 THEN price       ELSE 0 END) voids,
         COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END) orders
       FROM smoothieking.sales WHERE closed_datetime >= '{SINCE}'
       GROUP BY CONVERT(char(10), closed_datetime, 23), store

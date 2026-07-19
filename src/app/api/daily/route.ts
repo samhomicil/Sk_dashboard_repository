@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server'
 import { cacheDailyAsync } from '@/lib/cache'
-import { sigmaDailyFull, sigmaEEDailyPct } from '@/lib/sigma'
 import { query, dateFilter } from '@/lib/db'
 import type { Store, DailyRow } from '@/lib/types'
 
@@ -10,6 +9,32 @@ const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', m
 function sfDb(store: Store) {
   if (store === 'all') return '1=1'
   return `store = '${DB_STORE[store]}'`
+}
+
+interface DaySales { net: number; gross: number; voids: number; orders: number; sm: number; ee: number }
+
+// Per-day sales/orders/EE live from smoothieking.sales (validated defs) — replaces the
+// bundled sigma-daily/ee-daily reads so custom date ranges are always current.
+async function fetchSalesByDay(store: Store, start: string, end: string): Promise<Map<string, DaySales>> {
+  const map = new Map<string, DaySales>()
+  try {
+    const rows = await query<{ d: string; net: number; gross: number; voids: number; orders: number; sm: number; ee: number }[]>(`
+      SELECT CONVERT(char(10), closed_datetime, 23) AS d,
+        SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales   ELSE 0 END) AS net,
+        SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) AS gross,
+        SUM(CASE WHEN voided=1 AND is_modifier=0 THEN net_sales   ELSE 0 END) AS voids,
+        COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END)                              AS orders,
+        COUNT(DISTINCT CASE WHEN voided=0 AND is_modifier=0 THEN order_id END)            AS sm,
+        COUNT(DISTINCT CASE WHEN voided=0 AND revenue_center='Modifiers' THEN order_id END) AS ee
+      FROM smoothieking.sales WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'closed_datetime')}
+      GROUP BY CONVERT(char(10), closed_datetime, 23)
+    `)
+    for (const r of rows) {
+      map.set(r.d, { net: Number(r.net) || 0, gross: Number(r.gross) || 0, voids: Number(r.voids) || 0,
+        orders: Number(r.orders) || 0, sm: Number(r.sm) || 0, ee: Number(r.ee) || 0 })
+    }
+  } catch { /* DB unavailable — daily sales blank for this range */ }
+  return map
 }
 
 async function fetchLaborByDay(store: Store, start: string, end: string): Promise<Map<string, { labor: number; hours: number }>> {
@@ -29,8 +54,10 @@ async function fetchLaborByDay(store: Store, start: string, end: string): Promis
 }
 
 async function buildRange(store: Store, start: string, end: string): Promise<DailyRow[]> {
-  const sigMap   = sigmaDailyFull(store, start, end)
-  const laborMap = await fetchLaborByDay(store, start, end)
+  const [sigMap, laborMap] = await Promise.all([
+    fetchSalesByDay(store, start, end),
+    fetchLaborByDay(store, start, end),
+  ])
   const rows: DailyRow[] = []
   const endDate = new Date(end + 'T00:00:00')
 
@@ -42,15 +69,15 @@ async function buildRange(store: Store, start: string, end: string): Promise<Dai
     rows.push({
       date:        dateStr,
       day:         DAY_LABELS[d.getDay()],
-      sales:       sig ? sig.net_sales : null,
-      orders:      sig ? sig.orders    : null,
-      eePct:       sigmaEEDailyPct(store, dateStr),
-      voidPct:     sig && sig.gross_sales > 0 ? sig.voids_amount / sig.gross_sales : null,
-      atv:         sig && sig.orders > 0 ? sig.net_sales / sig.orders : null,
-      discountPct: sig && sig.gross_sales > 0
-        ? Math.max(0, sig.gross_sales - sig.net_sales - sig.voids_amount) / sig.gross_sales
+      sales:       sig ? sig.net : null,
+      orders:      sig ? sig.orders : null,
+      eePct:       sig && sig.sm > 0 ? sig.ee / sig.sm : null,
+      voidPct:     sig && sig.gross > 0 ? sig.voids / sig.gross : null,
+      atv:         sig && sig.orders > 0 ? sig.net / sig.orders : null,
+      discountPct: sig && sig.gross > 0
+        ? Math.max(0, sig.gross - sig.net - sig.voids) / sig.gross
         : null,
-      laborPct:    sig && sig.net_sales > 0 && laborData.labor > 0 ? laborData.labor / sig.net_sales : null,
+      laborPct:    sig && sig.net > 0 && laborData.labor > 0 ? laborData.labor / sig.net : null,
       laborCost:   laborData.labor > 0 ? laborData.labor : null,
       laborHours:  laborData.hours > 0 ? laborData.hours : null,
     })

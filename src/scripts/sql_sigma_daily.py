@@ -38,13 +38,15 @@ def main():
         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales   ELSE 0 END) net,
         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) gross,
         SUM(CASE WHEN voided=1 AND is_modifier=0 THEN price       ELSE 0 END) voids,
-        COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END) orders
+        COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END) orders,
+        COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END) void_orders
       FROM smoothieking.sales WHERE closed_datetime >= '{SINCE}'
       GROUP BY CONVERT(char(10), closed_datetime, 23), store
       ORDER BY d, store""")
     sales = [{"date": r["d"], "location": STORE_LOC[r["store"]],
               "net_sales": round(float(r["net"]), 2), "gross_sales": round(float(r["gross"]), 2),
-              "voids_amount": round(float(r["voids"]), 2), "orders": int(r["orders"])}
+              "voids_amount": round(float(r["voids"]), 2), "orders": int(r["orders"]),
+              "void_orders": int(r["void_orders"])}
              for r in cur.fetchall() if r["store"] in STORE_LOC]
 
     # daily channels per store/destination

@@ -16,22 +16,24 @@ function sfDb(store: Store) {
 // orders = distinct non-void order_id; sm = distinct order_id w/ a non-modifier item;
 // ee = distinct order_id w/ a 'Modifiers' revenue-center item.
 async function salesAgg(store: Store, s: string, e: string) {
-  const zero = { net: 0, gross: 0, voids: 0, orders: 0, sm: 0, ee: 0 }
+  const zero = { net: 0, gross: 0, voids: 0, orders: 0, voidOrders: 0, sm: 0, ee: 0 }
   if (!s || !e) return zero
   try {
-    const r = await query<{ net: number; gross: number; voids: number; orders: number; sm: number; ee: number }[]>(
+    const r = await query<{ net: number; gross: number; voids: number; orders: number; voidOrders: number; sm: number; ee: number }[]>(
       `SELECT
          SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales   ELSE 0 END) AS net,
          SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) AS gross,
          SUM(CASE WHEN voided=1 AND is_modifier=0 THEN price       ELSE 0 END) AS voids,
          COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END)                              AS orders,
+         COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END)                              AS voidOrders,
          COUNT(DISTINCT CASE WHEN voided=0 AND is_modifier=0 THEN order_id END)            AS sm,
          COUNT(DISTINCT CASE WHEN voided=0 AND revenue_center='Modifiers' THEN order_id END) AS ee
        FROM smoothieking.sales WHERE ${sfDb(store)} AND ${dateFilter(s, e, 'closed_datetime')}`)
     const x = r[0] ?? {}
     return {
       net: Number(x.net) || 0, gross: Number(x.gross) || 0, voids: Number(x.voids) || 0,
-      orders: Number(x.orders) || 0, sm: Number(x.sm) || 0, ee: Number(x.ee) || 0,
+      orders: Number(x.orders) || 0, voidOrders: Number(x.voidOrders) || 0,
+      sm: Number(x.sm) || 0, ee: Number(x.ee) || 0,
     }
   } catch { return zero }
 }
@@ -77,7 +79,7 @@ export async function GET(req: NextRequest) {
   const sales   = sig.net_sales
   const salesPY = sigPY.net_sales
 
-  const voidPct     = sig.gross_sales > 0 ? sig.voids_amount / sig.gross_sales : 0
+  const voidPct     = cur.orders > 0 ? cur.voidOrders / cur.orders : 0
   const discountPct = sig.gross_sales > 0
     ? Math.max(0, sig.gross_sales - sig.net_sales - sig.voids_amount) / sig.gross_sales : 0
 

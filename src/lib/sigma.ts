@@ -21,7 +21,7 @@ const LOCATION_TO_STORE: Record<string, Store> = {
   '2384 - Margate, FL':        'margate',
 }
 
-interface SaleRow    { date: string; location: string; net_sales: number; gross_sales: number; voids_amount: number; orders?: number }
+interface SaleRow    { date: string; location: string; net_sales: number; gross_sales: number; voids_amount: number; orders?: number; void_orders?: number }
 interface CogsRow    { date: string; location: string; actual_cogs: number; theoretical_cogs: number }
 interface ChannelRow { date: string; location: string; destination: string; orders: number; sales: number }
 export interface EmployeeShiftRow {
@@ -74,23 +74,26 @@ export interface SigmaSalesSummary {
   net_sales: number
   gross_sales: number
   voids_amount: number
+  void_orders: number
 }
 
 export function sigmaSales(store: Store, start: string, end: string): SigmaSalesSummary {
   const d = load()
-  if (!d) return { net_sales: 0, gross_sales: 0, voids_amount: 0 }
-  let net = 0, gross = 0, voids = 0
+  if (!d) return { net_sales: 0, gross_sales: 0, voids_amount: 0, void_orders: 0 }
+  let net = 0, gross = 0, voids = 0, voidOrders = 0
   for (const r of d.sales) {
     if (r.date >= start && r.date <= end && storeMatches(r.location, store)) {
       net   += r.net_sales
       gross += r.gross_sales
       voids += r.voids_amount
+      voidOrders += r.void_orders ?? 0
     }
   }
   return {
     net_sales:    Math.round(net   * 100) / 100,
     gross_sales:  Math.round(gross * 100) / 100,
     voids_amount: Math.round(voids * 100) / 100,
+    void_orders:  voidOrders,
   }
 }
 

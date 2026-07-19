@@ -175,8 +175,8 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const wmTot     = Number(wm.walmart_total) || 0
   const l4wSales  = sigL4w.net_sales
 
-  const voidPct        = sigSales.gross_sales > 0 ? sigSales.voids_amount / sigSales.gross_sales : 0
-  const voidPctL4W     = sigL4w.gross_sales   > 0 ? sigL4w.voids_amount   / sigL4w.gross_sales   : 0
+  const voidPct        = orders    > 0 ? sigSales.void_orders / orders    : 0
+  const voidPctL4W     = l4wOrders > 0 ? sigL4w.void_orders   / l4wOrders : 0
   const discountPct    = sigSales.gross_sales > 0
     ? Math.max(0, sigSales.gross_sales - sigSales.net_sales - sigSales.voids_amount) / sigSales.gross_sales : 0
   const discountPctL4W = sigL4w.gross_sales > 0
@@ -310,10 +310,10 @@ function fetchEmployees(store: Store, start: string, end: string): EmployeeRow[]
     }
   }
 
-  const storeSigma = new Map<string, { net: number; voids: number }>()
+  const storeSigma = new Map<string, { net: number; voidOrders: number; orders: number }>()
   for (const [locCode, storeKey] of Object.entries(LOC_CODE_TO_STORE_KEY)) {
     const s = sigmaSales(storeKey, start, end)
-    storeSigma.set(locCode, { net: s.net_sales, voids: s.voids_amount })
+    storeSigma.set(locCode, { net: s.net_sales, voidOrders: s.void_orders, orders: sigmaOrders(storeKey, start, end) })
   }
   const storeHours = new Map<string, number>()
   for (const e of map.values()) {
@@ -334,10 +334,10 @@ function fetchEmployees(store: Store, start: string, end: string): EmployeeRow[]
     .map(e => {
       const primaryLoc   = [...e.hoursByLoc.entries()].sort((a,b) => b[1]-a[1])[0]?.[0] ?? ''
       const primaryStore = LOC_CODE_SHORT[primaryLoc] ?? primaryLoc
-      const sigma        = storeSigma.get(primaryLoc) ?? { net: 0, voids: 0 }
+      const sigma        = storeSigma.get(primaryLoc) ?? { net: 0, voidOrders: 0, orders: 0 }
       const hrs          = storeHours.get(primaryLoc) ?? 0
       const storeSalesPerHour = hrs > 0 ? Math.round(sigma.net / hrs * 100) / 100 : 0
-      const storeVoidPct      = sigma.net > 0 ? Math.round(sigma.voids / sigma.net * 1000) / 10 : 0
+      const storeVoidPct      = sigma.orders > 0 ? Math.round(sigma.voidOrders / sigma.orders * 1000) / 10 : 0
 
       const allKeys = sigmaAllEmpKeys(e.firstName, e.lastName)
       const eeAgg   = allKeys.reduce((acc, k) => {

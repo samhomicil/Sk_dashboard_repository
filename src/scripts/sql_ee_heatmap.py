@@ -44,15 +44,33 @@ def emp_revmap():
     raw = json.loads((DATA / "employee-key-map.json").read_text())
     rev = {}
     for k, v in raw.items():
-        rev[f"{v['first_name'].lower()}|{v['last_name'].lower()}"] = int(k)
+        fn = re.sub(r"\s+", " ", v["first_name"].strip().lower())
+        ln = re.sub(r"\s+", " ", v["last_name"].strip().lower())
+        rev[f"{fn}|{ln}"] = int(k)
     return rev
 
 
+import re
+
+# known name typos in the POS export -> map form (from load_sales.py)
+_NAME_FIXES = {"delgado|alexader": "delgado|alexander", "figureroa|miguel": "figueroa|miguel",
+               "laura|laury": "lara|laury", "allen|d?nasia": "allen|d'nasia"}
+
+
 def name_key(name):
-    parts = (name or "").split()
-    if len(parts) < 2:
+    """Return 'first|last' (normalized) from either 'Last, First' or 'First Last'."""
+    n = re.sub(r"\s+", " ", (name or "").strip())
+    if not n:
         return None
-    return f"{parts[0].lower()}|{' '.join(parts[1:]).lower()}"
+    if "," in n:                       # "Last, First"
+        last, _, first = n.partition(",")
+        key = f"{first.strip().lower()}|{last.strip().lower()}"
+    else:                              # "First Last"
+        parts = n.split(" ")
+        if len(parts) < 2:
+            return None
+        key = f"{parts[0].lower()}|{' '.join(parts[1:]).lower()}"
+    return _NAME_FIXES.get(key, key)
 
 
 def ee_for_range(cur, start, end):
@@ -85,12 +103,16 @@ def ee_for_range(cur, start, end):
         SUM(CASE WHEN is_modifier=0 THEN net_sales ELSE 0 END) sales
         {base} AND employee IS NOT NULL GROUP BY employee""")
     rev = emp_revmap()
-    by = {}
+    acc = {}   # accumulate by emp_key (merges 'Last, First' + 'First Last' variants)
     for r in cur.fetchall():
         nk = name_key(r["employee"])
         key = rev.get(nk) if nk else None
-        if key and int(r["sm"]) >= 5:      # runbook: min 5 smoothie orders
-            by[str(key)] = {"ee": int(r["ee"]), "sm": int(r["sm"]), "sales": round(float(r["sales"]), 2)}
+        if not key:
+            continue
+        a = acc.setdefault(str(key), {"ee": 0, "sm": 0, "sales": 0.0})
+        a["ee"] += int(r["ee"]); a["sm"] += int(r["sm"]); a["sales"] += float(r["sales"])
+    by = {k: {"ee": v["ee"], "sm": v["sm"], "sales": round(v["sales"], 2)}
+          for k, v in acc.items() if v["sm"] >= 5}   # runbook: min 5 smoothie orders
     return st, ch, by
 
 

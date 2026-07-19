@@ -59,17 +59,25 @@ def main():
                 for r in cur.fetchall() if r["store"] in STORE_LOC]
 
     thru = max(r["date"] for r in sales) if sales else None
-    c.close()
 
-    # preserve existing cogs + employees (COGS stays weekly/Sigma), swap sales+channels
+    # cogs + employees come from smoothieking.dashboard_meta (updated weekly/separately) so
+    # the daily push carries the latest without rebuilding the image. Fall back to the local
+    # sigma-daily.json if the table has no row yet.
+    def meta(key):
+        cur.execute("SELECT meta_value FROM smoothieking.dashboard_meta WHERE meta_key=%s", (key,))
+        r = cur.fetchone()
+        return json.loads(r["meta_value"]) if r and r["meta_value"] else None
+    cogs = meta("cogs")
+    employees = meta("employees")
+    c.close()
     existing = json.loads(DATA.read_text()) if DATA.exists() else {}
     out = {
         "refreshedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "thruDate": thru,
         "sales": sales,
-        "cogs": existing.get("cogs", []),
+        "cogs": cogs if cogs is not None else existing.get("cogs", []),
         "channels": channels,
-        "employees": existing.get("employees", []),
+        "employees": employees if employees is not None else existing.get("employees", []),
     }
     DATA.write_text(json.dumps(out))
     print(f"wrote {DATA.name}: {len(sales)} sale-days, {len(channels)} channel-rows, "

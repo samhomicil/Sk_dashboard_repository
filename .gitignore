@@ -51,3 +51,4 @@ src/pfg_extractor/pfg_state.json
 src/pfg_extractor/out/
 src/pfg_extractor/credentials.json
 src/pfg_extractor/token.json
+*.sigmabak

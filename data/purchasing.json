@@ -1,8 +1,8 @@
 {
-  "refreshedAt": "2026-07-17T08:58:24.206Z",
+  "refreshedAt": "2026-07-18T23:36:55.140Z",
   "vendorSplit": {
     "pfgTotal": 264011.13999999897,
-    "walmartTotal": 15002.159999999987
+    "walmartTotal": 15795.889999999994
   },
   "categorySpend": [
     {
@@ -1375,71 +1375,75 @@
   "walmartCategories": [
     {
       "category": "BLUEBERRIES",
-      "spend": 6029.8899999999985
+      "spend": 6123.670000000001
     },
     {
       "category": "CORE STRAWBERRIES",
-      "spend": 4731.609999999998
+      "spend": 4843.099999999999
     },
     {
       "category": "FROZEN ICE CREAM L3",
-      "spend": 1036.6300000000003
+      "spend": 1156.9200000000003
     },
     {
       "category": "FROZEN PRODUCE L3",
-      "spend": 570.3900000000001
+      "spend": 631.6999999999999
     },
     {
       "category": "YOGURT",
-      "spend": 511.74999999999994
-    },
-    {
-      "category": "PREMIUM EGGS",
-      "spend": 374.86000000000007
+      "spend": 587.79
     },
     {
       "category": "PEANUT BUTTER",
-      "spend": 372.67
+      "spend": 539.7
+    },
+    {
+      "category": "PREMIUM EGGS",
+      "spend": 419.54999999999995
+    },
+    {
+      "category": "DIPS PV",
+      "spend": 135.47
+    },
+    {
+      "category": "TRASH BAGS",
+      "spend": 124.13
+    },
+    {
+      "category": "HOUSEHOLD PEST CONTROL",
+      "spend": 118.49
     },
     {
       "category": "SUGAR",
       "spend": 116.92
     },
     {
-      "category": "DIPS PV",
-      "spend": 113.59
-    },
-    {
-      "category": "TRASH BAGS",
-      "spend": 107.69
-    },
-    {
       "category": "FIRST AID",
-      "spend": 93.84
-    },
-    {
-      "category": "HOUSEHOLD PEST CONTROL",
-      "spend": 92.85
+      "spend": 93.83999999999999
     },
     {
       "category": "BANANAS",
-      "spend": 86.75
+      "spend": 86.74999999999999
     },
     {
       "category": "INDUSTRIAL CLEANING",
       "spend": 75.88
     },
     {
+      "category": "AIR FRESHENERS AND DEODORIZERS",
+      "spend": 73.03
+    },
+    {
       "category": "TRENDING NOW L3",
       "spend": 69.88
     },
     {
-      "category": "OFFICE SUPPLIES",
-      "spend": 58.68
+      "category": "COLD CEREAL L3",
+      "spend": 64.78
     },
     {
-      "category": "AIR FRESHENERS AND DEODORIZERS",
-      "spend": 56.37
+      "category": "OFFICE SUPPLIES",
+      "spend": 58.68
     },
     {
       "category": "DELI SNACKS",
@@ -1462,12 +1466,12 @@
       "spend": 35.78
     },
     {
-      "category": "COLD CEREAL L3",
-      "spend": 35.71
-    },
-    {
       "category": "JAMS JELLY AND HONEY",
       "spend": 29.21
+    },
+    {
+      "category": "SPECIALTY MILK",
+      "spend": 24.32
     },
     {
       "category": "PRODUCE JUICE",
@@ -1492,10 +1496,6 @@
     {
       "category": "CHEESES",
       "spend": 16.72
-    },
-    {
-      "category": "SPECIALTY MILK",
-      "spend": 14.91
     },
     {
       "category": "CLEANING TOOLS",
@@ -1598,22 +1598,22 @@
     {
       "month": "2026-01",
       "pfgSpend": 38485.02000000005,
-      "walmartSpend": 1842.150000000001
+      "walmartSpend": 1842.1499999999996
     },
     {
       "month": "2026-02",
       "pfgSpend": 32775.53000000005,
-      "walmartSpend": 3110.7400000000007
+      "walmartSpend": 3110.7399999999993
     },
     {
       "month": "2026-03",
       "pfgSpend": 49208.20000000007,
-      "walmartSpend": 2767.4
+      "walmartSpend": 2767.3999999999996
     },
     {
       "month": "2026-04",
       "pfgSpend": 45625.09000000011,
-      "walmartSpend": 2886.080000000001
+      "walmartSpend": 2886.0800000000017
     },
     {
       "month": "2026-05",
@@ -1623,12 +1623,12 @@
     {
       "month": "2026-06",
       "pfgSpend": 41255.39000000005,
-      "walmartSpend": 2661.9800000000005
+      "walmartSpend": 2661.980000000001
     },
     {
       "month": "2026-07",
       "pfgSpend": 7636.420000000001,
-      "walmartSpend": 0
+      "walmartSpend": 793.7300000000001
     }
   ]
 }

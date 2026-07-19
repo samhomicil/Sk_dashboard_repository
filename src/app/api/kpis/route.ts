@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { cacheKpisAsync } from '@/lib/cache'
-import { sigmaSales, sigmaOrders, sigmaCogs, sigmaCogsActualThruDate, sigmaEERange } from '@/lib/sigma'
+import { sigmaCogs, sigmaCogsActualThruDate } from '@/lib/sigma'
 import { query, dateFilter } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
@@ -9,6 +9,31 @@ const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', m
 
 function sfDb(store: Store) {
   return store === 'all' ? '1=1' : `store = '${DB_STORE[store]}'`
+}
+
+// Net sales / gross / voids / orders / EE (sm,ee) for a date range, live from
+// smoothieking.sales. Definitions validated against Sigma: net = non-void non-modifier;
+// orders = distinct non-void order_id; sm = distinct order_id w/ a non-modifier item;
+// ee = distinct order_id w/ a 'Modifiers' revenue-center item.
+async function salesAgg(store: Store, s: string, e: string) {
+  const zero = { net: 0, gross: 0, voids: 0, orders: 0, sm: 0, ee: 0 }
+  if (!s || !e) return zero
+  try {
+    const r = await query<{ net: number; gross: number; voids: number; orders: number; sm: number; ee: number }[]>(
+      `SELECT
+         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales   ELSE 0 END) AS net,
+         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) AS gross,
+         SUM(CASE WHEN voided=1 AND is_modifier=0 THEN net_sales   ELSE 0 END) AS voids,
+         COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END)                              AS orders,
+         COUNT(DISTINCT CASE WHEN voided=0 AND is_modifier=0 THEN order_id END)            AS sm,
+         COUNT(DISTINCT CASE WHEN voided=0 AND revenue_center='Modifiers' THEN order_id END) AS ee
+       FROM smoothieking.sales WHERE ${sfDb(store)} AND ${dateFilter(s, e, 'closed_datetime')}`)
+    const x = r[0] ?? {}
+    return {
+      net: Number(x.net) || 0, gross: Number(x.gross) || 0, voids: Number(x.voids) || 0,
+      orders: Number(x.orders) || 0, sm: Number(x.sm) || 0, ee: Number(x.ee) || 0,
+    }
+  } catch { return zero }
 }
 function sfPfs(store: Store) {
   if (store === 'all') return '1=1'
@@ -38,11 +63,16 @@ export async function GET(req: NextRequest) {
 
   if (!start || !end) return Response.json({ error: 'missing_dates' }, { status: 400 })
 
-  const sig     = sigmaSales(store, start, end)
-  const sigPY   = pyStart && pyEnd ? sigmaSales(store, pyStart, pyEnd) : { net_sales: 0, gross_sales: 0, voids_amount: 0 }
+  // Sales / orders / EE for any custom range come straight from smoothieking.sales
+  // (always live) — not the bundled Sigma JSON, which only updated on deploy. COGS stays
+  // from Sigma (weekly). Definitions match the validated ones used to generate the cache.
+  const cur = await salesAgg(store, start, end)
+  const py  = await salesAgg(store, pyStart, pyEnd)
+  const sig     = { net_sales: cur.net, gross_sales: cur.gross, voids_amount: cur.voids }
+  const sigPY   = { net_sales: py.net,  gross_sales: py.gross,  voids_amount: py.voids }
   const sigCogs = sigmaCogs(store, start, end)
-  const orders  = sigmaOrders(store, start, end)
-  const ordersPY = pyStart && pyEnd ? sigmaOrders(store, pyStart, pyEnd) : 0
+  const orders  = cur.orders
+  const ordersPY = py.orders
 
   const sales   = sig.net_sales
   const salesPY = sigPY.net_sales
@@ -91,7 +121,7 @@ export async function GET(req: NextRequest) {
     cogsActualPct,
     cogsTheoreticalPct: sigCogs.theoretical_cogs > 0 && sales > 0 ? sigCogs.theoretical_cogs / sales : null,
     cogsActualAsOf,
-    eePct:              (() => { const r = sigmaEERange(store, start, end); return r.sm > 0 ? r.ee / r.sm : 0 })(),
+    eePct:              cur.sm > 0 ? cur.ee / cur.sm : 0,
     eePctL4W:           0,
     eeInStorePct:       0,
     eeDigitalPct:       0,

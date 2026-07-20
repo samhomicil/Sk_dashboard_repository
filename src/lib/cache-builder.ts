@@ -387,6 +387,7 @@ async function fetchStaffing(start: string, end: string, useRealUnits: boolean):
     WHERE store IN ('Pines','Miramar','Margate')
       AND CAST(shift_date AS DATE) BETWEEN '${start}' AND '${end}'
       AND shift_start IS NOT NULL AND shift_end IS NOT NULL
+      AND employee_role NOT IN ('NON_EMP', 'Support')  -- exclude IT/system placeholders, not floor staff
     ORDER BY shift_date, shift_start
   `).catch(() => [])
 
@@ -518,6 +519,7 @@ async function fetchHeatmap(store: Store): Promise<unknown[]> {
     WHERE ${filter}
       AND CAST(shift_date AS DATE) BETWEEN '${weekStart}' AND '${weekEnd}'
       AND shift_start IS NOT NULL AND shift_end IS NOT NULL AND shift_start <> '' AND shift_end <> ''
+      AND employee_role NOT IN ('NON_EMP', 'Support')  -- exclude IT/system placeholders, not floor staff
     ORDER BY shift_date, shift_start
   `).catch(() => [])
 

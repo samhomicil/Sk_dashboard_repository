@@ -12,8 +12,8 @@ import {
 } from 'date-fns'
 import { PROXY_URL, TARGETS } from './config'
 import {
-  sigmaSales, sigmaCogs, sigmaMonthSales, sigmaWeeklySales, sigmaDailySales,
-  sigmaOrders, sigmaChannels, sigmaThruDate, sigmaCogsActualThruDate,
+  sigmaSales, sigmaCogsPct, sigmaMonthSales, sigmaWeeklySales, sigmaDailySales,
+  sigmaOrders, sigmaChannels, sigmaThruDate,
   sigmaEmployees, sigmaAllEmpKeys, sigmaEEByDate, sigmaEEDailyPct, sigmaHeatmap, sigmaHeatmapWeekly,
 } from './sigma'
 import type {
@@ -112,7 +112,6 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
 
   const sigSales   = sigmaSales(store, start, end)
   const sigSalesPY = sigmaSales(store, pyStart, pyNaturalEnd)
-  const sigCogs    = sigmaCogs(store, start, end)
   const sigL4w     = sigmaSales(store, l4wS, l4wE)
   const orders     = sigmaOrders(store, start, end)
   const l4wOrders  = sigmaOrders(store, l4wS, l4wE)
@@ -182,21 +181,10 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const discountPctL4W = sigL4w.gross_sales > 0
     ? Math.max(0, sigL4w.gross_sales - sigL4w.net_sales - sigL4w.voids_amount) / sigL4w.gross_sales : 0
 
-  const lastCountDate = sigmaCogsActualThruDate(store)
-  let cogsActualPct:  number | null = null
-  const cogsActualAsOf: string | null = lastCountDate
-  if (sigCogs.actual_cogs > 0 && sales > 0) {
-    cogsActualPct = sigCogs.actual_cogs / sales
-  } else if (lastCountDate) {
-    const countDt = new Date(lastCountDate + 'T00:00:00')
-    countDt.setDate(countDt.getDate() - 6)
-    const fallbackStart = format(countDt, 'yyyy-MM-dd')
-    const fallbackCogs  = sigmaCogs(store, fallbackStart, lastCountDate)
-    const fallbackSales = sigmaSales(store, fallbackStart, lastCountDate)
-    if (fallbackCogs.actual_cogs > 0 && fallbackSales.net_sales > 0) {
-      cogsActualPct = fallbackCogs.actual_cogs / fallbackSales.net_sales
-    }
-  }
+  // COGS% over the matched count window (see sigmaCogsPct) — never partial COGS / full sales.
+  const cogsPctData = sigmaCogsPct(store, start, end)
+  const cogsActualPct:  number | null = cogsPctData.actualPct
+  const cogsActualAsOf: string | null = cogsPctData.asOf
 
   const today       = format(new Date(), 'yyyy-MM-dd')
   const daysElapsed = Math.max(1, differenceInDays(new Date(end + 'T00:00:00'), new Date(start + 'T00:00:00')) + 1)
@@ -213,7 +201,7 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
     laborCost,
     laborHours,
     cogsActualPct,
-    cogsTheoreticalPct: sigCogs.theoretical_cogs > 0 && sales > 0 ? sigCogs.theoretical_cogs / sales : null,
+    cogsTheoreticalPct: cogsPctData.theoreticalPct,
     cogsActualAsOf,
     eePct:              (() => { const ee = sigmaEEByDate(start); const st = store === 'all' ? Object.values(ee.storeTotals).reduce((a, v) => ({ee: a.ee+v.ee, sm: a.sm+v.sm}), {ee:0,sm:0}) : (ee.storeTotals[store] ?? {ee:0,sm:0}); return st.sm > 0 ? st.ee / st.sm : 0 })(),
     eePctL4W:           0,
@@ -730,7 +718,6 @@ async function fetchQuarters(store: Store): Promise<QuarterRow[]> {
     const sales   = sigmaSales(store, qStart, eff).net_sales
     const salesPY = sigmaSales(store, pyStart, pyEnd).net_sales
     const orders  = sigmaOrders(store, qStart, eff)
-    const cogs    = sigmaCogs(store, qStart, eff)
     const labRows = await dbQuery<{labor_cost:number;labor_hrs:number}[]>(`
       SELECT SUM(total_pay) AS labor_cost, SUM(total_hrs) AS labor_hrs FROM smoothieking.labor
       WHERE ${filter} AND ${df(qStart, eff, 'shift_date')}
@@ -742,9 +729,8 @@ async function fetchQuarters(store: Store): Promise<QuarterRow[]> {
       ? Object.values(eeData.storeTotals).reduce((a, v) => ({ ee: a.ee + v.ee, sm: a.sm + v.sm }), { ee: 0, sm: 0 })
       : (eeData.storeTotals[store] ?? { ee: 0, sm: 0 })
     const eePct = eeSt.sm > 0 ? eeSt.ee / eeSt.sm : null
-    const cogsPct = cogs.actual_cogs > 0 && sales > 0 ? cogs.actual_cogs / sales
-      : cogs.theoretical_cogs > 0 && sales > 0 ? cogs.theoretical_cogs / sales
-      : null
+    const qCogs = sigmaCogsPct(store, qStart, eff)
+    const cogsPct = qCogs.actualPct != null ? qCogs.actualPct : qCogs.theoreticalPct
     return {
       quarter: `Q${q}`, sales, salesPY, orders,
       laborPct:   sales > 0 ? labor / sales : null,

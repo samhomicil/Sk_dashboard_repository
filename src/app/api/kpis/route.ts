@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { cacheKpisAsync } from '@/lib/cache'
-import { sigmaCogs, sigmaCogsActualThruDate } from '@/lib/sigma'
+import { sigmaCogsPct } from '@/lib/sigma'
 import { query, dateFilter } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
   const py  = await salesAgg(store, pyStart, pyEnd)
   const sig     = { net_sales: cur.net, gross_sales: cur.gross, voids_amount: cur.voids }
   const sigPY   = { net_sales: py.net,  gross_sales: py.gross,  voids_amount: py.voids }
-  const sigCogs = sigmaCogs(store, start, end)
+  const cogsPctData = sigmaCogsPct(store, start, end)
   const orders  = cur.orders
   const ordersPY = py.orders
 
@@ -100,9 +100,8 @@ export async function GET(req: NextRequest) {
     }
   } catch { /* proxy not available — DB metrics will show 0 */ }
 
-  let cogsActualPct: number | null = null
-  const cogsActualAsOf = sigmaCogsActualThruDate(store)
-  if (sigCogs.actual_cogs > 0 && sales > 0) cogsActualPct = sigCogs.actual_cogs / sales
+  const cogsActualPct: number | null = cogsPctData.actualPct
+  const cogsActualAsOf = cogsPctData.asOf
 
   const today       = new Date().toISOString().slice(0, 10)
   const startMs     = new Date(start + 'T00:00:00').getTime()
@@ -121,7 +120,7 @@ export async function GET(req: NextRequest) {
     laborCost,
     laborHours,
     cogsActualPct,
-    cogsTheoreticalPct: sigCogs.theoretical_cogs > 0 && sales > 0 ? sigCogs.theoretical_cogs / sales : null,
+    cogsTheoreticalPct: cogsPctData.theoreticalPct,
     cogsActualAsOf,
     eePct:              cur.sm > 0 ? cur.ee / cur.sm : 0,
     eePctL4W:           0,

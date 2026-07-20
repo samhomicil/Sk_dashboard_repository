@@ -118,6 +118,44 @@ export function sigmaCogs(store: Store, start: string, end: string): SigmaCogsSu
   }
 }
 
+// First/last inventory-count date (a weekly close) whose row falls in [start, end].
+function cogsCountRange(store: Store, start: string, end: string): { first: string; last: string } | null {
+  const d = load()
+  if (!d) return null
+  let first = '', last = ''
+  for (const r of d.cogs) {
+    if (r.date >= start && r.date <= end && storeMatches(r.location, store) &&
+        (r.actual_cogs !== 0 || r.theoretical_cogs !== 0)) {
+      if (!first || r.date < first) first = r.date
+      if (r.date > last) last = r.date
+    }
+  }
+  return first ? { first, last } : null
+}
+
+// COGS% aligned to the weekly inventory counts. Each count row is dated on its close but
+// represents the prior 7 days, so both numerator (COGS) and denominator (sales) span the
+// count weeks that fall in the period — never a week of COGS over a single day of sales,
+// nor a partial-period COGS over full-period sales. If the period is entirely after the last
+// count, it falls back to the most recent complete count week. `asOf` = last count date.
+export function sigmaCogsPct(store: Store, start: string, end: string): {
+  actualPct: number | null; theoreticalPct: number | null; asOf: string | null
+} {
+  const asOf = sigmaCogsActualThruDate(store)
+  if (!asOf) return { actualPct: null, theoreticalPct: null, asOf: null }
+  const clampEnd = end > asOf ? asOf : end
+  const range = cogsCountRange(store, start, clampEnd) ?? { first: asOf, last: asOf }
+  const ds = new Date(range.first + 'T00:00:00'); ds.setDate(ds.getDate() - 6)
+  const denomStart = ds.toISOString().slice(0, 10)
+  const c = sigmaCogs(store, denomStart, range.last)
+  const s = sigmaSales(store, denomStart, range.last).net_sales
+  return {
+    actualPct:      c.actual_cogs > 0 && s > 0 ? c.actual_cogs / s : null,
+    theoreticalPct: c.theoretical_cogs > 0 && s > 0 ? c.theoretical_cogs / s : null,
+    asOf,
+  }
+}
+
 // Weekly sales grouped by week-start (YYYY-MM-DD) for the trend chart
 export function sigmaWeeklySales(store: Store, start: string, end: string): Map<string, number> {
   const d = load()

@@ -59,6 +59,27 @@ function df(start: string, end: string, col = 'closed_datetime'): string {
   return `CAST(${col} AS DATE) BETWEEN '${start}' AND '${end}'`
 }
 
+// EE attach live from smoothieking.sales (not the bundled ee-periods.json, which is keyed by an
+// exact week-start and silently blanks when the period rolls over). Same definition as the daily
+// recap: sm = distinct non-modifier orders, ee = distinct orders with a 'Modifiers' item.
+type EETotals = { ee: number; sm: number; inStore: { ee: number; sm: number }; digital: { ee: number; sm: number } }
+async function fetchEE(store: Store, start: string, end: string): Promise<EETotals> {
+  const rows = await dbQuery<{ ch: string; sm: number; ee: number }[]>(`
+    SELECT CASE WHEN destination IN ('To Go','For Here') THEN 'in' ELSE 'dg' END AS ch,
+           COUNT(DISTINCT CASE WHEN is_modifier = 0 THEN order_id END) AS sm,
+           COUNT(DISTINCT CASE WHEN revenue_center = 'Modifiers' THEN order_id END) AS ee
+    FROM smoothieking.sales
+    WHERE voided = 0 AND ${sf(store)} AND ${df(start, end, 'closed_datetime')}
+    GROUP BY CASE WHEN destination IN ('To Go','For Here') THEN 'in' ELSE 'dg' END
+  `).catch(() => [])
+  const inStore = { ee: 0, sm: 0 }, digital = { ee: 0, sm: 0 }
+  for (const r of rows) {
+    const t = r.ch === 'in' ? inStore : digital
+    t.ee += Number(r.ee) || 0; t.sm += Number(r.sm) || 0
+  }
+  return { ee: inStore.ee + digital.ee, sm: inStore.sm + digital.sm, inStore, digital }
+}
+
 // ── Date ranges ────────────────────────────────────────────────────
 function ranges() {
   const today     = new Date()
@@ -119,7 +140,7 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const [laborRes, tillRes, pfsRes, walmartRes] = await Promise.allSettled([
     dbQuery<{total_pay:number;total_hrs:number}[]>(`
       SELECT SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs FROM smoothieking.labor
-      WHERE ${filter} AND ${df(start, end, 'shift_date')}
+      WHERE ${filter} AND ${df(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
     `),
     dbQuery<{till_variance:number}[]>(`
       SELECT ABS(SUM(over_short)) AS till_variance FROM smoothieking.tillhistory
@@ -138,7 +159,7 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const [l4wLaborRes, l4wPfsRes, l4wWalmartRes, l4wTillRes] = await Promise.allSettled([
     dbQuery<{total_pay:number}[]>(`
       SELECT SUM(total_pay) AS total_pay FROM smoothieking.labor
-      WHERE ${filter} AND ${df(l4wS, l4wE, 'shift_date')}
+      WHERE ${filter} AND ${df(l4wS, l4wE, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
     `),
     dbQuery<{pfs_total:number}[]>(`
       SELECT SUM(line_total) AS pfs_total FROM smoothieking.pfg_order_line_items
@@ -186,6 +207,8 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const cogsActualPct:  number | null = cogsPctData.actualPct
   const cogsActualAsOf: string | null = cogsPctData.asOf
 
+  const ee = await fetchEE(store, start, end)   // EE attach live from sales, not stale ee-periods.json
+
   const today       = format(new Date(), 'yyyy-MM-dd')
   const daysElapsed = Math.max(1, differenceInDays(new Date(end + 'T00:00:00'), new Date(start + 'T00:00:00')) + 1)
   const daysTotal   = Math.max(1, differenceInDays(new Date(naturalEnd + 'T00:00:00'), new Date(start + 'T00:00:00')) + 1)
@@ -203,10 +226,10 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
     cogsActualPct,
     cogsTheoreticalPct: cogsPctData.theoreticalPct,
     cogsActualAsOf,
-    eePct:              (() => { const ee = sigmaEEByDate(start); const st = store === 'all' ? Object.values(ee.storeTotals).reduce((a, v) => ({ee: a.ee+v.ee, sm: a.sm+v.sm}), {ee:0,sm:0}) : (ee.storeTotals[store] ?? {ee:0,sm:0}); return st.sm > 0 ? st.ee / st.sm : 0 })(),
+    eePct:              ee.sm > 0 ? ee.ee / ee.sm : 0,
     eePctL4W:           0,
-    eeInStorePct:       (() => { const ee = sigmaEEByDate(start); const ch = ee.channelEE; const agg = store === 'all' ? Object.values(ch).reduce((a, v) => ({inStore:{ee:a.inStore.ee+v.inStore.ee, sm:a.inStore.sm+v.inStore.sm}, digital:{ee:a.digital.ee+v.digital.ee, sm:a.digital.sm+v.digital.sm}}), {inStore:{ee:0,sm:0},digital:{ee:0,sm:0}}) : (ch[store] ?? {inStore:{ee:0,sm:0},digital:{ee:0,sm:0}}); return agg.inStore.sm > 0 ? agg.inStore.ee / agg.inStore.sm : 0 })(),
-    eeDigitalPct:       (() => { const ee = sigmaEEByDate(start); const ch = ee.channelEE; const agg = store === 'all' ? Object.values(ch).reduce((a, v) => ({inStore:{ee:a.inStore.ee+v.inStore.ee, sm:a.inStore.sm+v.inStore.sm}, digital:{ee:a.digital.ee+v.digital.ee, sm:a.digital.sm+v.digital.sm}}), {inStore:{ee:0,sm:0},digital:{ee:0,sm:0}}) : (ch[store] ?? {inStore:{ee:0,sm:0},digital:{ee:0,sm:0}}); return agg.digital.sm > 0 ? agg.digital.ee / agg.digital.sm : 0 })(),
+    eeInStorePct:       ee.inStore.sm > 0 ? ee.inStore.ee / ee.inStore.sm : 0,
+    eeDigitalPct:       ee.digital.sm > 0 ? ee.digital.ee / ee.digital.sm : 0,
     walmartPct:         sales > 0 ? wmTot / sales : 0,
     walmartPctL4W:      l4wSales > 0 ? (Number(l4wWm.walmart_total) || 0) / l4wSales : 0,
     atv:                orders > 0 ? sales / orders : 0,
@@ -233,17 +256,18 @@ async function fetchStores(start: string, end: string, pyStart: string, pyEnd: s
   const codes = STORE_KEYS.map(s => `'${STORE_DB_NAMES[s]}'`).join(',')
   const laborRows = await dbQuery<{store:string;total_pay:number;total_hrs:number}[]>(`
     SELECT store, SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs
-    FROM smoothieking.labor WHERE store IN (${codes}) AND ${df(start, end, 'shift_date')} GROUP BY store
+    FROM smoothieking.labor WHERE store IN (${codes}) AND ${df(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support') GROUP BY store
   `).catch(() => [])
   const laborMap      = new Map(laborRows.map(r => [r.store, Number(r.total_pay)]))
   const laborHoursMap = new Map(laborRows.map(r => [r.store, Number(r.total_hrs)]))
-  const eeData = sigmaEEByDate(start)
+  const eeByStore = new Map<Store, EETotals>()
+  await Promise.all(STORE_KEYS.map(async sk => { eeByStore.set(sk, await fetchEE(sk, start, end)) }))
   return STORE_KEYS.map(storeKey => {
     const dbName = STORE_DB_NAMES[storeKey]
     const sig    = sigmaSales(storeKey, start, end)
     const sigPY  = sigmaSales(storeKey, pyStart, pyEnd)
     const sales  = sig.net_sales
-    const eeSt   = eeData.storeTotals[storeKey] ?? { ee: 0, sm: 0 }
+    const eeSt   = eeByStore.get(storeKey) ?? { ee: 0, sm: 0 }
     return {
       store:      dbName,
       sales,
@@ -722,14 +746,11 @@ async function fetchQuarters(store: Store): Promise<QuarterRow[]> {
     const orders  = sigmaOrders(store, qStart, eff)
     const labRows = await dbQuery<{labor_cost:number;labor_hrs:number}[]>(`
       SELECT SUM(total_pay) AS labor_cost, SUM(total_hrs) AS labor_hrs FROM smoothieking.labor
-      WHERE ${filter} AND ${df(qStart, eff, 'shift_date')}
+      WHERE ${filter} AND ${df(qStart, eff, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
     `).catch(() => [])
     const labor     = Number(labRows[0]?.labor_cost) || 0
     const laborHrsQ = Number(labRows[0]?.labor_hrs)  || 0
-    const eeData = sigmaEEByDate(qStart)
-    const eeSt   = store === 'all'
-      ? Object.values(eeData.storeTotals).reduce((a, v) => ({ ee: a.ee + v.ee, sm: a.sm + v.sm }), { ee: 0, sm: 0 })
-      : (eeData.storeTotals[store] ?? { ee: 0, sm: 0 })
+    const eeSt   = await fetchEE(store, qStart, eff)
     const eePct = eeSt.sm > 0 ? eeSt.ee / eeSt.sm : null
     const qCogs = sigmaCogsPct(store, qStart, eff)
     const cogsPct = qCogs.actualPct != null ? qCogs.actualPct : qCogs.theoreticalPct
@@ -754,7 +775,7 @@ async function fetchDailyKpis(store: Store, start: string, end: string): Promise
     SELECT CAST(CAST(shift_date AS DATE) AS VARCHAR(10)) AS shift_date,
            SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs
     FROM smoothieking.labor
-    WHERE ${filter} AND ${df(start, end, 'shift_date')}
+    WHERE ${filter} AND ${df(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
     GROUP BY CAST(shift_date AS DATE)
   `).catch(() => [])
 

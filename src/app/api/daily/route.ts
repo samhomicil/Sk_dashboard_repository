@@ -44,7 +44,7 @@ async function fetchLaborByDay(store: Store, start: string, end: string): Promis
     const rows = await query<{ d: string; total_pay: number; total_hrs: number }[]>(`
       SELECT CAST(shift_date AS DATE) AS d, SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs
       FROM smoothieking.labor
-      WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'shift_date')}
+      WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
       GROUP BY CAST(shift_date AS DATE)
     `)
     for (const r of rows) {

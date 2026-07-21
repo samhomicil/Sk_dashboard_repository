@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { resolveDateRange } from '@/lib/dates'
 import type { Store, Period, DateRange, KpiData, TrendPoint, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow, QuarterRow, DailyData, DailyRangeData, StaffingData, Promotion } from '@/lib/types'
 import type { SopData } from './SopCard'
+import type { SopQualityData } from './JoltQualityCard'
 
 interface DashboardState {
   store:    Store
@@ -28,6 +29,7 @@ interface DashboardData {
   daily:       DailyData | null
   dailyRange:  DailyRangeData | null
   jolt:        SopData | null
+  joltQuality: SopQualityData | null
   loading:     boolean
   error:       string | null
   refreshedAt: string | null
@@ -47,7 +49,7 @@ export function useDashboard() {
 
   const [data, setData] = useState<DashboardData>({
     kpis: null, trend: [], stores: [], employees: [],
-    products: [], categories: [], channels: [], quarters: [], staffing: null, promotions: [], unitsWindow: null, daily: null, dailyRange: null, jolt: null,
+    products: [], categories: [], channels: [], quarters: [], staffing: null, promotions: [], unitsWindow: null, daily: null, dailyRange: null, jolt: null, joltQuality: null,
     loading: true, error: null, refreshedAt: null, hasCache: false,
   })
 
@@ -65,7 +67,7 @@ export function useDashboard() {
 
     try {
       const isCustom = s.period === 'custom'
-      const [kpisRes, trendRes, storesRes, empRes, prodRes, catRes, chRes, qRes, heatRes, metaRes, dailyRes, dailyRangeRes, promoRes, joltRes] = await Promise.all([
+      const [kpisRes, trendRes, storesRes, empRes, prodRes, catRes, chRes, qRes, heatRes, metaRes, dailyRes, dailyRangeRes, promoRes, joltRes, joltQualityRes] = await Promise.all([
         fetch('/api/kpis'        + qs(p)).then(r => r.json()),
         fetch('/api/trend'       + qs(p)).then(r => r.json()),
         fetch('/api/stores'      + qs(p)).then(r => r.json()),
@@ -82,6 +84,7 @@ export function useDashboard() {
           : Promise.resolve(null),
         fetch(`/api/promotions?store=${s.store}`).then(r => r.json()),
         fetch(`/api/jolt?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
+        fetch(`/api/jolt-quality?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
       ])
 
       setData({
@@ -101,6 +104,7 @@ export function useDashboard() {
         daily:       dailyRes?.thisWeek ? dailyRes : null,
         dailyRange:  dailyRangeRes?.current ? dailyRangeRes : null,
         jolt:        joltRes?.locations ? joltRes : null,
+        joltQuality: joltQualityRes?.locations ? joltQualityRes : null,
         refreshedAt: metaRes?.refreshedAt ?? null,
         hasCache:    metaRes?.hasCache ?? false,
         loading: false,

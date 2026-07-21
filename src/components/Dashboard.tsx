@@ -5,6 +5,7 @@ import { useDashboard } from './useDashboard'
 import Header       from './Header'
 import KpiCard, { type SparkPoint } from './KpiCard'
 import SopCard from './SopCard'
+import JoltQualityCard from './JoltQualityCard'
 import ForecastBanner from './ForecastBanner'
 import TrendChart   from './TrendChart'
 import StoreBreakdown from './StoreBreakdown'
@@ -89,7 +90,7 @@ export default function Dashboard() {
       setRefreshMsg('Failed — is the proxy running?')
     }
   }
-  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, promotions, unitsWindow, daily, dailyRange, jolt, loading, refreshedAt } = data
+  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, promotions, unitsWindow, daily, dailyRange, jolt, joltQuality, loading, refreshedAt } = data
   const k = kpis as KpiData | null
   const isAll      = state.store === 'all'
   const isCustom   = state.period === 'custom'
@@ -260,6 +261,9 @@ export default function Dashboard() {
 
         {/* SOP Compliance — Jolt checklists, rolling 7 days, by list + total */}
         <SopCard data={jolt} loading={loading} />
+
+        {/* Photo Quality — Jolt evidence photos scored done-to-standard, by store */}
+        <JoltQualityCard data={joltQuality} loading={loading} />
 
         {/* Daily Table — custom period only */}
         {isCustom && (

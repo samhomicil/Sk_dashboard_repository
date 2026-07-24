@@ -39,7 +39,8 @@ async function salesAgg(store: Store, s: string, e: string) {
 }
 function sfPfs(store: Store) {
   if (store === 'all') return '1=1'
-  const storeNum: Record<string, string> = { Pines: '1392', Miramar: '1892', Margate: '2384' }
+  // pfs_invoices uses PFG customer numbers (not the SK codes the old line-items table used)
+  const storeNum: Record<string, string> = { Pines: '3784', Miramar: '3783', Margate: '3167' }
   return `store_number = '${storeNum[DB_STORE[store]]}'`
 }
 function sfWm(store: Store) {
@@ -86,7 +87,7 @@ export async function GET(req: NextRequest) {
   let pfsTot = 0, wmTot = 0, tillVar = 0, laborCost = 0, laborHours = 0
   try {
     const [pfsR, wmR, tillR, laborR] = await Promise.allSettled([
-      query<{ v: number }[]>(`SELECT SUM(line_total) AS v FROM smoothieking.pfg_order_line_items WHERE ${sfPfs(store)} AND ${dateFilter(start, end, 'order_date')}`),
+      query<{ v: number }[]>(`SELECT SUM(ext_price) AS v FROM smoothieking.pfs_invoices WHERE ${sfPfs(store)} AND ${dateFilter(start, end, 'invoice_date')}`),
       query<{ v: number }[]>(`SELECT SUM(item_subtotal) AS v FROM smoothieking.walmart_spend WHERE ${sfWm(store)}  AND ${dateFilter(start, end, 'order_date')}`),
       query<{ v: number }[]>(`SELECT ABS(SUM(over_short)) AS v FROM smoothieking.tillhistory WHERE ${sfDb(store)}  AND ${dateFilter(start, end, 'till_date')}`),
       query<{ total_pay: number; total_hrs: number }[]>(`SELECT SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs FROM smoothieking.labor WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')`),

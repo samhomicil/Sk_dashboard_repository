@@ -14,7 +14,7 @@ import { PROXY_URL, TARGETS } from './config'
 import {
   sigmaSales, sigmaCogsPct, sigmaMonthSales, sigmaWeeklySales, sigmaDailySales,
   sigmaOrders, sigmaChannels, sigmaThruDate,
-  sigmaEmployees, sigmaAllEmpKeys, sigmaEEByDate, sigmaEEDailyPct, sigmaHeatmap, sigmaHeatmapWeekly,
+  sigmaEmployees, sigmaEEDailyPct, sigmaHeatmap, sigmaHeatmapWeekly,
 } from './sigma'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
@@ -47,7 +47,8 @@ function sf(store: Store): string {
 }
 function sfPfs(store: Store): string {
   if (store === 'all') return '1=1'
-  const storeNum: Record<string, string> = { Pines: '1392', Miramar: '1892', Margate: '2384' }
+  // pfs_invoices uses PFG customer numbers (not the SK codes the old line-items table used)
+  const storeNum: Record<string, string> = { Pines: '3784', Miramar: '3783', Margate: '3167' }
   return `store_number = '${storeNum[DB_STORE_NAME[store]]}'`
 }
 function sfWalmart(store: Store): string {
@@ -78,6 +79,43 @@ async function fetchEE(store: Store, start: string, end: string): Promise<EETota
     t.ee += Number(r.ee) || 0; t.sm += Number(r.sm) || 0
   }
   return { ee: inStore.ee + digital.ee, sm: inStore.sm + digital.sm, inStore, digital }
+}
+
+// Per-employee EE attach + net sales, live from smoothieking.sales (the `employee` column is
+// "Last, First", same format as labor). Replaces the ee-periods.json / emp-key path, which
+// silently blanked when keys didn't match. Keyed `last|first` (lowercased) to match the shift map.
+async function fetchEmployeeEE(store: Store, start: string, end: string): Promise<Map<string, { ee: number; sm: number; net: number }>> {
+  const rows = await dbQuery<{ employee: string; sm: number; ee: number; net: number }[]>(`
+    SELECT employee,
+           COUNT(DISTINCT CASE WHEN is_modifier = 0 THEN order_id END)             AS sm,
+           COUNT(DISTINCT CASE WHEN revenue_center = 'Modifiers' THEN order_id END) AS ee,
+           SUM(CASE WHEN is_modifier = 0 THEN net_sales ELSE 0 END)                AS net
+    FROM smoothieking.sales
+    WHERE voided = 0 AND employee IS NOT NULL AND employee NOT IN ('None', '')
+      AND ${sf(store)} AND ${df(start, end, 'closed_datetime')}
+    GROUP BY employee
+  `).catch(() => [])
+  // sales.employee comes in two formats across the history: "Last, First" (older) and
+  // "First Last" (newer). Normalize both to `last|first` and accumulate — the same person can
+  // appear under both within a range.
+  const out = new Map<string, { ee: number; sm: number; net: number }>()
+  for (const r of rows) {
+    const raw = String(r.employee).trim()
+    let last: string, first: string
+    if (raw.includes(',')) {
+      const [l, ...f] = raw.split(',')
+      last = l.trim(); first = f.join(',').trim()
+    } else {
+      const parts = raw.split(/\s+/)
+      if (parts.length < 2) continue
+      first = parts[0]; last = parts.slice(1).join(' ')
+    }
+    const key = `${last.toLowerCase()}|${first.toLowerCase()}`
+    const acc = out.get(key) ?? { ee: 0, sm: 0, net: 0 }
+    acc.ee += Number(r.ee) || 0; acc.sm += Number(r.sm) || 0; acc.net += Number(r.net) || 0
+    out.set(key, acc)
+  }
+  return out
 }
 
 // ── Date ranges ────────────────────────────────────────────────────
@@ -147,8 +185,8 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
       WHERE ${filter} AND ${df(start, end, 'till_date')}
     `),
     dbQuery<{pfs_total:number}[]>(`
-      SELECT SUM(line_total) AS pfs_total FROM smoothieking.pfg_order_line_items
-      WHERE ${pfsFilter} AND ${df(start, end, 'order_date')}
+      SELECT SUM(ext_price) AS pfs_total FROM smoothieking.pfs_invoices
+      WHERE ${pfsFilter} AND ${df(start, end, 'invoice_date')}
     `),
     dbQuery<{walmart_total:number}[]>(`
       SELECT SUM(item_subtotal) AS walmart_total FROM smoothieking.walmart_spend
@@ -162,8 +200,8 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
       WHERE ${filter} AND ${df(l4wS, l4wE, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
     `),
     dbQuery<{pfs_total:number}[]>(`
-      SELECT SUM(line_total) AS pfs_total FROM smoothieking.pfg_order_line_items
-      WHERE ${pfsFilter} AND ${df(l4wS, l4wE, 'order_date')}
+      SELECT SUM(ext_price) AS pfs_total FROM smoothieking.pfs_invoices
+      WHERE ${pfsFilter} AND ${df(l4wS, l4wE, 'invoice_date')}
     `),
     dbQuery<{walmart_total:number}[]>(`
       SELECT SUM(item_subtotal) AS walmart_total FROM smoothieking.walmart_spend
@@ -289,7 +327,7 @@ const LOC_CODE_TO_STORE_KEY: Record<string, Store> = {
   '1392': 'pines', '1892': 'miramar', '2384': 'margate',
 }
 
-function fetchEmployees(store: Store, start: string, end: string): EmployeeRow[] {
+async function fetchEmployees(store: Store, start: string, end: string): Promise<EmployeeRow[]> {
   const shifts = sigmaEmployees(store, start, end)
 
   type EmpAgg = {
@@ -334,7 +372,7 @@ function fetchEmployees(store: Store, start: string, end: string): EmployeeRow[]
     }
   }
 
-  const { byEmpKey } = sigmaEEByDate(start)
+  const empEE = await fetchEmployeeEE(store, start, end)   // per-employee attach from sales
 
   return Array.from(map.values())
     .filter(e => (e.hours > 0 || e.pay > 0) && !/(franchisee|owner)/i.test(e.role))
@@ -351,16 +389,12 @@ function fetchEmployees(store: Store, start: string, end: string): EmployeeRow[]
       const storeSalesPerHour = hrs > 0 ? Math.round(sigma.net / hrs * 100) / 100 : 0
       const storeVoidPct      = sigma.orders > 0 ? Math.round(sigma.voidOrders / sigma.orders * 1000) / 10 : 0
 
-      const allKeys = sigmaAllEmpKeys(e.firstName, e.lastName)
-      const eeAgg   = allKeys.reduce((acc, k) => {
-        const d = byEmpKey.get(k)
-        if (d) { acc.ee += d.ee; acc.sm += d.sm; acc.sales += d.sales ?? 0 }
-        return acc
-      }, { ee: 0, sm: 0, sales: 0 })
+      const eeAgg = empEE.get(`${e.lastName.toLowerCase()}|${e.firstName.toLowerCase()}`)
+        ?? { ee: 0, sm: 0, net: 0 }
       const eePct = eeAgg.sm >= 5 ? Math.round(eeAgg.ee / eeAgg.sm * 1000) / 10 : null
 
-      const empSalesPerHour = eeAgg.sales > 0 && e.hours >= 4
-        ? Math.round(eeAgg.sales / e.hours * 100) / 100
+      const empSalesPerHour = eeAgg.net > 0 && e.hours >= 4
+        ? Math.round(eeAgg.net / e.hours * 100) / 100
         : null
 
       return {
@@ -371,7 +405,7 @@ function fetchEmployees(store: Store, start: string, end: string): EmployeeRow[]
         rate:         e.rate,
         totalPay:     Math.round(e.pay * 100) / 100,
         salesPerHour: empSalesPerHour ?? storeSalesPerHour,
-        totalSales:   eeAgg.sales > 0 ? Math.round(eeAgg.sales * 100) / 100 : null,
+        totalSales:   eeAgg.net > 0 ? Math.round(eeAgg.net * 100) / 100 : null,
         eePct,
         voidPct:      storeVoidPct,
         discountPct:  0,
@@ -941,7 +975,7 @@ export async function buildCacheData() {
     empData[store] = {}
     for (const period of PERIODS) {
       const r = dr[period]
-      empData[store][period] = fetchEmployees(store, r.start, r.end)
+      empData[store][period] = await fetchEmployees(store, r.start, r.end)
     }
   }
 

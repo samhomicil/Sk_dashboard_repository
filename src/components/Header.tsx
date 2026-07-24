@@ -6,11 +6,11 @@ import { STORE_LABELS } from '@/lib/config'
 import type { Store, Period } from '@/lib/types'
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'weekly',    label: 'Weekly'    },
-  { key: 'monthly',   label: 'Monthly'   },
-  { key: 'quarterly', label: 'Quarterly' },
-  { key: 'ytd',       label: 'YTD'       },
-  { key: 'custom',    label: 'Custom'    },
+  { key: 'custom',    label: 'Daily View' },
+  { key: 'weekly',    label: 'Weekly'     },
+  { key: 'monthly',   label: 'Monthly'    },
+  { key: 'quarterly', label: 'Quarterly'  },
+  { key: 'ytd',       label: 'YTD'        },
 ]
 
 interface Props {

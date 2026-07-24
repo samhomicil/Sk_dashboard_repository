@@ -1,10 +1,8 @@
 'use client'
 
-import { Fragment, useState } from 'react'
-
 // Jolt photo quality — was the SOP done to standard, not just "a photo uploaded"?
-// Per-store quality % (pass / graded), each store expands to its failed/flagged photos.
-// quality_rate excludes neutral (stocking) & can't-determine — only pass vs fail count.
+// Per-store quality % (pass / graded). quality_rate excludes neutral (stocking) &
+// can't-determine — only pass vs fail count. (Per-photo detail lives on the Ops page.)
 
 interface Counts {
   scored: number; pass: number; fail: number; neutral: number; cant: number
@@ -52,16 +50,8 @@ function Bar({ r }: { r: Counts }) {
   )
 }
 
-const FLAG_LABEL: Record<string, string> = {
-  not_clean: 'not clean', wrong_subject: 'wrong subject', invalid_photo: 'bad photo',
-  reused_photo: 'reused', blurry: 'blurry', dark: 'dark', blank: 'blank', clutter: 'clutter',
-}
-
 export default function JoltQualityCard({ data, loading }: { data: SopQualityData | null; loading?: boolean }) {
   const locations = data?.locations ?? []
-  const feed = data?.feed ?? []
-  const [open, setOpen] = useState<Record<string, boolean>>({})
-  const toggle = (s: string) => setOpen(o => ({ ...o, [s]: !o[s] }))
 
   if (loading) {
     return (
@@ -99,47 +89,16 @@ export default function JoltQualityCard({ data, loading }: { data: SopQualityDat
               </tr>
             </thead>
             <tbody>
-              {locations.map(loc => {
-                const isOpen = !!open[loc.store]
-                const locFeed = feed.filter(f => f.store === loc.store)
-                return (
-                  <Fragment key={loc.store}>
-                    <tr className="border-b border-slate-100 cursor-pointer hover:bg-slate-50" onClick={() => toggle(loc.store)}>
-                      <td className="px-2 py-1.5 font-medium text-slate-700 whitespace-nowrap">
-                        <span className="inline-block w-3 text-slate-400">{isOpen ? '▾' : '▸'}</span>
-                        {loc.label}
-                      </td>
-                      <QCell rate={loc.quality_rate} graded={loc.graded} />
-                      <Num v={loc.pass} tone="text-slate-700" />
-                      <Num v={loc.fail} tone={loc.fail ? 'text-red-600 font-medium' : 'text-slate-700'} />
-                      <Num v={loc.neutral + loc.cant} tone="text-slate-400" />
-                      <td className="px-2 py-1.5"><Bar r={loc} /></td>
-                    </tr>
-                    {isOpen && locFeed.length === 0 && (
-                      <tr className="bg-slate-50/60 border-b border-slate-100">
-                        <td colSpan={6} className="px-2 py-1.5 pl-8 text-slate-400">No failed or flagged photos — all clean.</td>
-                      </tr>
-                    )}
-                    {isOpen && locFeed.map((f, idx) => (
-                      <tr key={`${loc.store}-${idx}`} className="bg-red-50/40 border-b border-slate-100 text-slate-600">
-                        <td className="px-2 py-1 pl-8" colSpan={2}>
-                          <div className="font-medium text-slate-700 truncate max-w-[280px]">{f.item_name}</div>
-                          <div className="text-[10px] text-slate-400">{f.list_name} · {f.captured_by} · {shortDate(f.captured_datetime.slice(0, 10))}</div>
-                        </td>
-                        <td colSpan={4} className="px-2 py-1 align-top">
-                          <div className="text-slate-500">{f.reason}</div>
-                          <div className="mt-0.5 flex flex-wrap gap-1">
-                            {f.is_duplicate ? <span className="px-1 rounded bg-amber-100 text-amber-700 text-[10px]">reused photo</span> : null}
-                            {(f.flags || '').split(',').filter(Boolean).map(fl => (
-                              <span key={fl} className="px-1 rounded bg-red-100 text-red-700 text-[10px]">{FLAG_LABEL[fl] ?? fl}</span>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </Fragment>
-                )
-              })}
+              {locations.map(loc => (
+                <tr key={loc.store} className="border-b border-slate-100">
+                  <td className="px-2 py-1.5 font-medium text-slate-700 whitespace-nowrap">{loc.label}</td>
+                  <QCell rate={loc.quality_rate} graded={loc.graded} />
+                  <Num v={loc.pass} tone="text-slate-700" />
+                  <Num v={loc.fail} tone={loc.fail ? 'text-red-600 font-medium' : 'text-slate-700'} />
+                  <Num v={loc.neutral + loc.cant} tone="text-slate-400" />
+                  <td className="px-2 py-1.5"><Bar r={loc} /></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

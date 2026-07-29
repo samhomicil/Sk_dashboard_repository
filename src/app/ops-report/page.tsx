@@ -260,10 +260,10 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
                   <th colSpan={2} className="text-center font-semibold text-teal-700 uppercase text-[10.5px] tracking-wide border-l border-slate-100 pt-2.5 pb-1">Labor %</th>
                   <th rowSpan={2} className="text-left font-medium px-3 py-2.5 border-l border-slate-100">Action</th>
                 </tr>
-                <tr className="text-slate-300 uppercase text-[10px]">
-                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right font-medium px-3 pb-2">Act / Fcst</th><th className="text-right font-medium px-3 pb-2">Var</th>
-                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right font-medium px-3 pb-2">Act / Sched</th><th className="text-right font-medium px-3 pb-2">Var</th>
-                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Tgt</th><th className="text-right font-medium px-3 pb-2">Act / Est</th>
+                <tr className="text-slate-500 uppercase text-[10.5px] font-semibold tracking-wide">
+                  <th className="text-right px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right px-3 pb-2">Act / Fcst</th><th className="text-right px-3 pb-2">Var</th>
+                  <th className="text-right px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right px-3 pb-2">Act / Sched</th><th className="text-right px-3 pb-2">Var</th>
+                  <th className="text-right px-3 pb-2 border-l border-slate-100">Tgt</th><th className="text-right px-3 pb-2">Act / Est</th>
                 </tr>
               </thead>
               <tbody>

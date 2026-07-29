@@ -8,7 +8,7 @@ interface WxDay { icon: string; temp: string; condition: string }
 interface WeekDay { day: string; date: string; type: 'ACTUAL' | 'PROJ'; weather: WxDay }
 interface StoreData {
   key: string; name: string; otbBase: number; otbDirect: number
-  sp: number[]; sa: number[]; hp: number[]; ha: number[]; lc: number[]; lcp: number[]
+  sp: number[]; sa: number[]; py: number[]; hp: number[]; ha: number[]; lc: number[]; lcp: number[]
 }
 interface Holiday { date: string; day: string; name: string }
 interface OpsPayload {
@@ -28,17 +28,18 @@ const varClass = (n: number, overIsBad = false) =>
 /* ---------- derive (mirrors the report contract math) ---------- */
 interface Day {
   day: string; type: 'ACTUAL' | 'PROJ'; weather: WxDay
-  salesPlan: number; salesActual: number; hoursPlan: number; hoursActual: number
+  salesPlan: number; salesActual: number; salesPY: number; hoursPlan: number; hoursActual: number
   laborCost: number; laborCostPlan: number
-  salesVar: number; hoursVar: number; laborPctAct: number; laborPctPlan: number; anomaly: boolean
+  salesVar: number; hoursVar: number; yoyPct: number; laborPctAct: number; laborPctPlan: number; anomaly: boolean
 }
-function makeDay(wk: WeekDay, sPlan: number, sAct: number, hPlan: number, hAct: number, lc: number, lcp: number): Day {
+function makeDay(wk: WeekDay, sPlan: number, sAct: number, sPY: number, hPlan: number, hAct: number, lc: number, lcp: number): Day {
   const temp = parseInt(wk.weather.temp, 10)
   return {
     day: wk.day, type: wk.type, weather: wk.weather,
-    salesPlan: sPlan, salesActual: sAct, hoursPlan: hPlan, hoursActual: hAct,
+    salesPlan: sPlan, salesActual: sAct, salesPY: sPY, hoursPlan: hPlan, hoursActual: hAct,
     laborCost: lc, laborCostPlan: lcp,
     salesVar: sAct - sPlan, hoursVar: hAct - hPlan,
+    yoyPct: sPY ? ((sAct - sPY) / sPY) * 100 : 0,
     laborPctAct: sAct ? (lc / sAct) * 100 : 0,
     laborPctPlan: sPlan ? (lcp / sPlan) * 100 : 0,
     anomaly: (Number.isFinite(temp) && temp > 85) || /rain/i.test(wk.weather.condition),
@@ -78,7 +79,7 @@ function buildViews(data: OpsPayload): Record<string, View> {
   for (const s of data.stores) {
     views[s.key] = {
       name: s.name, otbBase: s.otbBase, otbDirect: s.otbDirect,
-      days: data.week.map((wk, i) => makeDay(wk, s.sp[i], s.sa[i], s.hp[i], s.ha[i], s.lc[i], s.lcp[i])),
+      days: data.week.map((wk, i) => makeDay(wk, s.sp[i], s.sa[i], s.py[i], s.hp[i], s.ha[i], s.lc[i], s.lcp[i])),
     }
   }
   views.all = {
@@ -86,11 +87,11 @@ function buildViews(data: OpsPayload): Record<string, View> {
     otbBase: data.stores.reduce((a, s) => a + s.otbBase, 0),
     otbDirect: data.stores.reduce((a, s) => a + s.otbDirect, 0),
     days: data.week.map((wk, i) => {
-      let sp = 0, sa = 0, hp = 0, ha = 0, lc = 0, lcp = 0
+      let sp = 0, sa = 0, py = 0, hp = 0, ha = 0, lc = 0, lcp = 0
       for (const s of data.stores) {
-        sp += s.sp[i]; sa += s.sa[i]; hp += s.hp[i]; ha += s.ha[i]; lc += s.lc[i]; lcp += s.lcp[i]
+        sp += s.sp[i]; sa += s.sa[i]; py += s.py[i]; hp += s.hp[i]; ha += s.ha[i]; lc += s.lc[i]; lcp += s.lcp[i]
       }
-      return makeDay(wk, sp, sa, hp, ha, lc, lcp)
+      return makeDay(wk, sp, sa, py, hp, ha, lc, lcp)
     }),
   }
   return views
@@ -174,9 +175,9 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
 
   // Totals
   const T = days.reduce((a, d) => ({
-    splan: a.splan + d.salesPlan, sact: a.sact + d.salesActual, hplan: a.hplan + d.hoursPlan,
+    splan: a.splan + d.salesPlan, sact: a.sact + d.salesActual, spy: a.spy + d.salesPY, hplan: a.hplan + d.hoursPlan,
     hact: a.hact + d.hoursActual, lcost: a.lcost + d.laborCost, lcostPlan: a.lcostPlan + d.laborCostPlan,
-  }), { splan: 0, sact: 0, hplan: 0, hact: 0, lcost: 0, lcostPlan: 0 })
+  }), { splan: 0, sact: 0, spy: 0, hplan: 0, hact: 0, lcost: 0, lcostPlan: 0 })
   const tSalesVar = T.sact - T.splan, tHrsVar = T.hact - T.hplan
   const tPctPlan = T.splan ? (T.lcostPlan / T.splan) * 100 : 0
   const tPctAct = T.sact ? (T.lcost / T.sact) * 100 : 0
@@ -250,18 +251,18 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
         </div>
         <div className="card !p-0 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs min-w-[860px]">
+            <table className="w-full text-xs min-w-[960px]">
               <thead>
                 <tr className="text-slate-400">
                   <th rowSpan={2} className="text-left font-medium px-4 py-2.5">Day</th>
                   <th rowSpan={2} className="text-left font-medium px-3 py-2.5">Weather</th>
-                  <th colSpan={3} className="text-center font-semibold text-teal-700 uppercase text-[10.5px] tracking-wide border-l border-slate-100 pt-2.5 pb-1">Sales</th>
+                  <th colSpan={4} className="text-center font-semibold text-teal-700 uppercase text-[10.5px] tracking-wide border-l border-slate-100 pt-2.5 pb-1">Sales</th>
                   <th colSpan={3} className="text-center font-semibold text-teal-700 uppercase text-[10.5px] tracking-wide border-l border-slate-100 pt-2.5 pb-1">Labor hours</th>
                   <th colSpan={2} className="text-center font-semibold text-teal-700 uppercase text-[10.5px] tracking-wide border-l border-slate-100 pt-2.5 pb-1">Labor %</th>
                   <th rowSpan={2} className="text-left font-medium px-3 py-2.5 border-l border-slate-100">Action</th>
                 </tr>
                 <tr className="text-slate-500 uppercase text-[10.5px] font-semibold tracking-wide">
-                  <th className="text-right px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right px-3 pb-2">Act / Fcst</th><th className="text-right px-3 pb-2">Var</th>
+                  <th className="text-right px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right px-3 pb-2">Act / Fcst</th><th className="text-right px-3 pb-2">Var</th><th className="text-right px-3 pb-2">PY</th>
                   <th className="text-right px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right px-3 pb-2">Act / Sched</th><th className="text-right px-3 pb-2">Var</th>
                   <th className="text-right px-3 pb-2 border-l border-slate-100">Tgt</th><th className="text-right px-3 pb-2">Act / Est</th>
                 </tr>
@@ -288,6 +289,7 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
                     <td className="px-3 py-2 text-right tabular-nums text-slate-600 border-l border-slate-100">{money(d.salesPlan)}</td>
                     <td className={`px-3 py-2 text-right tabular-nums ${proj ? projCell : 'text-slate-700'}`}>{money(d.salesActual)}</td>
                     <td className={`px-3 py-2 text-right tabular-nums font-medium ${proj ? 'italic opacity-70 ' : ''}${varClass(d.salesVar)}`}>{sMoney(d.salesVar)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-400" title={d.salesPY ? `YoY ${sPct(d.yoyPct)}` : 'no prior-year data'}>{d.salesPY ? money(d.salesPY) : '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-600 border-l border-slate-100">{d.hoursPlan.toFixed(1)}</td>
                     <td className={`px-3 py-2 text-right tabular-nums ${proj ? projCell : 'text-slate-700'}`}>{d.hoursActual.toFixed(1)}</td>
                     <td className={`px-3 py-2 text-right tabular-nums font-medium ${proj ? 'italic opacity-70 ' : ''}${varClass(d.hoursVar, true)}`}>{sHrs(d.hoursVar)}</td>
@@ -302,6 +304,7 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
                   <td className="px-3 py-2.5 text-right tabular-nums border-l border-slate-100">{money(T.splan)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{money(T.sact)}</td>
                   <td className={`px-3 py-2.5 text-right tabular-nums ${varClass(tSalesVar)}`}>{sMoney(tSalesVar)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-500" title={T.spy ? `YoY ${sPct((T.sact - T.spy) / T.spy * 100)}` : ''}>{T.spy ? money(T.spy) : '—'}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums border-l border-slate-100">{T.hplan.toFixed(1)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{T.hact.toFixed(1)}</td>
                   <td className={`px-3 py-2.5 text-right tabular-nums ${varClass(tHrsVar, true)}`}>{sHrs(tHrsVar)}</td>

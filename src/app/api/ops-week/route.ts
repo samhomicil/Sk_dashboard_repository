@@ -119,9 +119,12 @@ export async function GET() {
   const nextMonday = isoAdd(monday, 7)
   const weekDates = Array.from({ length: 7 }, (_, i) => isoAdd(monday, i))
   const histStart = isoAdd(monday, -7 * HIST_WEEKS)   // trailing whole weeks before this week
+  // Prior year = 364 days back (same weekday), matching the daily recap's YoY.
+  const pyMonday = isoAdd(monday, -364)
+  const pySunday = isoAdd(sunday, -364)
 
   const [
-    salesWeek, salesHist, schedWeek, laborWeek, empRates, pfg, walmart, weather,
+    salesWeek, salesHist, salesPY, schedWeek, laborWeek, empRates, pfg, walmart, weather,
   ] = await Promise.all([
     // Sales actual this week (store name = 'Pines'|'Miramar'|'Margate')
     safe(query<SalesRow[]>(`
@@ -129,6 +132,13 @@ export async function GET() {
              SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) AS net
       FROM smoothieking.sales
       WHERE CAST(closed_datetime AS DATE) >= '${monday}' AND CAST(closed_datetime AS DATE) <= '${sunday}'
+      GROUP BY store, CONVERT(char(10), closed_datetime, 23)`), []),
+    // Prior-year net by store/day (same weekday, 364d back)
+    safe(query<SalesRow[]>(`
+      SELECT store, CONVERT(char(10), closed_datetime, 23) AS d,
+             SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) AS net
+      FROM smoothieking.sales
+      WHERE CAST(closed_datetime AS DATE) >= '${pyMonday}' AND CAST(closed_datetime AS DATE) <= '${pySunday}'
       GROUP BY store, CONVERT(char(10), closed_datetime, 23)`), []),
     // Sales history for the same-weekday forecast
     safe(query<SalesRow[]>(`
@@ -174,6 +184,8 @@ export async function GET() {
   // index helpers
   const salesWeekMap = new Map<string, number>()   // `${store}|${date}` -> net
   for (const r of salesWeek) salesWeekMap.set(`${r.store}|${r.d}`, Number(r.net) || 0)
+  const salesPYMap = new Map<string, number>()     // `${store}|${pyDate}` -> net
+  for (const r of salesPY) salesPYMap.set(`${r.store}|${r.d}`, Number(r.net) || 0)
 
   // Rates: each employee's most-recent rate; store average as fallback (daily recap).
   const empRate = new Map<string, number>()        // `${store}|${employee}` -> rate
@@ -298,7 +310,7 @@ export async function GET() {
   const round1 = (n: number) => Math.round(n * 10) / 10
 
   const stores = STORES.map(s => {
-    const sp: number[] = [], sa: number[] = [], hp: number[] = [], ha: number[] = []
+    const sp: number[] = [], sa: number[] = [], py: number[] = [], hp: number[] = [], ha: number[] = []
     const lc: number[] = [], lcp: number[] = []
     weekDates.forEach(d => {
       const isActual = d < today
@@ -309,6 +321,7 @@ export async function GET() {
       // Sales plan = scheduled labor cost at the 22% labor target.
       sp.push(sCost > 0 ? Math.round(sCost / LABOR_TARGET) : 0)
       sa.push(isActual ? Math.round(salesWeekMap.get(`${s.name}|${d}`) ?? 0) : forecastFor(s.name, d))
+      py.push(Math.round(salesPYMap.get(`${s.name}|${isoAdd(d, -364)}`) ?? 0))
       hp.push(round1(sHours))
       ha.push(isActual ? round1(wHours) : round1(sHours))
       // Labor cost: plan = scheduled cost; actual = real pay (closed days) or scheduled (proj).
@@ -318,7 +331,7 @@ export async function GET() {
     const share = totalTrailingSales > 0 ? (trailingSales.get(s.name) ?? 0) / totalTrailingSales : 1 / STORES.length
     const otbBase = Math.round(systemWeekly * share)
     const otbDirect = Math.round(directByStore.get(s.key) ?? 0)
-    return { key: s.key, name: s.name, otbBase, otbDirect, sp, sa, hp, ha, lc, lcp }
+    return { key: s.key, name: s.name, otbBase, otbDirect, sp, sa, py, hp, ha, lc, lcp }
   })
 
   return Response.json({

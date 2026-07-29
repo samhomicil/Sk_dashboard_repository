@@ -132,7 +132,7 @@ export default function OpsReportPage() {
   const v = views?.[store]
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-6 max-w-5xl mx-auto">
+    <div className="min-h-screen bg-slate-100 p-4 md:p-6 lg:px-10 w-full max-w-[1440px] mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">

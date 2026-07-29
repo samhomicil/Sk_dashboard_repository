@@ -261,16 +261,22 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
                   <th rowSpan={2} className="text-left font-medium px-3 py-2.5 border-l border-slate-100">Action</th>
                 </tr>
                 <tr className="text-slate-300 uppercase text-[10px]">
-                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right font-medium px-3 pb-2">Actual</th><th className="text-right font-medium px-3 pb-2">Var</th>
-                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right font-medium px-3 pb-2">Actual</th><th className="text-right font-medium px-3 pb-2">Var</th>
-                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Tgt</th><th className="text-right font-medium px-3 pb-2">Act</th>
+                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right font-medium px-3 pb-2">Act / Fcst</th><th className="text-right font-medium px-3 pb-2">Var</th>
+                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Plan</th><th className="text-right font-medium px-3 pb-2">Act / Sched</th><th className="text-right font-medium px-3 pb-2">Var</th>
+                  <th className="text-right font-medium px-3 pb-2 border-l border-slate-100">Tgt</th><th className="text-right font-medium px-3 pb-2">Act / Est</th>
                 </tr>
               </thead>
               <tbody>
-                {days.map((d, i) => (
-                  <tr key={i} className={`border-t border-slate-100 ${d.type === 'PROJ' ? 'bg-slate-50/60' : ''}`}>
+                {days.map((d, i) => {
+                  // On PROJ (future) rows the "actual" columns hold projected values —
+                  // forecast sales, scheduled hours/cost, estimated labor %. Render them
+                  // italic + muted so they never read as measured actuals.
+                  const proj = d.type === 'PROJ'
+                  const projCell = proj ? 'italic text-slate-400' : ''
+                  return (
+                  <tr key={i} className={`border-t border-slate-100 ${proj ? 'bg-slate-50/60' : ''}`}>
                     <td className="px-4 py-2 font-semibold text-slate-700">
-                      <span className={`inline-block w-1.5 h-1.5 rounded-full mr-2 align-middle ${d.type === 'ACTUAL' ? 'bg-slate-800' : 'border border-slate-400'}`} />{d.day}
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full mr-2 align-middle ${proj ? 'border border-slate-400' : 'bg-slate-800'}`} />{d.day}
                     </td>
                     <td className="px-3 py-2">
                       <span className={`inline-flex items-center gap-1.5 ${d.anomaly ? 'text-amber-700' : 'text-slate-500'}`}>
@@ -280,16 +286,17 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-600 border-l border-slate-100">{money(d.salesPlan)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-700">{money(d.salesActual)}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums font-medium ${varClass(d.salesVar)}`}>{sMoney(d.salesVar)}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${proj ? projCell : 'text-slate-700'}`}>{money(d.salesActual)}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums font-medium ${proj ? 'italic opacity-70 ' : ''}${varClass(d.salesVar)}`}>{sMoney(d.salesVar)}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-600 border-l border-slate-100">{d.hoursPlan.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-700">{d.hoursActual.toFixed(1)}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums font-medium ${varClass(d.hoursVar, true)}`}>{sHrs(d.hoursVar)}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${proj ? projCell : 'text-slate-700'}`}>{d.hoursActual.toFixed(1)}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums font-medium ${proj ? 'italic opacity-70 ' : ''}${varClass(d.hoursVar, true)}`}>{sHrs(d.hoursVar)}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400 border-l border-slate-100">{d.laborPctPlan.toFixed(1)}%</td>
-                    <td className={`px-3 py-2 text-right tabular-nums font-medium ${laborPctColor(d.laborPctAct, targetPct, amberPct)}`}>{d.laborPctAct.toFixed(1)}%</td>
+                    <td className={`px-3 py-2 text-right tabular-nums font-medium ${proj ? 'italic ' : ''}${laborPctColor(d.laborPctAct, targetPct, amberPct)}`}>{d.laborPctAct.toFixed(1)}%</td>
                     <td className={`px-3 py-2 border-l border-slate-100 ${d.anomaly ? 'text-amber-700' : 'text-slate-500'}`}>{actionFor(d, targetPct, amberPct)}</td>
                   </tr>
-                ))}
+                  )
+                })}
                 <tr className="border-t-2 border-slate-200 bg-teal-50/60 font-bold text-slate-800">
                   <td className="px-4 py-2.5">TOTAL</td><td className="px-3 py-2.5 text-slate-300">—</td>
                   <td className="px-3 py-2.5 text-right tabular-nums border-l border-slate-100">{money(T.splan)}</td>

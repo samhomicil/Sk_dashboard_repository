@@ -166,12 +166,12 @@ export async function GET() {
         SELECT store, employee, rate,
                ROW_NUMBER() OVER (PARTITION BY store, employee ORDER BY shift_date DESC) rn
         FROM smoothieking.labor WHERE rate > 0) t WHERE rn = 1`), []),
-    // OTB base — PFG spend (store_number = plain digits)
+    // OTB base — PFG spend from pfs_invoices (current source; store via SK number in store_name)
     safe(query<PfgRow[]>(`
-      SELECT store_number, SUM(line_total) AS spend
-      FROM smoothieking.pfg_order_line_items
-      WHERE order_date >= '${histStart}' AND order_date < '${monday}'
-      GROUP BY store_number`), []),
+      SELECT RIGHT(store_name, 4) AS store_number, SUM(ext_price) AS spend
+      FROM smoothieking.pfs_invoices
+      WHERE invoice_date >= '${histStart}' AND invoice_date < '${monday}'
+      GROUP BY RIGHT(store_name, 4)`), []),
     // OTB base — Walmart spend (store derived from account_user_email)
     safe(query<WmRow[]>(`
       SELECT account_user_email AS email, SUM(item_net_total) AS spend

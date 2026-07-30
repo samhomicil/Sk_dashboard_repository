@@ -80,6 +80,17 @@ async function computeHolidayLift(windowDates: string[], windowLen: number): Pro
 
 const LEAD_DAYS = 4        // PFS confirmed lead time
 const SAFETY = 1.10        // 10% safety on the order-up-to level
+
+// Walmart local buys aren't entered in NetChef (proven gap), so NetChef's "received"
+// is missing them. We fold the real Walmart receipts (from walmart_spend) back into
+// the usage math ourselves — NetChef stays the physical-count source, our tables are
+// the purchase source of truth. Map Walmart category → NetChef product + lb/received-unit
+// (size is in the item name: strawberries "1 lb", blueberries "18 oz"). Extend as needed.
+// NOTE: needs walmart_spend kept fresh to take effect (correction is 0 while it's stale).
+const WALMART_TO_NETCHEF: Record<string, { pn: string; lbPerUnit: number }> = {
+  'CORE STRAWBERRIES': { pn: 'P1480', lbPerUnit: 1.0 },    // Fresh Strawberries, 1 lb
+  'BLUEBERRIES':       { pn: 'P1011', lbPerUnit: 1.125 },  // Fresh Blueberries, 18 oz
+}
 const ORDERS_PER_WEEK: Record<string, number> = { Pines: 2, Miramar: 2, Margate: 1 }
 const coverDaysFor = (store: string) =>
   (7 / (ORDERS_PER_WEEK[store] ?? 1) + LEAD_DAYS) * SAFETY
@@ -188,10 +199,31 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
   const usageMap = new Map<string, UsageRow>()
   for (const u of usage) usageMap.set(`${u.store}|${u.product_number}`, u)
 
+  // Fold Walmart receipts (missing from NetChef) into "received" so usage is correct.
+  const walmartRecv = new Map<string, number>()   // `${store}|${productNumber}` -> lb received
+  if (usageStart && usageEnd) {
+    const cats = Object.keys(WALMART_TO_NETCHEF).map(c => `'${c}'`).join(',')
+    const wm = await query<{ email: string; cat: string; qty: number }[]>(`
+      SELECT account_user_email email, walmart_category cat, SUM(item_received_qty) qty
+      FROM smoothieking.walmart_spend
+      WHERE order_date BETWEEN '${usageStart}' AND '${usageEnd}'
+        AND walmart_category IN (${cats}) AND item_received_qty > 0
+      GROUP BY account_user_email, walmart_category`).catch(() => [] as { email: string; cat: string; qty: number }[])
+    for (const r of wm) {
+      const store = (['Pines', 'Miramar', 'Margate'] as const).find(s => (r.email || '').toLowerCase().includes(s.toLowerCase()))
+      const m = WALMART_TO_NETCHEF[r.cat]
+      if (store && m) {
+        const k = `${store}|${m.pn}`
+        walmartRecv.set(k, (walmartRecv.get(k) ?? 0) + (Number(r.qty) || 0) * m.lbPerUnit)
+      }
+    }
+  }
+
   const rows: OrderGuideRow[] = []
   for (const oh of onHand) {
     const u = usageMap.get(`${oh.store}|${oh.product_number}`)
-    const countUsage = u ? (Number(u.qty_beginning) || 0) + (Number(u.qty_received) || 0) - (Number(u.qty_physical) || 0) : 0
+    const wmR = walmartRecv.get(`${oh.store}|${oh.product_number}`) ?? 0   // Walmart receipts NetChef is missing
+    const countUsage = u ? (Number(u.qty_beginning) || 0) + (Number(u.qty_received) || 0) + wmR - (Number(u.qty_physical) || 0) : 0
     // Prefer count-based (sales-independent); fall back to theoretical when count is unusable.
     let weeklyUsage = countUsage
     let usageBasis: 'count' | 'theoretical' = 'count'

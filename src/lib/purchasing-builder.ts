@@ -81,7 +81,7 @@ export interface PurchasingData {
 
 async function fetchVendorSplit() {
   const [pfgRows, wmRows] = await Promise.all([
-    dbQuery<{ total: number }[]>(`SELECT SUM(line_total) AS total FROM smoothieking.pfg_order_line_items`),
+    dbQuery<{ total: number }[]>(`SELECT SUM(line_total) AS total FROM smoothieking.pfg_compat`),
     dbQuery<{ total: number }[]>(`SELECT SUM(item_net_total) AS total FROM smoothieking.walmart_spend`),
   ])
   return {
@@ -93,7 +93,7 @@ async function fetchVendorSplit() {
 async function fetchCategorySpend(): Promise<CategorySpend[]> {
   const rows = await dbQuery<{ category: string; spend: number; lines: number }[]>(`
     SELECT category, SUM(line_total) AS spend, COUNT(*) AS lines
-    FROM smoothieking.pfg_order_line_items
+    FROM smoothieking.pfg_compat
     WHERE category IS NOT NULL AND category <> ''
     GROUP BY category
     ORDER BY spend DESC
@@ -110,7 +110,7 @@ async function fetchCategorySpend(): Promise<CategorySpend[]> {
 export async function fetchDistinctItemCountByCategory(): Promise<Record<string, number>> {
   const rows = await dbQuery<{ category: string; distinct_items: number }[]>(`
     SELECT category, COUNT(DISTINCT item_code) AS distinct_items
-    FROM smoothieking.pfg_order_line_items
+    FROM smoothieking.pfg_compat
     WHERE category IS NOT NULL AND category <> '' AND item_code IS NOT NULL AND item_code <> ''
     GROUP BY category
   `)
@@ -122,7 +122,7 @@ export async function fetchDistinctItemCountByCategory(): Promise<Record<string,
 async function fetchCategoryByStore(): Promise<CategoryByStore[]> {
   const rows = await dbQuery<{ category: string; store_number: string; spend: number }[]>(`
     SELECT category, store_number, SUM(line_total) AS spend
-    FROM smoothieking.pfg_order_line_items
+    FROM smoothieking.pfg_compat
     WHERE category IS NOT NULL AND category <> ''
     GROUP BY category, store_number
   `)
@@ -155,7 +155,7 @@ async function fetchTopProducts(limit = 15): Promise<TopProduct[]> {
       SELECT item_code, product_description, brand_manufacturer, category, store_number,
              qty_confirmed, line_total, order_date,
              ROW_NUMBER() OVER (PARTITION BY item_code ORDER BY order_date DESC) AS rn
-      FROM smoothieking.pfg_order_line_items
+      FROM smoothieking.pfg_compat
       WHERE item_code IS NOT NULL AND item_code <> ''
     ),
     latest_desc AS (
@@ -200,7 +200,7 @@ async function fetchTopProductsByCategory(perCategory = 8): Promise<Record<strin
       SELECT item_code, product_description, brand_manufacturer, category, store_number,
              qty_confirmed, line_total, order_date,
              ROW_NUMBER() OVER (PARTITION BY item_code ORDER BY order_date DESC) AS rn
-      FROM smoothieking.pfg_order_line_items
+      FROM smoothieking.pfg_compat
       WHERE item_code IS NOT NULL AND item_code <> '' AND category IS NOT NULL AND category <> ''
     ),
     latest_desc AS (
@@ -246,7 +246,7 @@ async function fetchTopProductsByCategory(perCategory = 8): Promise<Record<strin
 async function fetchPfgBrands(limit = 10): Promise<VendorBrand[]> {
   const rows = await dbQuery<{ brand: string; spend: number }[]>(`
     SELECT brand_manufacturer AS brand, SUM(line_total) AS spend
-    FROM smoothieking.pfg_order_line_items
+    FROM smoothieking.pfg_compat
     WHERE brand_manufacturer IS NOT NULL AND brand_manufacturer <> ''
     GROUP BY brand_manufacturer
     ORDER BY spend DESC
@@ -274,7 +274,7 @@ async function fetchMonthlyTrend(): Promise<MonthlySpend[]> {
   const [pfgRows, wmRows] = await Promise.all([
     dbQuery<{ month: string; spend: number }[]>(`
       SELECT FORMAT(order_date, 'yyyy-MM') AS month, SUM(line_total) AS spend
-      FROM smoothieking.pfg_order_line_items
+      FROM smoothieking.pfg_compat
       GROUP BY FORMAT(order_date, 'yyyy-MM')
     `),
     dbQuery<{ month: string; spend: number }[]>(`

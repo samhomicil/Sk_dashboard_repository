@@ -142,8 +142,8 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
       FROM smoothieking.netchef_onhand
       WHERE as_of = (SELECT MAX(as_of) FROM smoothieking.netchef_onhand)`),
     query<UsageRow[]>(`
-      SELECT store, product_number, qty_beginning, qty_received, qty_physical,
-             qty_issue, qty_variance, period_start, period_end
+      SELECT store, product_number, qty_beginning, qty_received, qty_physical, qty_issue, qty_variance,
+             CONVERT(char(10), period_start, 23) period_start, CONVERT(char(10), period_end, 23) period_end
       FROM smoothieking.netchef_usage
       WHERE period_end = (SELECT MAX(period_end) FROM smoothieking.netchef_usage)`),
   ])

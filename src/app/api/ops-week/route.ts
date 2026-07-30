@@ -103,7 +103,6 @@ type SchedRow = { store: string; d: string; employee: string; h: number }
 type LaborRow = { store: string; d: string; h: number; pay: number }
 type EmpRateRow = { store: string; employee: string; rate: number }
 type PfgRow = { store_number: string; spend: number }
-type WmRow = { email: string; spend: number }
 type HolBaseRow = { store: string; d: string; net: number }
 
 async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
@@ -124,7 +123,7 @@ export async function GET() {
   const pySunday = isoAdd(sunday, -364)
 
   const [
-    salesWeek, salesHist, salesPY, schedWeek, laborWeek, empRates, pfg, walmart, weather,
+    salesWeek, salesHist, salesPY, schedWeek, laborWeek, empRates, pfg, weather,
   ] = await Promise.all([
     // Sales actual this week (store name = 'Pines'|'Miramar'|'Margate')
     safe(query<SalesRow[]>(`
@@ -166,18 +165,14 @@ export async function GET() {
         SELECT store, employee, rate,
                ROW_NUMBER() OVER (PARTITION BY store, employee ORDER BY shift_date DESC) rn
         FROM smoothieking.labor WHERE rate > 0) t WHERE rn = 1`), []),
-    // OTB base — PFG spend from pfs_invoices (current source; store via SK number in store_name)
+    // OTB base — typical single PFG ORDER per store = spend ÷ distinct order (invoice) dates,
+    // from pfs_invoices over the trailing window. One delivery, NOT the weekly total.
     safe(query<PfgRow[]>(`
-      SELECT RIGHT(store_name, 4) AS store_number, SUM(ext_price) AS spend
+      SELECT RIGHT(store_name, 4) AS store_number,
+             SUM(ext_price) / NULLIF(COUNT(DISTINCT invoice_date), 0) AS spend
       FROM smoothieking.pfs_invoices
       WHERE invoice_date >= '${histStart}' AND invoice_date < '${monday}'
       GROUP BY RIGHT(store_name, 4)`), []),
-    // OTB base — Walmart spend (store derived from account_user_email)
-    safe(query<WmRow[]>(`
-      SELECT account_user_email AS email, SUM(item_net_total) AS spend
-      FROM smoothieking.walmart_spend
-      WHERE order_date >= '${histStart}' AND order_date < '${monday}'
-      GROUP BY account_user_email`), []),
     getWeather(weekDates),
   ])
 
@@ -270,31 +265,10 @@ export async function GET() {
     return Math.round(f ? base * f : base)
   }
 
-  // OTB base — allocate by SALES share, not purchase history.
-  // Margate rarely orders PFG directly (it's supplied by transfers from Pines/
-  // Miramar), so its purchase history understates its true produce need. Taking
-  // the real system-wide combined PFG + Walmart weekly spend and splitting it by
-  // each store's sales share gives every store a real OTB (Margate included) that
-  // still sums to actual dollars at the All level — where the order/transfer call
-  // is made. Also expose each store's DIRECT spend for context on the card.
-  const systemSpend = pfg.reduce((a, r) => a + (Number(r.spend) || 0), 0)
-    + walmart.reduce((a, r) => a + (Number(r.spend) || 0), 0)
-  const systemWeekly = systemSpend / HIST_WEEKS
-
-  const directByStore = new Map<string, number>()   // s.key -> trailing direct PFG+Walmart / week
-  for (const r of pfg) {
-    const st = STORES.find(s => s.num === String(r.store_number))
-    if (st) directByStore.set(st.key, (directByStore.get(st.key) ?? 0) + (Number(r.spend) || 0) / HIST_WEEKS)
-  }
-  for (const r of walmart) {
-    const email = (r.email || '').toLowerCase()
-    const st = STORES.find(s => email.includes(s.wm))
-    if (st) directByStore.set(st.key, (directByStore.get(st.key) ?? 0) + (Number(r.spend) || 0) / HIST_WEEKS)
-  }
-
-  const trailingSales = new Map<string, number>()   // store name -> trailing net sales
-  for (const r of salesHist) trailingSales.set(r.store, (trailingSales.get(r.store) ?? 0) + (Number(r.net) || 0))
-  const totalTrailingSales = [...trailingSales.values()].reduce((a, b) => a + b, 0)
+  // OTB base = typical single PFG order per store (avg per order date). With pfs_invoices
+  // each store orders directly, so the old sales-share/transfer workaround is obsolete.
+  const otbByNum = new Map<string, number>()
+  for (const r of pfg) otbByNum.set(String(r.store_number), Number(r.spend) || 0)
 
   const week = weekDates.map(d => ({
     day: DOW[dowOf(d)],
@@ -328,9 +302,8 @@ export async function GET() {
       lcp.push(Math.round(sCost))
       lc.push(isActual ? Math.round(wPay) : Math.round(sCost))
     })
-    const share = totalTrailingSales > 0 ? (trailingSales.get(s.name) ?? 0) / totalTrailingSales : 1 / STORES.length
-    const otbBase = Math.round(systemWeekly * share)
-    const otbDirect = Math.round(directByStore.get(s.key) ?? 0)
+    const otbBase = Math.round(otbByNum.get(s.num) ?? 0)
+    const otbDirect = otbBase   // pfs = direct orders; no transfer distortion
     return { key: s.key, name: s.name, otbBase, otbDirect, sp, sa, py, hp, ha, lc, lcp }
   })
 

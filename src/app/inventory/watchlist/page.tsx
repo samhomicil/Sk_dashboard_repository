@@ -42,9 +42,10 @@ export default function OrderGuidePage() {
     <div className="space-y-4">
       {/* header */}
       <div className="flex flex-wrap items-center justify-between gap-2 -mt-2">
-        <p className="text-xs text-slate-400">
-          On-hand as of {data.onHandAsOf ?? '—'} · usage week {data.usageWeekStart} → {data.usageWeekEnd} ·
-          demand from Brink POS, usage count-based from NetChef
+        <p className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
+          <span>On-hand as of {data.onHandAsOf ?? '—'} · usage week {data.usageWeekStart} → {data.usageWeekEnd} · demand from Brink POS, usage count-based from NetChef</span>
+          {data.weatherLift > 1.02 && <span className="pill pill-yellow">🔥 heat +{Math.round((data.weatherLift - 1) * 100)}% demand</span>}
+          {data.holidays?.length > 0 && <span className="pill pill-teal">🎉 {data.holidays.join(', ')}</span>}
         </p>
         <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
           {STORE_TABS.map(t => (
@@ -141,7 +142,7 @@ export default function OrderGuidePage() {
         </div>
         <div className="mt-3 text-[11px] text-slate-400 leading-relaxed">
           Suggested order = forecast daily usage × cover days (Pines/Miramar order 2×/wk, Margate 1×/wk; +4-day lead, 10% safety) − on-hand − pending.
-          Usage is count-based (begin + received − physical) from NetChef; <b>*</b> = fell back to theoretical. Demand factor (×Fcst) from trailing-4-week Brink sales vs the usage week.
+          Usage is count-based (begin + received − physical) from NetChef; <b>*</b> = fell back to theoretical. Demand factor (×Fcst) = trailing-4-week Brink sales vs the usage week, lifted for upcoming heat &amp; holidays.
           Net-supplier stores (Pines→Margate transfers) read slightly high on usage until transfer-netting is added.
         </div>
       </div>

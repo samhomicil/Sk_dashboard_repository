@@ -1,4 +1,68 @@
 import { query } from './db'
+import { holidayName, priorYearHoliday } from './holiday'
+
+// South Florida region (both store ZIPs) — one regional weather pull, same as ops report.
+const WX_LAT = 26.05, WX_LON = -80.28
+
+function etToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+function isoAdd(iso: string, n: number): string {
+  const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10)
+}
+
+// Heat lifts smoothie/bowl demand. Forecast highs over the upcoming window → a modest
+// window-mean multiplier (0 at ≤85°F, +15% at ≥95°F). Same >85°F cue the ops report uses.
+// v1 heuristic — calibratable from sales-vs-temp history later.
+async function weatherLift(days: number): Promise<number> {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}`
+      + `&daily=temperature_2m_max&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=${Math.min(16, Math.max(1, days))}`
+    const res = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) return 1
+    const highs: number[] = (await res.json())?.daily?.temperature_2m_max ?? []
+    if (!highs.length) return 1
+    const b = highs.slice(0, days).map(t => Math.max(0, Math.min(1, (t - 85) / 10)) * 0.15)
+    return 1 + b.reduce((a, x) => a + x, 0) / b.length
+  } catch { return 1 }
+}
+
+// Per-store demand lift from any holiday in the window: last-year holiday sales vs its
+// surrounding same-weekday baseline (same method as the daily recap/ops report), applied
+// window-averaged (one holiday day is 1/window of the cover window). No holiday → empty.
+async function computeHolidayLift(windowDates: string[], windowLen: number): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  const hols = windowDates.filter(d => holidayName(d))
+  if (!hols.length) return out
+  for (const d of hols) {
+    const { date: hly } = priorYearHoliday(d)
+    if (!hly) continue
+    const baseDates = [-4, -3, -2, -1, 1, 2].map(k => isoAdd(hly, 7 * k))
+    const need = [hly, ...baseDates].map(x => `'${x}'`).join(',')
+    let rows: { store: string; d: string; net: number }[] = []
+    try {
+      rows = await query<{ store: string; d: string; net: number }[]>(`
+        SELECT store, CONVERT(char(10),closed_datetime,23) d,
+               SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) net
+        FROM smoothieking.sales WHERE CONVERT(date,closed_datetime) IN (${need})
+        GROUP BY store, CONVERT(char(10),closed_datetime,23)`)
+    } catch { continue }
+    const got = new Map<string, Map<string, number>>()
+    for (const r of rows) {
+      if (!got.has(r.store)) got.set(r.store, new Map())
+      got.get(r.store)!.set(r.d, Number(r.net) || 0)
+    }
+    for (const [store, g] of got) {
+      const hv = g.get(hly) ?? 0
+      const base = baseDates.map(x => g.get(x) ?? 0).filter(v => v > 0)
+      if (hv > 0 && base.length >= 3) {
+        const f = Math.max(0.4, Math.min(2.2, hv / (base.reduce((a, b) => a + b, 0) / base.length)))
+        out.set(store, (out.get(store) ?? 1) * (1 + (f - 1) / windowLen))
+      }
+    }
+  }
+  return out
+}
 
 // Hybrid order guide (predictive-ordering "crawl").
 // Trusted-source hybrid — NetChef for STRUCTURE, Brink for DEMAND (NetChef's own
@@ -47,6 +111,8 @@ export interface OrderGuidePayload {
   onHandAsOf: string | null
   usageWeekStart: string | null
   usageWeekEnd: string | null
+  weatherLift: number
+  holidays: string[]
   rows: OrderGuideRow[]
 }
 
@@ -100,11 +166,23 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
   const trailWeekly = new Map<string, number>()
   for (const r of trailDrv) trailWeekly.set(dkey(r.store, r.rc), (Number(r.net) || 0) / 4)
 
+  // Forward-looking lift for the upcoming order window: heat + holidays (same
+  // engine/consistency as the ops report). Weather is regional; holiday is per-store.
+  const today = etToday()
+  const window = Math.ceil((7 / 1 + LEAD_DAYS) * SAFETY)   // longest cover (Margate 1×/wk)
+  const windowDates = Array.from({ length: window }, (_, i) => isoAdd(today, i))
+  const [wxLift, holByStore] = await Promise.all([
+    weatherLift(window),
+    computeHolidayLift(windowDates, window),
+  ])
+  const holidays = [...new Set(windowDates.map(d => holidayName(d)).filter(Boolean))] as string[]
+
   const factorFor = (store: string, driver: 'bowls' | 'smoothies') => {
     const wk = weekNet.get(`${store}|${driver}`) ?? 0
     const tr = trailWeekly.get(`${store}|${driver}`) ?? 0
-    if (wk <= 0 || tr <= 0) return 1
-    return Math.max(0.5, Math.min(2, tr / wk))
+    const base = wk > 0 && tr > 0 ? tr / wk : 1
+    const combined = base * wxLift * (holByStore.get(store) ?? 1)
+    return Math.max(0.5, Math.min(2.5, combined))
   }
 
   const usageMap = new Map<string, UsageRow>()
@@ -147,6 +225,7 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
 
   return {
     onHandAsOf: onHand[0]?.as_of ?? null,
-    usageWeekStart: usageStart, usageWeekEnd: usageEnd, rows,
+    usageWeekStart: usageStart, usageWeekEnd: usageEnd,
+    weatherLift: Math.round(wxLift * 100) / 100, holidays, rows,
   }
 }

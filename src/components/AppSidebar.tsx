@@ -10,7 +10,7 @@ const INVENTORY_SUB = [
   { label: 'By Category',         href: '/inventory/categories' },
   { label: 'By Store',            href: '/inventory/stores' },
   { label: 'By Vendor',           href: '/inventory/vendors' },
-  { label: 'Actions & Watchlist', href: '/inventory/watchlist' },
+  { label: 'Order Guide',         href: '/inventory/watchlist' },
 ]
 
 export default function AppSidebar() {

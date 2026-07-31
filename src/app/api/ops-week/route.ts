@@ -21,7 +21,11 @@ export const revalidate = 0
 
 const LABOR_TARGET = 0.22   // matches daily recap TARGET_LABOR_PCT default
 const LABOR_AMBER = 0.03    // amber band = target .. target+3pts (daily recap)
-const COGS_TARGET = 0.25
+const COGS_TARGET = 0.25          // default/fallback when a store has no recipe history yet
+// Derived COGS target = each store's trailing recipe run-rate minus an improvement goal,
+// clamped — a realistic "beat your own baseline" budget rather than a flat aspiration.
+const COGS_IMPROVEMENT = 0.005    // 0.5 pt stretch below the run-rate
+const COGS_FLOOR = 0.20, COGS_CAP = 0.28
 const DEFAULT_RATE = 13.50  // matches daily recap DEFAULT_RATE fallback
 
 // Weeks of history used for the PROJ-day sales forecast and the OTB spend base.
@@ -203,17 +207,19 @@ export async function GET(req: Request) {
       FROM smoothieking.pfs_invoices
       WHERE invoice_date >= '${histStart}' AND invoice_date < '${monday}'
       GROUP BY RIGHT(store_name, 4)`), []),
-    // COGS actual = recipe (theoretical) usage $ ÷ sales for the latest NetChef inventory week,
-    // per store — the "cost" concept (usage, not purchasing), clean per store, near target.
-    safe(query<{ store: string; cogs: number; sales: number }[]>(`
-      WITH u AS (SELECT * FROM smoothieking.netchef_usage WHERE period_end = (SELECT MAX(period_end) FROM smoothieking.netchef_usage)),
-           o AS (SELECT store, product_number, inventory_price FROM smoothieking.netchef_onhand WHERE as_of = (SELECT MAX(as_of) FROM smoothieking.netchef_onhand))
-      SELECT u.store,
+    // COGS actual + baseline = recipe (theoretical) usage $ ÷ sales, per store PER WEEK over the
+    // trailing NetChef inventory weeks (currently 1; deepens as netchef_usage accumulates). Latest
+    // week = the "actual" rate; the average of the weeks is the run-rate the derived target uses.
+    safe(query<{ store: string; wk: string; cogs: number; sales: number }[]>(`
+      WITH o AS (SELECT store, product_number, inventory_price FROM smoothieking.netchef_onhand WHERE as_of = (SELECT MAX(as_of) FROM smoothieking.netchef_onhand))
+      SELECT u.store, CONVERT(char(10), u.period_end, 23) AS wk,
              SUM(u.qty_issue * o.inventory_price) AS cogs,
              (SELECT SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) FROM smoothieking.sales s
-                WHERE s.store = u.store AND CAST(s.closed_datetime AS DATE) BETWEEN (SELECT MIN(period_start) FROM u) AND (SELECT MAX(period_end) FROM u)) AS sales
-      FROM u JOIN o ON o.store = u.store AND o.product_number = u.product_number
-      GROUP BY u.store`), []),
+                WHERE s.store = u.store AND CAST(s.closed_datetime AS DATE) BETWEEN u.period_start AND u.period_end) AS sales
+      FROM smoothieking.netchef_usage u
+      JOIN o ON o.store = u.store AND o.product_number = u.product_number
+      WHERE u.period_end >= (SELECT DATEADD(week, -8, MAX(period_end)) FROM smoothieking.netchef_usage)
+      GROUP BY u.store, u.period_start, u.period_end`), []),
     getWeather(weekDates),
   ])
 
@@ -311,11 +317,26 @@ export async function GET(req: Request) {
   const otbByNum = new Map<string, number>()
   for (const r of pfg) otbByNum.set(String(r.store_number), Number(r.spend) || 0)
 
-  // COGS rate per store = recipe usage $ ÷ sales for the latest inventory week.
-  const cogsByStore = new Map<string, number>()
+  // Per store: latest-week recipe COGS rate (the "actual") + a derived target = the average
+  // of the available weeks' rates minus the improvement goal, clamped. cogsWeeks tracks how
+  // many weeks back the run-rate the target is built from (shown in the UI for transparency).
+  const cogsRates = new Map<string, { wk: string; rate: number }[]>()
   for (const r of cogsData) {
     const sales = Number(r.sales) || 0
-    cogsByStore.set(r.store, sales > 0 ? (Number(r.cogs) || 0) / sales : 0)
+    if (sales <= 0) continue
+    const arr = cogsRates.get(r.store) ?? []
+    arr.push({ wk: r.wk, rate: (Number(r.cogs) || 0) / sales })
+    cogsRates.set(r.store, arr)
+  }
+  const cogsByStore = new Map<string, number>()        // actual (latest week)
+  const cogsTargetByStore = new Map<string, number>()  // derived target
+  let cogsWeeks = 0
+  for (const [store, arr] of cogsRates) {
+    arr.sort((a, b) => a.wk < b.wk ? -1 : 1)
+    cogsWeeks = Math.max(cogsWeeks, arr.length)
+    const baseline = arr.reduce((s, x) => s + x.rate, 0) / arr.length
+    cogsByStore.set(store, arr[arr.length - 1].rate)
+    cogsTargetByStore.set(store, Math.round(Math.min(COGS_CAP, Math.max(COGS_FLOOR, baseline - COGS_IMPROVEMENT)) * 1000) / 1000)
   }
 
   const week = weekDates.map(d => ({
@@ -355,15 +376,23 @@ export async function GET(req: Request) {
     const otbBase = Math.round(otbByNum.get(s.num) ?? 0)
     const otbDirect = otbBase   // pfs = direct orders; no transfer distortion
     const cogsRate = cogsByStore.get(s.name) ?? 0
-    const orders = orderSplit(s.name, weekDates, sa, COGS_TARGET)
-    return { key: s.key, name: s.name, otbBase, otbDirect, cogsRate: Math.round(cogsRate * 1000) / 1000, orders, sp, sa, py, hp, ha, lc, lcp }
+    const cogsTarget = cogsTargetByStore.get(s.name) ?? COGS_TARGET
+    const orders = orderSplit(s.name, weekDates, sa, cogsTarget)
+    return { key: s.key, name: s.name, otbBase, otbDirect, cogsRate: Math.round(cogsRate * 1000) / 1000, cogsTarget, orders, sp, sa, py, hp, ha, lc, lcp }
   })
+
+  // Blended (sales-weighted) derived target for the All view / generic reference.
+  const blendW = stores.reduce((a, s) => a + s.sa.reduce((x, y) => x + y, 0), 0)
+  const cogsTargetBlend = blendW > 0
+    ? stores.reduce((a, s) => a + s.cogsTarget * s.sa.reduce((x, y) => x + y, 0), 0) / blendW
+    : COGS_TARGET
 
   return Response.json({
     weekMode,
     weekLabel: `Week of ${monthDay(monday)} – ${monthDay(sunday)}`,
     today,
-    cogsTarget: COGS_TARGET,
+    cogsTarget: Math.round(cogsTargetBlend * 1000) / 1000,
+    cogsWeeks,
     laborTarget: LABOR_TARGET,
     laborAmber: LABOR_AMBER,
     holidays,

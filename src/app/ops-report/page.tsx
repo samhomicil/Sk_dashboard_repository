@@ -8,13 +8,13 @@ interface WxDay { icon: string; temp: string; condition: string }
 interface WeekDay { day: string; date: string; type: 'ACTUAL' | 'PROJ'; weather: WxDay }
 interface OrderSplit { day: string; covers: string; target: number }
 interface StoreData {
-  key: string; name: string; otbBase: number; otbDirect: number; cogsRate: number; orders: OrderSplit[]
+  key: string; name: string; otbBase: number; otbDirect: number; cogsRate: number; cogsTarget: number; orders: OrderSplit[]
   sp: number[]; sa: number[]; py: number[]; hp: number[]; ha: number[]; lc: number[]; lcp: number[]
 }
 interface Holiday { date: string; day: string; name: string }
 interface OpsPayload {
   weekMode?: 'this' | 'next'
-  weekLabel: string; today: string; cogsTarget: number; laborTarget: number; laborAmber: number
+  weekLabel: string; today: string; cogsTarget: number; cogsWeeks?: number; laborTarget: number; laborAmber: number
   holidays: Holiday[]; week: WeekDay[]; stores: StoreData[]; warnings: string[]
 }
 
@@ -48,7 +48,7 @@ function makeDay(wk: WeekDay, sPlan: number, sAct: number, sPY: number, hPlan: n
   }
 }
 
-interface View { name: string; otbBase: number; otbDirect: number; cogsRate: number; orders: OrderSplit[]; days: Day[] }
+interface View { name: string; otbBase: number; otbDirect: number; cogsRate: number; cogsTarget: number; orders: OrderSplit[]; days: Day[] }
 
 // Merge per-store order splits into one cycle view (All): same delivery day → summed
 // target. Keeps encounter order (Tue then Fri) and blends the coverage label.
@@ -92,7 +92,7 @@ function buildViews(data: OpsPayload): Record<string, View> {
   const views: Record<string, View> = {}
   for (const s of data.stores) {
     views[s.key] = {
-      name: s.name, otbBase: s.otbBase, otbDirect: s.otbDirect, cogsRate: s.cogsRate, orders: s.orders,
+      name: s.name, otbBase: s.otbBase, otbDirect: s.otbDirect, cogsRate: s.cogsRate, cogsTarget: s.cogsTarget, orders: s.orders,
       days: data.week.map((wk, i) => makeDay(wk, s.sp[i], s.sa[i], s.py[i], s.hp[i], s.ha[i], s.lc[i], s.lcp[i])),
     }
   }
@@ -102,6 +102,7 @@ function buildViews(data: OpsPayload): Record<string, View> {
     otbBase: data.stores.reduce((a, s) => a + s.otbBase, 0),
     otbDirect: data.stores.reduce((a, s) => a + s.otbDirect, 0),
     cogsRate: wsum > 0 ? data.stores.reduce((a, s) => a + s.cogsRate * s.sa.reduce((x, y) => x + y, 0), 0) / wsum : 0,
+    cogsTarget: wsum > 0 ? data.stores.reduce((a, s) => a + s.cogsTarget * s.sa.reduce((x, y) => x + y, 0), 0) / wsum : data.cogsTarget,
     orders: mergeOrders(data.stores),
     days: data.week.map((wk, i) => {
       let sp = 0, sa = 0, py = 0, hp = 0, ha = 0, lc = 0, lcp = 0
@@ -258,10 +259,10 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
   // labor uses the projected full-week %. Prime = COGS + labor (the 47% ceiling).
   const projSales = T.sact
   const cogsPct = v.cogsRate * 100
-  const cogsTargetPct = data.cogsTarget * 100
+  const cogsTargetPct = v.cogsTarget * 100          // derived per-store run-rate target
   const cogsDrift = cogsPct - cogsTargetPct
   const cogsAct$ = v.cogsRate * projSales
-  const cogsPlan$ = data.cogsTarget * projSales
+  const cogsPlan$ = v.cogsTarget * projSales         // the food BUDGET dollars for the week
   const laborPct = tPctAct                       // projected full-week labor %
   const laborTargetPct = data.laborTarget * 100
   const laborPlan$ = data.laborTarget * projSales
@@ -305,8 +306,8 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
               delta={`${sMoney(T.lcost - laborPlan$)}`} tone={T.lcost - laborPlan$ > 1 ? 'neg' : T.lcost - laborPlan$ < -1 ? 'pos' : 'neutral'} />
             <Stat lab="Labor % (planned)" val={`${tPctAct.toFixed(1)}%`} sub={`vs ${targetPct.toFixed(0)}%`}
               delta={`${sPct(tPctAct - targetPct)} pts`} tone={tPctAct - targetPct > 0.05 ? 'warn' : tPctAct - targetPct < -0.05 ? 'pos' : 'neutral'} />
-            <Stat lab="COGS % (est)" val={`${cogsPct.toFixed(1)}%`} sub={`vs ${cogsTargetPct.toFixed(0)}%`}
-              delta={`${sPct(cogsDrift)} pts`} tone={cogsDrift > 0.05 ? 'warn' : cogsDrift < -0.05 ? 'pos' : 'neutral'} />
+            <Stat lab="Food budget" val={money(cogsPlan$)} sub={`@ ${cogsTargetPct.toFixed(1)}%`}
+              delta={`of ${money(projSales)} forecast`} tone="neutral" />
           </>) : (<>
             <Stat lab="Sales · to date" val={money(mw.sact)} sub={`/ ${money(mw.splan)}`}
               delta={`${sMoney(mwSalesVar)} · ${sPct(mwSalesPct)}`} tone={Math.abs(mwSalesVar) < 1 ? 'neutral' : mwSalesVar < 0 ? 'neg' : 'pos'} />
@@ -449,7 +450,7 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
               </div>
             )}
             <p className="mt-2.5 text-[11px] text-slate-400 leading-relaxed">
-              COGS is theoretical — recipe usage × unit cost for the latest NetChef inventory week, ÷ net sales; the {cogsTargetPct.toFixed(0)}% target is all-in product.
+              COGS is theoretical — recipe usage × unit cost for the latest NetChef inventory week, ÷ net sales. The {cogsTargetPct.toFixed(1)}% target is <b>derived</b> — this {v.name === 'All stores' ? 'group' : 'store'}&rsquo;s recipe run-rate over {data.cogsWeeks ?? 1} wk{(data.cogsWeeks ?? 1) === 1 ? '' : 's'} minus a 0.5-pt improvement goal (deepens as more inventory weeks land).
               {v.orders.length > 1 && <> Per-order targets split that {cogsTargetPct.toFixed(0)}% budget across each delivery by its window&rsquo;s forecast demand — same curve as the order guide, so the Fri order (Fri peak + weekend) runs larger than the Tue order.</>}
               {' '}Typical actual PFG order runs {money(v.otbBase)}.
             </p>
@@ -458,7 +459,7 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
       </div>
 
       <div className="flex justify-between flex-wrap gap-2 text-[11.5px] text-slate-400 pt-2 border-t border-slate-200">
-        <span>Same method as the daily recap: est. labor = scheduled cost ÷ forecast · {targetPct.toFixed(0)}% target / {amberPct.toFixed(0)}% amber · holiday-adjusted forecast · recipe COGS vs {cogsTargetPct.toFixed(0)}% all-in target</span>
+        <span>Same method as the daily recap: est. labor = scheduled cost ÷ forecast · {targetPct.toFixed(0)}% target / {amberPct.toFixed(0)}% amber · holiday-adjusted forecast · recipe COGS vs a derived {cogsTargetPct.toFixed(1)}% target (run-rate − 0.5 pt)</span>
         <span>Live sales, schedule, labor &amp; purchasing feeds · weather via Open-Meteo</span>
       </div>
     </div>

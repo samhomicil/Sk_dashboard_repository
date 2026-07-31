@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import type { OrderGuideRow, OrderGuidePayload } from '@/lib/orderGuide'
 
 const num = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 })
+const wd = (iso: string) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
 const LEAD = 4
 
 const STORE_TABS = ['All', 'Pines', 'Miramar', 'Margate'] as const
@@ -60,8 +61,13 @@ export default function OrderGuidePage() {
       {/* order this week */}
       <div className="card">
         <div className="flex items-baseline justify-between mb-4">
-          <div className="text-sm font-bold text-slate-700">Order This Cycle{store !== 'All' ? ` · ${store}` : ''}</div>
-          <div className="text-xs text-slate-400">{toOrder.length} items below target cover</div>
+          <div className="text-sm font-bold text-slate-700">
+            Order This Cycle{store !== 'All' ? ` · ${store}` : ''}
+            {store !== 'All' && data.coverage?.[store] && (
+              <span className="ml-2 text-xs font-normal text-slate-400">covers {data.coverage[store].days}d → {wd(data.coverage[store].through)}</span>
+            )}
+          </div>
+          <div className="text-xs text-slate-400">{toOrder.length} items to order</div>
         </div>
         {toOrder.length === 0 ? (
           <div className="text-sm text-slate-400">Nothing to order — every item is above its cover level.</div>
@@ -83,6 +89,7 @@ export default function OrderGuidePage() {
                   <tr key={`${r.store}|${r.productNumber}`} className="border-b border-slate-50 hover:bg-slate-50">
                     <td className="py-2 font-medium text-slate-700">{r.productName}
                       {r.driver === 'bowls' && <span className="ml-1.5 pill pill-teal">bowls</span>}
+                      {r.sourcing === 'transfer' && <span className="ml-1.5 pill pill-gray">↔ transfer</span>}
                     </td>
                     {store === 'All' && <td className="py-2 text-slate-600">{r.store}</td>}
                     <td className="py-2 text-right tabular-nums text-slate-600">{num(r.onHand)}</td>
@@ -141,7 +148,7 @@ export default function OrderGuidePage() {
           </table>
         </div>
         <div className="mt-3 text-[11px] text-slate-400 leading-relaxed">
-          Suggested order = forecast daily usage × cover days (Pines/Miramar order 2×/wk, Margate 1×/wk; +4-day lead, 10% safety) − on-hand − pending.
+          Suggested order = order-up-to over each order&apos;s coverage window (delivery-to-delivery), spread across the day-of-week demand curve with per-day heat &amp; holidays, − on-hand − pending. Pines/Miramar order Tue+Fri, Margate Tue. <b>↔ transfer</b> = Margate shelf-stable goods (proteins, cups, juices) sourced lean from Pines/Miramar via transfer instead of a 12-day PFG buy.
           Usage is count-based (begin + received − physical) from NetChef; <b>*</b> = fell back to theoretical. Demand factor (×Fcst) = trailing-4-week Brink sales vs the usage week, lifted for upcoming heat &amp; holidays.
           Net-supplier stores (Pines→Margate transfers) read slightly high on usage until transfer-netting is added.
         </div>

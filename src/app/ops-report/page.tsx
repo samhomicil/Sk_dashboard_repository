@@ -7,7 +7,7 @@ import Link from 'next/link'
 interface WxDay { icon: string; temp: string; condition: string }
 interface WeekDay { day: string; date: string; type: 'ACTUAL' | 'PROJ'; weather: WxDay }
 interface StoreData {
-  key: string; name: string; otbBase: number; otbDirect: number
+  key: string; name: string; otbBase: number; otbDirect: number; cogsRate: number
   sp: number[]; sa: number[]; py: number[]; hp: number[]; ha: number[]; lc: number[]; lcp: number[]
 }
 interface Holiday { date: string; day: string; name: string }
@@ -46,7 +46,7 @@ function makeDay(wk: WeekDay, sPlan: number, sAct: number, sPY: number, hPlan: n
   }
 }
 
-interface View { name: string; otbBase: number; otbDirect: number; days: Day[] }
+interface View { name: string; otbBase: number; otbDirect: number; cogsRate: number; days: Day[] }
 
 // Insight wording mirrors the daily recap email (daily-recap/recap.py): labor is
 // judged against the 22% target, PROJ overages dollarized as (est% − target) ×
@@ -78,14 +78,16 @@ function buildViews(data: OpsPayload): Record<string, View> {
   const views: Record<string, View> = {}
   for (const s of data.stores) {
     views[s.key] = {
-      name: s.name, otbBase: s.otbBase, otbDirect: s.otbDirect,
+      name: s.name, otbBase: s.otbBase, otbDirect: s.otbDirect, cogsRate: s.cogsRate,
       days: data.week.map((wk, i) => makeDay(wk, s.sp[i], s.sa[i], s.py[i], s.hp[i], s.ha[i], s.lc[i], s.lcp[i])),
     }
   }
+  const wsum = data.stores.reduce((a, s) => a + s.sa.reduce((x, y) => x + y, 0), 0)
   views.all = {
     name: 'All stores',
     otbBase: data.stores.reduce((a, s) => a + s.otbBase, 0),
     otbDirect: data.stores.reduce((a, s) => a + s.otbDirect, 0),
+    cogsRate: wsum > 0 ? data.stores.reduce((a, s) => a + s.cogsRate * s.sa.reduce((x, y) => x + y, 0), 0) / wsum : 0,
     days: data.week.map((wk, i) => {
       let sp = 0, sa = 0, py = 0, hp = 0, ha = 0, lc = 0, lcp = 0
       for (const s of data.stores) {
@@ -111,6 +113,32 @@ function Stat({ lab, val, sub, delta, tone }: { lab: string; val: string; sub?: 
       </p>
       <div className="mt-2.5">
         <span className={`inline-flex items-center gap-1 text-[11.5px] font-semibold px-2 py-0.5 rounded-full ${toneCls}`}>{delta}</span>
+      </div>
+    </div>
+  )
+}
+
+// Bullet bar: actual fill vs a target tick, status-colored. Target sits at a fixed
+// x so all bars read comparably (on-target = green, ≤+2pts = amber, over = red).
+function Bullet({ label, actual, target, actualDollar, planDollar }: { label: string; actual: number; target: number; actualDollar: number; planDollar: number }) {
+  const over = actual - target
+  const status = actual <= target ? 'ok' : actual <= target + 2 ? 'warn' : 'over'
+  const barCls = status === 'ok' ? 'bg-emerald-500' : status === 'warn' ? 'bg-amber-500' : 'bg-rose-500'
+  const deltaCls = status === 'ok' ? 'text-emerald-600' : status === 'warn' ? 'text-amber-700' : 'text-rose-600'
+  const fill = Math.min(100, target > 0 ? (actual / target) * 62 : 0)   // target tick at 62% of the track
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="text-[12.5px] font-medium text-slate-600">{label}</span>
+        <span className="text-[12.5px] tabular-nums"><b className="text-slate-800">{actual.toFixed(1)}%</b> <span className={deltaCls}>{over >= 0 ? '▲' : '▼'} {Math.abs(over).toFixed(1)} pts</span></span>
+      </div>
+      <div className="relative h-2.5 rounded-full bg-slate-100">
+        <div className={`absolute left-0 top-0 h-full rounded-full ${barCls}`} style={{ width: `${fill}%` }} />
+        <div className="absolute top-[-2px] h-[14px] w-0.5 bg-slate-700" style={{ left: '62%' }} title={`${target}% target`} />
+      </div>
+      <div className="mt-1 flex justify-between text-[11px] text-slate-400 tabular-nums">
+        <span>{money(actualDollar)} <span className="text-slate-300">/ {money(planDollar)} plan</span></span>
+        <span>target {target.toFixed(0)}%</span>
       </div>
     </div>
   )
@@ -192,14 +220,22 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
   const paceTarget = mw.splan ? (mw.lcostPlan / mw.splan) * 100 : 0
   const paceDrift = paceAct - paceTarget
 
-  // Thursday order — two-sided OTB
-  const earlyShortfall = mw.splan - mw.sact
-  const weekendUplift = days.filter(d => d.day === 'Fri' || d.day === 'Sat').reduce((s, d) => s + d.salesVar, 0)
-  const trim = Math.max(earlyShortfall, 0) * data.cogsTarget
-  const add = Math.max(weekendUplift, 0) * data.cogsTarget
-  const cap = Math.round(v.otbBase - trim + add)
-  const net = cap - v.otbBase
-  const bandLow = Math.round(cap * 0.96)
+  // Cost vs plan — recipe (theoretical) COGS + projected labor against targets.
+  // COGS = Σ(recipe usage × unit cost) ÷ net sales for the NetChef inventory week;
+  // labor uses the projected full-week %. Prime = COGS + labor (the 47% ceiling).
+  const projSales = T.sact
+  const cogsPct = v.cogsRate * 100
+  const cogsTargetPct = data.cogsTarget * 100
+  const cogsDrift = cogsPct - cogsTargetPct
+  const cogsAct$ = v.cogsRate * projSales
+  const cogsPlan$ = data.cogsTarget * projSales
+  const laborPct = tPctAct                       // projected full-week labor %
+  const laborTargetPct = data.laborTarget * 100
+  const laborPlan$ = data.laborTarget * projSales
+  const primePct = cogsPct + laborPct
+  const primeTargetPct = cogsTargetPct + laborTargetPct
+  const primeAct$ = cogsAct$ + T.lcost
+  const primePlan$ = cogsPlan$ + laborPlan$
 
   // Share of the store's produce need met by transfers rather than a direct order.
   const transferPct = v.otbBase > 0 ? Math.max(0, 100 * (1 - v.otbDirect / v.otbBase)) : 0
@@ -235,8 +271,8 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
             delta={`${sMoney(mwLaborVar)} · ${sPct(mwLaborPct)}`} tone={Math.abs(mwLaborVar) < 1 ? 'neutral' : mwLaborVar > 0 ? 'neg' : 'pos'} />
           <Stat lab="Labor % pacing" val={`${paceAct.toFixed(1)}%`} sub={`vs ${paceTarget.toFixed(1)}%`}
             delta={`${sPct(paceDrift)} pts`} tone={paceDrift > 0.05 ? 'warn' : paceDrift < -0.05 ? 'pos' : 'neutral'} />
-          <Stat lab="Thursday order" val={money(cap)} sub={`typ. ${money(v.otbBase)}`}
-            delta={`${net < 0 ? 'trim ' : net > 0 ? 'add ' : ''}${money(Math.abs(net))}`} tone={net < 0 ? 'warn' : net > 0 ? 'pos' : 'neutral'} />
+          <Stat lab="COGS % pacing" val={`${cogsPct.toFixed(1)}%`} sub={`vs ${cogsTargetPct.toFixed(0)}%`}
+            delta={`${sPct(cogsDrift)} pts`} tone={cogsDrift > 0.05 ? 'warn' : cogsDrift < -0.05 ? 'pos' : 'neutral'} />
         </div>
       </div>
 
@@ -336,25 +372,29 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
             </p>
           </div>
           <div className="card border-l-[3px] border-l-teal-500">
-            <h3 className="text-sm font-bold text-slate-700 mb-2.5">🛒 Thursday order</h3>
-            <p className="text-[13.5px] font-semibold text-slate-700 mb-3 leading-snug">Cap Thursday&apos;s order near <b className="text-teal-700">{money(cap)}</b> — lock it before the 2 pm cutoff.</p>
-            <div className="flex justify-between text-[12.5px] py-1.5 border-b border-slate-100"><span className="text-slate-500">Trim · early-week produce</span><span className="font-semibold text-rose-600">−{money(trim)}</span></div>
-            <div className="flex justify-between text-[12.5px] py-1.5 border-b border-slate-100"><span className="text-slate-500">Add · weekend heat</span><span className="font-semibold text-emerald-600">+{money(add)}</span></div>
-            <div className="flex justify-between text-[12.5px] py-1.5"><span className="text-slate-500">Cap vs typical</span><span className={`font-semibold ${net < 0 ? 'text-amber-700' : net > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>{sMoney(net)} vs {money(v.otbBase)}</span></div>
+            <div className="flex items-baseline justify-between mb-3">
+              <h3 className="text-sm font-bold text-slate-700">💵 Cost vs plan</h3>
+              <span className="text-[11px] text-slate-400">recipe COGS · projected week</span>
+            </div>
+            <div className="space-y-3.5">
+              <Bullet label="Food (COGS)" actual={cogsPct} target={cogsTargetPct} actualDollar={cogsAct$} planDollar={cogsPlan$} />
+              <Bullet label="Labor" actual={laborPct} target={laborTargetPct} actualDollar={T.lcost} planDollar={laborPlan$} />
+              <Bullet label="Prime · food + labor" actual={primePct} target={primeTargetPct} actualDollar={primeAct$} planDollar={primePlan$} />
+            </div>
             {transferPct >= 15 && (
-              <div className="mt-2 rounded-md bg-sky-50 px-2.5 py-1.5 text-[11px] text-sky-800 leading-snug">
-                ~{Math.round(transferPct)}% of this need is met by <b>transfers</b>, not a direct order ({money(v.otbDirect)}/wk bought direct). The order/transfer split is decided on the <b>All</b> view.
+              <div className="mt-3 rounded-md bg-sky-50 px-2.5 py-1.5 text-[11px] text-sky-800 leading-snug">
+                ~{Math.round(transferPct)}% of {v.name === 'All stores' ? 'Margate' : 'this store'}&rsquo;s shelf-stable need is met by <b>transfers</b> from Pines/Miramar rather than a direct order — holding COGS without extra buys.
               </div>
             )}
             <p className="mt-2.5 text-[11px] text-slate-400 leading-relaxed">
-              Base = system PFG + Walmart weekly spend allocated by each store&apos;s sales share, so transfers don&apos;t distort a single store. Trim from slow produce (greens, non-berry fruit); protect berries and cups for Saturday. Safe band {money(bandLow)}–{money(v.otbBase)}.
+              COGS is theoretical — recipe usage × unit cost for the latest NetChef inventory week, ÷ net sales; the {cogsTargetPct.toFixed(0)}% target is all-in product. Next PFG order — Pines &amp; Miramar Tue + Fri, Margate Tue; typical {money(v.otbBase)}/order.
             </p>
           </div>
         </div>
       </div>
 
       <div className="flex justify-between flex-wrap gap-2 text-[11.5px] text-slate-400 pt-2 border-t border-slate-200">
-        <span>Same method as the daily recap: est. labor = scheduled cost ÷ forecast · {targetPct.toFixed(0)}% target / {amberPct.toFixed(0)}% amber · holiday-adjusted forecast · OTB at {(data.cogsTarget * 100).toFixed(0)}% COGS</span>
+        <span>Same method as the daily recap: est. labor = scheduled cost ÷ forecast · {targetPct.toFixed(0)}% target / {amberPct.toFixed(0)}% amber · holiday-adjusted forecast · recipe COGS vs {cogsTargetPct.toFixed(0)}% all-in target</span>
         <span>Live sales, schedule, labor &amp; purchasing feeds · weather via Open-Meteo</span>
       </div>
     </div>

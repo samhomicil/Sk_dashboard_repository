@@ -123,7 +123,7 @@ export async function GET() {
   const pySunday = isoAdd(sunday, -364)
 
   const [
-    salesWeek, salesHist, salesPY, schedWeek, laborWeek, empRates, pfg, weather,
+    salesWeek, salesHist, salesPY, schedWeek, laborWeek, empRates, pfg, cogsData, weather,
   ] = await Promise.all([
     // Sales actual this week (store name = 'Pines'|'Miramar'|'Margate')
     safe(query<SalesRow[]>(`
@@ -173,6 +173,17 @@ export async function GET() {
       FROM smoothieking.pfs_invoices
       WHERE invoice_date >= '${histStart}' AND invoice_date < '${monday}'
       GROUP BY RIGHT(store_name, 4)`), []),
+    // COGS actual = recipe (theoretical) usage $ ÷ sales for the latest NetChef inventory week,
+    // per store — the "cost" concept (usage, not purchasing), clean per store, near target.
+    safe(query<{ store: string; cogs: number; sales: number }[]>(`
+      WITH u AS (SELECT * FROM smoothieking.netchef_usage WHERE period_end = (SELECT MAX(period_end) FROM smoothieking.netchef_usage)),
+           o AS (SELECT store, product_number, inventory_price FROM smoothieking.netchef_onhand WHERE as_of = (SELECT MAX(as_of) FROM smoothieking.netchef_onhand))
+      SELECT u.store,
+             SUM(u.qty_issue * o.inventory_price) AS cogs,
+             (SELECT SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) FROM smoothieking.sales s
+                WHERE s.store = u.store AND CAST(s.closed_datetime AS DATE) BETWEEN (SELECT MIN(period_start) FROM u) AND (SELECT MAX(period_end) FROM u)) AS sales
+      FROM u JOIN o ON o.store = u.store AND o.product_number = u.product_number
+      GROUP BY u.store`), []),
     getWeather(weekDates),
   ])
 
@@ -270,6 +281,13 @@ export async function GET() {
   const otbByNum = new Map<string, number>()
   for (const r of pfg) otbByNum.set(String(r.store_number), Number(r.spend) || 0)
 
+  // COGS rate per store = recipe usage $ ÷ sales for the latest inventory week.
+  const cogsByStore = new Map<string, number>()
+  for (const r of cogsData) {
+    const sales = Number(r.sales) || 0
+    cogsByStore.set(r.store, sales > 0 ? (Number(r.cogs) || 0) / sales : 0)
+  }
+
   const week = weekDates.map(d => ({
     day: DOW[dowOf(d)],
     date: d,
@@ -304,7 +322,8 @@ export async function GET() {
     })
     const otbBase = Math.round(otbByNum.get(s.num) ?? 0)
     const otbDirect = otbBase   // pfs = direct orders; no transfer distortion
-    return { key: s.key, name: s.name, otbBase, otbDirect, sp, sa, py, hp, ha, lc, lcp }
+    const cogsRate = cogsByStore.get(s.name) ?? 0
+    return { key: s.key, name: s.name, otbBase, otbDirect, cogsRate: Math.round(cogsRate * 1000) / 1000, sp, sa, py, hp, ha, lc, lcp }
   })
 
   return Response.json({

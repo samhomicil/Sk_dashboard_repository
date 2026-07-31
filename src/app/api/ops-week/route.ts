@@ -40,6 +40,33 @@ const WX_LON = -80.28
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// PFG delivery cadence by store (JS getUTCDay: Tue=2, Fri=5) — same source of truth
+// as the order guide (orderGuide.ts DELIVERY_DAYS). Pines/Miramar deliver Tue+Fri,
+// Margate Tue. Used to split the weekly food budget per order, demand-curve weighted.
+const DELIVERY_DOWS: Record<string, number[]> = { Pines: [2, 5], Miramar: [2, 5], Margate: [2] }
+
+// Split a week's food budget across each delivery. Each order stocks the days from
+// its delivery up to (not including) the next delivery — cycling past Sunday — and
+// its target is 25% of THAT window's projected sales, so the demand curve (weekday
+// forecast incl. weather/holiday) sizes each order exactly like the order guide.
+function orderSplit(name: string, weekDates: string[], sa: number[], cogsTarget: number) {
+  const dows = DELIVERY_DOWS[name]
+  if (!dows) return []
+  const idxDow = weekDates.map(dowOf)                     // week-array index -> JS dow
+  const dIdx = idxDow.map((dw, i) => (dows.includes(dw) ? i : -1)).filter(i => i >= 0).sort((a, b) => a - b)
+  if (dIdx.length === 0) return []
+  // A single delivery (Margate) still returns one order covering the whole week, so it
+  // folds into the All-view Tuesday bucket; per-store display is gated on length > 1.
+  return dIdx.map((start, k) => {
+    const next = dIdx[(k + 1) % dIdx.length]
+    const days: number[] = []
+    let d = start
+    do { days.push(d); d = (d + 1) % 7 } while (d !== next)
+    const target = Math.round(cogsTarget * days.reduce((t, i) => t + sa[i], 0))
+    return { day: DOW[idxDow[start]], covers: `${DOW[idxDow[days[0]]]}–${DOW[idxDow[days[days.length - 1]]]}`, target }
+  })
+}
+
 /* ---------- date helpers (ET-anchored) ---------- */
 function etToday(): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -323,7 +350,8 @@ export async function GET() {
     const otbBase = Math.round(otbByNum.get(s.num) ?? 0)
     const otbDirect = otbBase   // pfs = direct orders; no transfer distortion
     const cogsRate = cogsByStore.get(s.name) ?? 0
-    return { key: s.key, name: s.name, otbBase, otbDirect, cogsRate: Math.round(cogsRate * 1000) / 1000, sp, sa, py, hp, ha, lc, lcp }
+    const orders = orderSplit(s.name, weekDates, sa, COGS_TARGET)
+    return { key: s.key, name: s.name, otbBase, otbDirect, cogsRate: Math.round(cogsRate * 1000) / 1000, orders, sp, sa, py, hp, ha, lc, lcp }
   })
 
   return Response.json({

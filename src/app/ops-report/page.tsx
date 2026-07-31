@@ -6,8 +6,9 @@ import Link from 'next/link'
 /* ---------- contract types ---------- */
 interface WxDay { icon: string; temp: string; condition: string }
 interface WeekDay { day: string; date: string; type: 'ACTUAL' | 'PROJ'; weather: WxDay }
+interface OrderSplit { day: string; covers: string; target: number }
 interface StoreData {
-  key: string; name: string; otbBase: number; otbDirect: number; cogsRate: number
+  key: string; name: string; otbBase: number; otbDirect: number; cogsRate: number; orders: OrderSplit[]
   sp: number[]; sa: number[]; py: number[]; hp: number[]; ha: number[]; lc: number[]; lcp: number[]
 }
 interface Holiday { date: string; day: string; name: string }
@@ -46,7 +47,19 @@ function makeDay(wk: WeekDay, sPlan: number, sAct: number, sPY: number, hPlan: n
   }
 }
 
-interface View { name: string; otbBase: number; otbDirect: number; cogsRate: number; days: Day[] }
+interface View { name: string; otbBase: number; otbDirect: number; cogsRate: number; orders: OrderSplit[]; days: Day[] }
+
+// Merge per-store order splits into one cycle view (All): same delivery day → summed
+// target. Keeps encounter order (Tue then Fri) and blends the coverage label.
+function mergeOrders(stores: StoreData[]): OrderSplit[] {
+  const by = new Map<string, OrderSplit>()
+  for (const s of stores) for (const o of s.orders) {
+    const cur = by.get(o.day)
+    if (cur) cur.target += o.target
+    else by.set(o.day, { ...o })
+  }
+  return [...by.values()]
+}
 
 // Insight wording mirrors the daily recap email (daily-recap/recap.py): labor is
 // judged against the 22% target, PROJ overages dollarized as (est% − target) ×
@@ -78,7 +91,7 @@ function buildViews(data: OpsPayload): Record<string, View> {
   const views: Record<string, View> = {}
   for (const s of data.stores) {
     views[s.key] = {
-      name: s.name, otbBase: s.otbBase, otbDirect: s.otbDirect, cogsRate: s.cogsRate,
+      name: s.name, otbBase: s.otbBase, otbDirect: s.otbDirect, cogsRate: s.cogsRate, orders: s.orders,
       days: data.week.map((wk, i) => makeDay(wk, s.sp[i], s.sa[i], s.py[i], s.hp[i], s.ha[i], s.lc[i], s.lcp[i])),
     }
   }
@@ -88,6 +101,7 @@ function buildViews(data: OpsPayload): Record<string, View> {
     otbBase: data.stores.reduce((a, s) => a + s.otbBase, 0),
     otbDirect: data.stores.reduce((a, s) => a + s.otbDirect, 0),
     cogsRate: wsum > 0 ? data.stores.reduce((a, s) => a + s.cogsRate * s.sa.reduce((x, y) => x + y, 0), 0) / wsum : 0,
+    orders: mergeOrders(data.stores),
     days: data.week.map((wk, i) => {
       let sp = 0, sa = 0, py = 0, hp = 0, ha = 0, lc = 0, lcp = 0
       for (const s of data.stores) {
@@ -379,7 +393,21 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
               <span className="text-[11px] text-slate-400">recipe COGS · projected week</span>
             </div>
             <div className="space-y-3.5">
-              <Bullet label="Food (COGS)" actual={cogsPct} target={cogsTargetPct} actualDollar={cogsAct$} planDollar={cogsPlan$} />
+              <div>
+                <Bullet label="Food (COGS)" actual={cogsPct} target={cogsTargetPct} actualDollar={cogsAct$} planDollar={cogsPlan$} />
+                {v.orders.length > 1 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10.5px] uppercase tracking-wide text-slate-400">per order</span>
+                    {v.orders.map(o => (
+                      <span key={o.day} className="inline-flex items-baseline gap-1 rounded-md bg-slate-50 border border-slate-100 px-2 py-0.5 text-[11.5px] tabular-nums">
+                        <b className="text-slate-700">{o.day}</b>
+                        <span className="text-teal-700 font-semibold">{money(o.target)}</span>
+                        <span className="text-slate-400">· {o.covers}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Bullet label="Labor" actual={laborPct} target={laborTargetPct} actualDollar={T.lcost} planDollar={laborPlan$} />
               <Bullet label="Prime · food + labor" actual={primePct} target={primeTargetPct} actualDollar={primeAct$} planDollar={primePlan$} />
             </div>
@@ -389,7 +417,9 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
               </div>
             )}
             <p className="mt-2.5 text-[11px] text-slate-400 leading-relaxed">
-              COGS is theoretical — recipe usage × unit cost for the latest NetChef inventory week, ÷ net sales; the {cogsTargetPct.toFixed(0)}% target is all-in product. Next PFG order — Pines &amp; Miramar Tue + Fri, Margate Tue; typical {money(v.otbBase)}/order.
+              COGS is theoretical — recipe usage × unit cost for the latest NetChef inventory week, ÷ net sales; the {cogsTargetPct.toFixed(0)}% target is all-in product.
+              {v.orders.length > 1 && <> Per-order targets split that {cogsTargetPct.toFixed(0)}% budget across each delivery by its window&rsquo;s forecast demand — same curve as the order guide, so the Fri order (Fri peak + weekend) runs larger than the Tue order.</>}
+              {' '}Typical actual PFG order runs {money(v.otbBase)}.
             </p>
           </div>
         </div>

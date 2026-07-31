@@ -154,7 +154,9 @@ export default function OpsReportPage() {
   const [store, setStore] = useState('all')
 
   useEffect(() => {
-    fetch('/api/ops-week').then(r => r.json()).then(d => { setData(d); setLoading(false) }).catch(() => setLoading(false))
+    // cache:'no-store' — never re-serve a stale JSON body (an older deploy's payload
+    // lacked the PY / cogsRate fields, which read as blank cells on a plain refresh).
+    fetch('/api/ops-week', { cache: 'no-store' }).then(r => r.json()).then(d => { setData(d); setLoading(false) }).catch(() => setLoading(false))
   }, [])
 
   const views = useMemo(() => (data ? buildViews(data) : null), [data])

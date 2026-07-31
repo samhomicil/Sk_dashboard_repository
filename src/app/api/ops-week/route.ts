@@ -336,5 +336,5 @@ export async function GET() {
     week,
     stores,
     warnings,
-  })
+  }, { headers: { 'Cache-Control': 'no-store, max-age=0' } })
 }

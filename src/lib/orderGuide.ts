@@ -50,16 +50,22 @@ function isoAdd(iso: string, n: number): string {
 }
 function dowOf(iso: string): number { return new Date(iso + 'T12:00:00Z').getUTCDay() }
 
+// Upcoming delivery dates for a store (next n, from tomorrow on).
+function upcomingDeliveries(store: string, today: string, n = 4): string[] {
+  const days = DELIVERY_DAYS[store] ?? [dowOf(today)]
+  const out: string[] = []
+  for (let i = 1; i <= 28 && out.length < n; i++) {
+    const d = isoAdd(today, i)
+    if (days.includes(dowOf(d))) out.push(d)
+  }
+  return out
+}
+
 // Protection interval for the next order: [today, following delivery). The order placed
 // now arrives at the next delivery and must last until the one after — so it covers every
 // day from today up to (not including) the second upcoming delivery.
 function coverageHorizon(store: string, today: string): string[] {
-  const days = DELIVERY_DAYS[store] ?? [dowOf(today)]
-  const deliveries: string[] = []
-  for (let i = 1; i <= 21 && deliveries.length < 2; i++) {
-    const d = isoAdd(today, i)
-    if (days.includes(dowOf(d))) deliveries.push(d)
-  }
+  const deliveries = upcomingDeliveries(store, today, 2)
   const following = deliveries[1] ?? isoAdd(today, 8)
   const horizon: string[] = []
   for (let d = today; d < following; d = isoAdd(d, 1)) horizon.push(d)
@@ -134,8 +140,11 @@ export interface OrderGuideRow {
   forecastFactor: number       // Brink demand run-rate vs usage week
   forecastWeeklyUsage: number
   daysOfSupply: number | null
+  runOutDate: string | null    // demand-curve-aware date on-hand + in-transit hits zero
+  orderTruck: string | null    // delivery date this item must ride to arrive before run-out
   coverDays: number            // length of this order's coverage window (delivery-to-delivery)
   suggestedOrder: number       // in stocking unit
+  estOrderCost: number | null  // suggestedOrder × last-known unit cost (NetChef inventory_price)
   sourcing: 'order' | 'transfer'   // Margate shelf-stable → top up via transfer, not a direct PFG buy
   varianceQty: number
   unitCost: number | null
@@ -149,6 +158,9 @@ export interface OrderGuidePayload {
   weatherLift: number
   holidays: string[]
   coverage: Record<string, { days: number; through: string }>   // per store: order window
+  // Per store: the next PFG truck (delivery date), when to place it (day before), and the
+  // one after — so the guide is actionable ("put these on the Tue Aug 4 truck").
+  nextTruck: Record<string, { delivery: string; orderBy: string; following: string | null }>
   rows: OrderGuideRow[]
 }
 
@@ -236,7 +248,15 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
   const weatherLift = allDates.slice(0, 7).reduce((a, d) => a + (wxByDate.get(d) ?? 1), 0) / Math.max(1, Math.min(7, allDates.length))
   const holidays = [...new Set(allDates.map(d => holidayName(d)).filter(Boolean))] as string[]
   const coverage: Record<string, { days: number; through: string }> = {}
-  for (const s of STORE_NAMES) { const h = horizons.get(s)!; coverage[s] = { days: h.length, through: h[h.length - 1] } }
+  const deliveriesByStore: Record<string, string[]> = {}
+  const nextTruck: OrderGuidePayload['nextTruck'] = {}
+  for (const s of STORE_NAMES) {
+    const h = horizons.get(s)!; coverage[s] = { days: h.length, through: h[h.length - 1] }
+    const dels = upcomingDeliveries(s, today, 4)
+    deliveriesByStore[s] = dels
+    // PFG orders are placed the day before delivery; surface the cutoff so it's actionable.
+    nextTruck[s] = { delivery: dels[0], orderBy: isoAdd(dels[0], -1), following: dels[1] ?? null }
+  }
 
   const usageMap = new Map<string, UsageRow>()
   for (const u of usage) usageMap.set(`${u.store}|${u.product_number}`, u)
@@ -291,6 +311,33 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
     const suggested = Math.max(0, orderUpTo - onHandQty - inTransit)
     const dos = avgDaily > 0 ? onHandQty / avgDaily : null
 
+    // Demand-curve-aware run-out: walk days forward subtracting each day's forecast usage
+    // (DOW × weather × holiday) from stock, so the run-out lands on real busy/slow days
+    // rather than a flat average. Then pick the truck that arrives before that date.
+    const stock = onHandQty + inTransit
+    let runOutDate: string | null = null
+    if (fcastWeekly > 0) {
+      if (stock <= 0) runOutDate = today
+      else {
+        let cum = 0
+        for (let i = 0; i <= 60; i++) {
+          const date = isoAdd(today, i)
+          cum += fcastWeekly * (w[dowOf(date)] ?? 1 / 7) * (wxByDate.get(date) ?? 1) * (holByDate.get(`${oh.store}|${date}`) ?? 1)
+          if (cum >= stock) { runOutDate = date; break }
+        }
+      }
+    }
+    // Truck to ride: latest delivery arriving on/before run-out; if none arrives in time
+    // (runs out before the next delivery), it must go on the very next truck now.
+    const dels = deliveriesByStore[oh.store] ?? upcomingDeliveries(oh.store, today)
+    let orderTruck: string | null = null
+    if (sourcing === 'order' && suggested > 0) {
+      const inTime = runOutDate ? dels.filter(d => d <= runOutDate) : []
+      orderTruck = inTime.length ? inTime[inTime.length - 1] : dels[0]
+    }
+    const unitCost = oh.inventory_price != null ? Number(oh.inventory_price) : null
+    const estOrderCost = unitCost != null && suggested > 0 ? Math.round(suggested * unitCost * 100) / 100 : null
+
     let flag: OrderGuideRow['flag'] = 'ok'
     if (onHandQty < 0) flag = 'data'
     else if (avgDaily > 0 && dos !== null && dos < LEAD_DAYS) flag = 'urgent'
@@ -301,15 +348,16 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
       subCategory: oh.sub_category_name, driver, unit: oh.inventory_unit,
       onHand: onHandQty, inTransit, weeklyUsage, usageBasis,
       forecastFactor: factor, forecastWeeklyUsage: fcastWeekly, daysOfSupply: dos,
-      coverDays: horizon.length, suggestedOrder: suggested, sourcing,
+      runOutDate, orderTruck,
+      coverDays: horizon.length, suggestedOrder: suggested, estOrderCost, sourcing,
       varianceQty: Number(u?.qty_variance) || 0,
-      unitCost: oh.inventory_price != null ? Number(oh.inventory_price) : null, flag,
+      unitCost, flag,
     })
   }
 
   return {
     onHandAsOf: onHand[0]?.as_of ?? null,
     usageWeekStart: usageStart, usageWeekEnd: usageEnd,
-    weatherLift: Math.round(weatherLift * 100) / 100, holidays, coverage, rows,
+    weatherLift: Math.round(weatherLift * 100) / 100, holidays, coverage, nextTruck, rows,
   }
 }

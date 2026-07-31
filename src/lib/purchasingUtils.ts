@@ -53,3 +53,39 @@ export interface PurchasingPayload {
 export function storeTotal(row: CategoryByStore): number {
   return row.pines + row.miramar + row.margate
 }
+
+// ── live, timeframe-windowed additions (inventory module) ──
+export interface TopProductPriced extends TopProduct {
+  lastPrice: number | null      // unit price on the most recent in-window order (line_total ÷ qty)
+  lastPriceDate: string | null
+}
+
+export interface WeekPoint {
+  week: string                  // ISO Monday
+  pfg: number
+  walmart: number
+  sales: number
+  costPct: number               // (pfg + walmart) ÷ sales, %
+}
+
+export interface CategoryWeekPoint {
+  week: string
+  category: string
+  spend: number
+}
+
+export interface PurchasingLive {
+  window: { start: string; end: string }
+  refreshedAt: string
+  vendorSplit: { pfgTotal: number; walmartTotal: number }
+  categorySpend: CategorySpend[]
+  categoryByStore: CategoryByStore[]
+  topProducts: TopProductPriced[]
+  topProductsByCategory: Record<string, TopProductPriced[]>
+  pfgBrands: VendorBrand[]
+  walmartCategories: { category: string; spend: number }[]
+  monthlyTrend: MonthlySpend[]
+  weeklyTrend: WeekPoint[]
+  categoryTrend: CategoryWeekPoint[]
+  priceTrend: { itemCode: string; week: string; price: number }[]   // weekly unit price for top items
+}

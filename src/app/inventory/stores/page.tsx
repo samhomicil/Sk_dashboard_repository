@@ -1,27 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import type { CategoryByStore } from '@/lib/purchasingUtils'
+import { Suspense } from 'react'
+import { useInventoryData } from '@/components/useInventoryData'
 import { storeTotal } from '@/lib/purchasingUtils'
 
 const money = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
 const pct   = (n: number) => `${(n * 100).toFixed(1)}%`
 
-interface StoresPayload {
-  refreshedAt: string
-  categoryByStore: CategoryByStore[]
-}
-
-export default function InventoryStoresPage() {
-  const [data, setData]       = useState<StoresPayload | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/inventory/stores')
-      .then(r => r.json())
-      .then(d => { setData(d.error ? null : d); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
+function StoresInner() {
+  const { data, loading } = useInventoryData()
 
   if (loading) {
     return <div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>
@@ -38,8 +25,6 @@ export default function InventoryStoresPage() {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-400 -mt-2">Refreshed {new Date(data.refreshedAt).toLocaleString()}</p>
-
       <div className="card border-l-4 border-teal-500" style={{ background: '#f0fdfa' }}>
         <div className="text-xs text-teal-800">
           <strong>Note on Miramar&apos;s share:</strong> Miramar is used as a deliberate ordering hub for several dry-goods
@@ -91,5 +76,13 @@ export default function InventoryStoresPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function InventoryStoresPage() {
+  return (
+    <Suspense fallback={<div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>}>
+      <StoresInner />
+    </Suspense>
   )
 }

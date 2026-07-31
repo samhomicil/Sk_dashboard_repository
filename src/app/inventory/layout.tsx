@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { usePathname } from 'next/navigation'
+import InventoryTimeframe from '@/components/InventoryTimeframe'
 
 const TABS = [
   { href: '/inventory',            label: 'Overview' },
@@ -27,6 +29,9 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
           <div className="w-px h-4 bg-slate-200" />
           <h1 className="text-xl font-bold text-slate-800">Inventory</h1>
         </div>
+        <Suspense fallback={<div className="h-8" />}>
+          <InventoryTimeframe />
+        </Suspense>
       </div>
 
       <div className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto">

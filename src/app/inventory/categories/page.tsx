@@ -1,30 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import type { CategorySpend, TopProduct } from '@/lib/purchasingUtils'
+import { Suspense, useState } from 'react'
+import { useInventoryData } from '@/components/useInventoryData'
 
 const money = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
 const pct   = (n: number) => `${(n * 100).toFixed(1)}%`
 const num   = (n: number) => n.toLocaleString()
 
-interface CategoriesPayload {
-  refreshedAt: string
-  categorySpend: CategorySpend[]
-  topProducts: TopProduct[]
-  topProductsByCategory: Record<string, TopProduct[]>
-}
-
-export default function InventoryCategoriesPage() {
-  const [data, setData]       = useState<CategoriesPayload | null>(null)
-  const [loading, setLoading] = useState(true)
+function CategoriesInner() {
+  const { data, loading } = useInventoryData()
   const [selected, setSelected] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/inventory/categories')
-      .then(r => r.json())
-      .then(d => { setData(d.error ? null : d); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
 
   if (loading) {
     return <div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>
@@ -41,8 +26,6 @@ export default function InventoryCategoriesPage() {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-400 -mt-2">Refreshed {new Date(data.refreshedAt).toLocaleString()}</p>
-
       <div className="card">
         <div className="text-sm font-bold text-slate-700 mb-4">All Categories</div>
         <div className="overflow-x-auto">
@@ -117,5 +100,13 @@ export default function InventoryCategoriesPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function InventoryCategoriesPage() {
+  return (
+    <Suspense fallback={<div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>}>
+      <CategoriesInner />
+    </Suspense>
   )
 }

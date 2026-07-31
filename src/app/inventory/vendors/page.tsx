@@ -1,28 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import type { VendorBrand } from '@/lib/purchasingUtils'
+import { Suspense } from 'react'
+import { useInventoryData } from '@/components/useInventoryData'
 
 const money = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
 const pct   = (n: number) => `${(n * 100).toFixed(1)}%`
 
-interface VendorsPayload {
-  refreshedAt: string
-  vendorSplit: { pfgTotal: number; walmartTotal: number }
-  pfgBrands: VendorBrand[]
-  walmartCategories: { category: string; spend: number }[]
-}
-
-export default function InventoryVendorsPage() {
-  const [data, setData]       = useState<VendorsPayload | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/inventory/vendors')
-      .then(r => r.json())
-      .then(d => { setData(d.error ? null : d); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
+function VendorsInner() {
+  const { data, loading } = useInventoryData()
 
   if (loading) {
     return <div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>
@@ -37,8 +22,6 @@ export default function InventoryVendorsPage() {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-400 -mt-2">Refreshed {new Date(data.refreshedAt).toLocaleString()}</p>
-
       <div className="card">
         <div className="text-sm font-bold text-slate-700 mb-4">Vendor Split</div>
         <div className="grid grid-cols-2 gap-4">
@@ -110,5 +93,13 @@ export default function InventoryVendorsPage() {
         <div className="mt-2 text-xs text-slate-400">Walmart is a supplemental channel — almost entirely fresh produce toppings and small ad-hoc top-ups, not planned bulk purchasing.</div>
       </div>
     </div>
+  )
+}
+
+export default function InventoryVendorsPage() {
+  return (
+    <Suspense fallback={<div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>}>
+      <VendorsInner />
+    </Suspense>
   )
 }

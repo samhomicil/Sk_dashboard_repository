@@ -13,6 +13,7 @@ interface StoreData {
 }
 interface Holiday { date: string; day: string; name: string }
 interface OpsPayload {
+  weekMode?: 'this' | 'next'
   weekLabel: string; today: string; cogsTarget: number; laborTarget: number; laborAmber: number
   holidays: Holiday[]; week: WeekDay[]; stores: StoreData[]; warnings: string[]
 }
@@ -166,12 +167,16 @@ export default function OpsReportPage() {
   const [data, setData] = useState<OpsPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [store, setStore] = useState('all')
+  const [week, setWeek] = useState<'this' | 'next'>('this')
 
   useEffect(() => {
+    setLoading(true)
     // cache:'no-store' — never re-serve a stale JSON body (an older deploy's payload
     // lacked the PY / cogsRate fields, which read as blank cells on a plain refresh).
-    fetch('/api/ops-week', { cache: 'no-store' }).then(r => r.json()).then(d => { setData(d); setLoading(false) }).catch(() => setLoading(false))
-  }, [])
+    fetch(`/api/ops-week?week=${week}`, { cache: 'no-store' }).then(r => r.json()).then(d => { setData(d); setLoading(false) }).catch(() => setLoading(false))
+  }, [week])
+
+  const isNext = data?.weekMode === 'next'
 
   const views = useMemo(() => (data ? buildViews(data) : null), [data])
   const v = views?.[store]
@@ -188,19 +193,30 @@ export default function OpsReportPage() {
           <div className="w-px h-4 bg-slate-200" />
           <div>
             <h1 className="text-xl font-bold text-slate-800">Weekly Operations Report</h1>
-            {data && <p className="text-xs text-slate-400 mt-0.5">{v?.name === 'All stores' ? 'All stores' : v?.name} · {data.weekLabel} · mid-week snapshot (actual → today · forecast rest)</p>}
+            {data && <p className="text-xs text-slate-400 mt-0.5">{v?.name === 'All stores' ? 'All stores' : v?.name} · {data.weekLabel} · {isNext ? 'next-week plan (all forecast)' : 'mid-week snapshot (actual → today · forecast rest)'}</p>}
           </div>
         </div>
-        {data && (
+        <div className="flex items-center gap-2">
+          {/* This week / Next week — flips the whole report to a forward planning view */}
           <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
-            {STORE_ORDER.map(k => (
-              <button key={k} onClick={() => setStore(k)}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${store === k ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                {STORE_LABEL[k]}
+            {(['this', 'next'] as const).map(k => (
+              <button key={k} onClick={() => setWeek(k)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${week === k ? 'bg-teal-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                {k === 'this' ? 'This week' : 'Next week'}
               </button>
             ))}
           </div>
-        )}
+          {data && (
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
+              {STORE_ORDER.map(k => (
+                <button key={k} onClick={() => setStore(k)}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${store === k ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                  {STORE_LABEL[k]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -216,6 +232,7 @@ export default function OpsReportPage() {
 
 function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
   const days = v.days
+  const isNext = data.weekMode === 'next'   // planning view: no actuals, everything forecast
 
   // Totals
   const T = days.reduce((a, d) => ({
@@ -277,18 +294,29 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
         </div>
       )}
 
-      {/* Summary KPIs */}
+      {/* Summary KPIs — WTD actuals this week, all-forecast plan next week */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-teal-600 mb-3">Summary · week to date</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-teal-600 mb-3">{isNext ? 'Summary · next week (planned)' : 'Summary · week to date'}</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Stat lab="Sales · to date" val={money(mw.sact)} sub={`/ ${money(mw.splan)}`}
-            delta={`${sMoney(mwSalesVar)} · ${sPct(mwSalesPct)}`} tone={Math.abs(mwSalesVar) < 1 ? 'neutral' : mwSalesVar < 0 ? 'neg' : 'pos'} />
-          <Stat lab="Labor cost · to date" val={money(mw.lcost)} sub={`/ ${money(mw.lcostPlan)}`}
-            delta={`${sMoney(mwLaborVar)} · ${sPct(mwLaborPct)}`} tone={Math.abs(mwLaborVar) < 1 ? 'neutral' : mwLaborVar > 0 ? 'neg' : 'pos'} />
-          <Stat lab="Labor % pacing" val={`${paceAct.toFixed(1)}%`} sub={`vs ${paceTarget.toFixed(1)}%`}
-            delta={`${sPct(paceDrift)} pts`} tone={paceDrift > 0.05 ? 'warn' : paceDrift < -0.05 ? 'pos' : 'neutral'} />
-          <Stat lab="COGS % pacing" val={`${cogsPct.toFixed(1)}%`} sub={`vs ${cogsTargetPct.toFixed(0)}%`}
-            delta={`${sPct(cogsDrift)} pts`} tone={cogsDrift > 0.05 ? 'warn' : cogsDrift < -0.05 ? 'pos' : 'neutral'} />
+          {isNext ? (<>
+            <Stat lab="Forecast sales" val={money(T.sact)} sub={T.spy ? `PY ${money(T.spy)}` : undefined}
+              delta={T.spy ? `${sPct((T.sact - T.spy) / T.spy * 100)} YoY` : 'forecast'} tone={T.spy && T.sact < T.spy ? 'neg' : 'pos'} />
+            <Stat lab="Planned labor $" val={money(T.lcost)} sub={`/ ${money(laborPlan$)} @ ${targetPct.toFixed(0)}%`}
+              delta={`${sMoney(T.lcost - laborPlan$)}`} tone={T.lcost - laborPlan$ > 1 ? 'neg' : T.lcost - laborPlan$ < -1 ? 'pos' : 'neutral'} />
+            <Stat lab="Labor % (planned)" val={`${tPctAct.toFixed(1)}%`} sub={`vs ${targetPct.toFixed(0)}%`}
+              delta={`${sPct(tPctAct - targetPct)} pts`} tone={tPctAct - targetPct > 0.05 ? 'warn' : tPctAct - targetPct < -0.05 ? 'pos' : 'neutral'} />
+            <Stat lab="COGS % (est)" val={`${cogsPct.toFixed(1)}%`} sub={`vs ${cogsTargetPct.toFixed(0)}%`}
+              delta={`${sPct(cogsDrift)} pts`} tone={cogsDrift > 0.05 ? 'warn' : cogsDrift < -0.05 ? 'pos' : 'neutral'} />
+          </>) : (<>
+            <Stat lab="Sales · to date" val={money(mw.sact)} sub={`/ ${money(mw.splan)}`}
+              delta={`${sMoney(mwSalesVar)} · ${sPct(mwSalesPct)}`} tone={Math.abs(mwSalesVar) < 1 ? 'neutral' : mwSalesVar < 0 ? 'neg' : 'pos'} />
+            <Stat lab="Labor cost · to date" val={money(mw.lcost)} sub={`/ ${money(mw.lcostPlan)}`}
+              delta={`${sMoney(mwLaborVar)} · ${sPct(mwLaborPct)}`} tone={Math.abs(mwLaborVar) < 1 ? 'neutral' : mwLaborVar > 0 ? 'neg' : 'pos'} />
+            <Stat lab="Labor % pacing" val={`${paceAct.toFixed(1)}%`} sub={`vs ${paceTarget.toFixed(1)}%`}
+              delta={`${sPct(paceDrift)} pts`} tone={paceDrift > 0.05 ? 'warn' : paceDrift < -0.05 ? 'pos' : 'neutral'} />
+            <Stat lab="COGS % pacing" val={`${cogsPct.toFixed(1)}%`} sub={`vs ${cogsTargetPct.toFixed(0)}%`}
+              delta={`${sPct(cogsDrift)} pts`} tone={cogsDrift > 0.05 ? 'warn' : cogsDrift < -0.05 ? 'pos' : 'neutral'} />
+          </>)}
         </div>
       </div>
 
@@ -375,10 +403,14 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
         <p className="text-xs font-semibold uppercase tracking-wide text-teal-600 mb-3">Notes &amp; actions</p>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="card">
-            <h3 className="text-sm font-bold text-slate-700 mb-2.5">📊 Week in brief</h3>
+            <h3 className="text-sm font-bold text-slate-700 mb-2.5">{isNext ? '📋 Plan for next week' : '📊 Week in brief'}</h3>
             <p className="text-[12.5px] text-slate-500 leading-relaxed">
-              Labor is pacing <b className={laborPctColor(paceAct, targetPct, amberPct)}>{paceAct.toFixed(1)}%</b> vs the {targetPct.toFixed(0)}% target
-              {' '}({paceDrift > 0 ? '+' : ''}{paceDrift.toFixed(1)} pts, {sMoney(mwLaborVar)} week-to-date); sales are running <b className={mwSalesVar < 0 ? 'text-rose-600' : 'text-emerald-600'}>{sMoney(mwSalesVar)}</b> {mwSalesVar < 0 ? 'under' : 'over'} the staffing-implied plan.
+              {isNext ? (
+                <>Next week is forecast at <b className="text-slate-700">{money(T.sact)}</b> in sales{T.spy ? <> ({sPct((T.sact - T.spy) / T.spy * 100)} vs last year)</> : ''}. At the current schedule, labor runs <b className={laborPctColor(tPctAct, targetPct, amberPct)}>{tPctAct.toFixed(1)}%</b> vs the {targetPct.toFixed(0)}% target{tPctAct > targetPct ? <> — trim <b>{money(T.lcost - laborPlan$)}</b> in hours to land on plan</> : <> — staffing is on plan</>}.</>
+              ) : (
+                <>Labor is pacing <b className={laborPctColor(paceAct, targetPct, amberPct)}>{paceAct.toFixed(1)}%</b> vs the {targetPct.toFixed(0)}% target
+                {' '}({paceDrift > 0 ? '+' : ''}{paceDrift.toFixed(1)} pts, {sMoney(mwLaborVar)} week-to-date); sales are running <b className={mwSalesVar < 0 ? 'text-rose-600' : 'text-emerald-600'}>{sMoney(mwSalesVar)}</b> {mwSalesVar < 0 ? 'under' : 'over'} the staffing-implied plan.</>
+              )}
               {focus
                 ? <> Biggest lever ahead: <b>{focus.day}</b>&rsquo;s schedule runs an estimated <b>{focus.est.toFixed(0)}%</b> labor — about <b>{money(focus.over)}</b> over the {targetPct.toFixed(0)}% target, trimmable before doors open.</>
                 : <> No upcoming day is projected over the {targetPct.toFixed(0)}% labor target — hold the schedule.</>}

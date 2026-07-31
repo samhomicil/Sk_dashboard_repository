@@ -105,7 +105,7 @@ async function getWeather(dates: string[]): Promise<Record<string, { icon: strin
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}`
       + `&daily=weather_code,temperature_2m_max&temperature_unit=fahrenheit`
-      + `&timezone=America%2FNew_York&past_days=10&forecast_days=7`
+      + `&timezone=America%2FNew_York&past_days=10&forecast_days=16`
     const res = await fetch(url, { cache: 'no-store' })
     if (res.ok) {
       const j = await res.json()
@@ -136,11 +136,14 @@ async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
   try { return await p } catch { return fallback }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const weekMode = new URL(req.url).searchParams.get('week') === 'next' ? 'next' : 'this'
   const today = etToday()
   const dow = dowOf(today)
   const mondayOffset = dow === 0 ? -6 : -(dow - 1)
-  const monday = isoAdd(today, mondayOffset)
+  // 'next' shifts the whole window forward a week (a pure planning view — every day is a
+  // forecast). `today` stays real, so the same-weekday history and weather anchor correctly.
+  const monday = isoAdd(today, mondayOffset + (weekMode === 'next' ? 7 : 0))
   const sunday = isoAdd(monday, 6)
   const nextMonday = isoAdd(monday, 7)
   const weekDates = Array.from({ length: 7 }, (_, i) => isoAdd(monday, i))
@@ -324,7 +327,9 @@ export async function GET() {
 
   const warnings: string[] = []
   const totalSched = schedWeek.reduce((s, r) => s + (Number(r.h) || 0), 0)
-  if (totalSched === 0) warnings.push('No published schedule found for this week — run the Brink schedule extractor (labor_schedule is empty).')
+  if (totalSched === 0) warnings.push(weekMode === 'next'
+    ? 'Next week’s schedule isn’t posted yet — labor $ and % show as a target only. Post it in Brink to compare against this forecast.'
+    : 'No published schedule found for this week — run the Brink schedule extractor (labor_schedule is empty).')
 
   const round1 = (n: number) => Math.round(n * 10) / 10
 
@@ -355,6 +360,7 @@ export async function GET() {
   })
 
   return Response.json({
+    weekMode,
     weekLabel: `Week of ${monthDay(monday)} – ${monthDay(sunday)}`,
     today,
     cogsTarget: COGS_TARGET,

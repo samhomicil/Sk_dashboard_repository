@@ -1,17 +1,181 @@
 'use client'
 
 import type { KpiData } from '@/lib/types'
+import type { SociData } from '@/app/api/soci/route'
+import type { GuestSummary } from '@/app/api/guest-satisfaction/route'
 import { TARGETS } from '@/lib/config'
 
 interface Props {
   kpis:    KpiData | null
+  soci?:   SociData | null
+  guest?:  GuestSummary | null
   loading: boolean
 }
 
 function pct(n: number) { return `${(n * 100).toFixed(1)}%` }
 function dol(n: number) { return n >= 0 ? `+$${Math.abs(Math.round(n))}` : `-$${Math.abs(Math.round(n))}` }
 
-export default function OpsHealth({ kpis, loading }: Props) {
+function SociRow({ soci }: { soci: SociData }) {
+  const rating = soci.avgRating ?? 0
+  const ratingOk = rating >= 4.5
+  const ratingWarn = rating >= 4.0
+  const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating))
+  const aging = soci.awaitingReply
+  const socFailed = soci.social.failed
+  const socUnpub = soci.social.unpublished
+
+  // reputation status: aging replies act, else negative share is informational
+  const repDot = aging > 0 ? 'dot-r' : 'dot-g'
+  const repNote = aging > 0
+    ? `${aging} review${aging !== 1 ? 's' : ''} awaiting reply >24h`
+    : 'All reviews replied — healthy'
+
+  // social status
+  const socDot = socFailed > 0 ? 'dot-r' : socUnpub > 0 ? 'dot-y' : 'dot-g'
+  const socNote = socFailed > 0
+    ? `${socFailed} post${socFailed !== 1 ? 's' : ''} failed to publish`
+    : socUnpub > 0
+      ? `${socUnpub} drafted, not yet published`
+      : 'Publishing queue clear'
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100">
+      <div className="text-xs text-slate-400 mb-2">
+        Reputation &amp; Social <span className="text-slate-300">— Margate (SOCi)</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex items-start gap-2">
+          <span className={`mt-1 ${repDot}`} />
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className={`text-lg font-bold ${ratingOk ? 'text-slate-700' : ratingWarn ? 'text-amber-600' : 'text-red-600'}`}>
+                {rating.toFixed(2)}
+              </span>
+              <span className={ratingOk ? 'text-amber-400 text-sm' : 'text-amber-400 text-sm'}>{stars}</span>
+            </div>
+            <div className="text-xs text-slate-500">
+              {soci.reviews.total} reviews · {soci.reviews.gmb} Google, {soci.reviews.yelp} Yelp · {soci.newReviews} new/{soci.windowDays}d
+            </div>
+            <div className="text-xs text-slate-400 mt-0.5">{repNote}</div>
+          </div>
+        </div>
+        <div className="flex items-start gap-2">
+          <span className={`mt-1 ${socDot}`} />
+          <div>
+            <div className="text-lg font-bold text-slate-700">{soci.social.sent}<span className="text-xs font-normal text-slate-400"> published</span></div>
+            <div className="text-xs text-slate-500">{soci.social.total} tasks total</div>
+            <div className="text-xs text-slate-400 mt-0.5">{socNote}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GuestRow({ guest }: { guest: GuestSummary }) {
+  const { osat, osatPrior, responses, goal, pace, worstMetric, cases } = guest
+
+  // SMG suppresses its own display under 10 responses; below that we show the number but
+  // don't colour it, because one guest moves it 20+ points.
+  const thin = responses > 0 && responses < 10
+  const osatOk = osat != null && osat >= TARGETS.osatPct
+  const osatDot = osat == null || thin ? 'dot-y' : osatOk ? 'dot-g' : 'dot-r'
+  const delta = osat != null && osatPrior != null ? osat - osatPrior : null
+
+  const paceOk = (pace ?? 0) >= 1
+  const paceDot = pace == null ? 'dot-y' : paceOk ? 'dot-g' : (pace >= 0.8 ? 'dot-y' : 'dot-r')
+
+  // Incidents = guest-recovery cases opened in the window. Green only when there were
+  // none; any case that blew the 24h callback goal is red regardless of count.
+  const inc = cases?.opened ?? null
+  const overSla = cases?.overSla ?? 0
+  const incDot = inc == null ? 'dot-y' : inc === 0 ? 'dot-g'
+    : (cases?.pending ?? 0) > 0 || overSla > 0 ? 'dot-r' : 'dot-y'
+  const avgHrs = cases?.avgHours ?? null
+  const pending = cases?.pending ?? 0
+
+  const fmt = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(0)}%`)
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100">
+      <div className="text-xs text-slate-400 mb-2">
+        Guest Satisfaction <span className="text-slate-300">— {guest.scope} (SMG survey)</span>
+        {guest.combined && (
+          <span className="ml-1 text-slate-300">· one SMG login covers both, so they can&apos;t be split</span>
+        )}
+        {guest.coverageFrom && guest.range && guest.coverageFrom > guest.range.start && (
+          <span className="ml-1 text-amber-600">· only has data from {guest.coverageFrom}</span>
+        )}
+        {guest.source === 'period' && (
+          <span className="ml-1 text-slate-300">· nearest period, not the selected range</span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex items-start gap-2">
+          <span className={`mt-1 ${osatDot}`} />
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className={`text-lg font-bold ${thin ? 'text-slate-400' : osatOk ? 'text-slate-700' : 'text-red-600'}`}>
+                {fmt(osat)}
+              </span>
+              <span className="text-xs text-slate-400">OSAT</span>
+              {delta != null && !thin && (
+                <span className={`text-xs font-semibold ${delta >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {delta >= 0 ? '▲' : '▼'}{Math.abs(delta * 100).toFixed(0)}pts
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-slate-500">
+              {responses} response{responses === 1 ? '' : 's'} · tgt {(TARGETS.osatPct * 100).toFixed(0)}%
+            </div>
+            <div className="text-xs text-slate-400 mt-0.5">
+              {thin ? 'Too few to read — widen the range'
+                : worstMetric ? `Weakest: ${worstMetric.metric} ${fmt(worstMetric.value)}`
+                : 'All metrics tracking'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <span className={`mt-1 ${paceDot}`} />
+          <div>
+            <div className="text-lg font-bold text-slate-700">
+              {responses}<span className="text-xs font-normal text-slate-400"> / {goal.toFixed(0)} surveys</span>
+            </div>
+            <div className="text-xs text-slate-500">
+              {pace != null ? `${(pace * 100).toFixed(0)}% of pace` : '—'} · goal {TARGETS.surveysPerStoreMonth}/store/mo
+            </div>
+            <div className="text-xs text-slate-400 mt-0.5">
+              {paceOk ? 'Collection on target' : 'Behind on survey collection'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <span className={`mt-1 ${incDot}`} />
+          <div>
+            <div className={`text-lg font-bold ${inc ? 'text-red-600' : inc == null ? 'text-slate-400' : 'text-slate-700'}`}>
+              {inc ?? '—'}<span className="text-xs font-normal text-slate-400"> incident{inc === 1 ? '' : 's'}</span>
+            </div>
+            <div className="text-xs text-slate-500">
+              {inc
+                ? `avg ${avgHrs ? avgHrs.toFixed(0) : '—'}h vs ${cases?.goalHours ?? 24}h callback goal`
+                : inc === 0 ? 'no guest complaints raised' : 'case feed not loaded yet'}
+            </div>
+            <div className="text-xs text-slate-400 mt-0.5">
+              {inc == null ? ''
+                : pending > 0 ? `${pending} still open — guest waiting`
+                : overSla > 0 ? `${overSla} past the ${cases?.goalHours ?? 24}h goal`
+                : inc ? 'All handled within goal' : 'Nothing outstanding'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function OpsHealth({ kpis, soci, guest, loading }: Props) {
   if (loading) return <div className="card md:col-span-2"><div className="skeleton h-24 w-full" /></div>
   if (!kpis) return null
 
@@ -77,6 +241,8 @@ export default function OpsHealth({ kpis, loading }: Props) {
           : `⚠️ ${metrics.filter(m => !m.ok).map(m => m.label).join(', ')} outside target — review needed`
         }
       </div>
+      {guest?.connected && <GuestRow guest={guest} />}
+      {soci && <SociRow soci={soci} />}
     </div>
   )
 }

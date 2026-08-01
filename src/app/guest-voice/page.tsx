@@ -32,6 +32,26 @@ const clock = (s: string | null) => {
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')}${ap}`
 }
 
+// Each section is one SMG/SOCi report. Naming the source is not decoration — the four
+// have different grains, populations and store coverage, and treating them as one feed is
+// how you end up averaging 3 public reviews against 25 private surveys.
+function Section({ n, title, source, note, children }: {
+  n: number; title: string; source: string; note?: string; children: React.ReactNode
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-baseline gap-2.5 flex-wrap pt-1">
+        <span className="w-5 h-5 rounded bg-slate-700 text-white text-[11px] font-bold
+          flex items-center justify-center shrink-0">{n}</span>
+        <h2 className="text-sm font-bold text-slate-800">{title}</h2>
+        <span className="text-[11px] text-slate-400">{source}</span>
+        {note && <span className="text-[11px] text-amber-600">{note}</span>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
 function Delta({ cur, prior }: { cur: number | null; prior: number | null }) {
   if (cur == null || prior == null) return <span className="text-slate-300">—</span>
   const d = (cur - prior) * 100
@@ -190,6 +210,73 @@ export default function GuestVoicePage() {
             </section>
           )}
 
+          {/* 1 — cases: the only feed with a person waiting on the other end */}
+          {data.cases && (
+            <Section n={1} title="Incidents" source="SMG guest recovery cases"
+              note={data.cases.pending > 0 ? `${data.cases.pending} still open` : undefined}>
+              <div className="card">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-3 mb-3 border-b border-slate-100">
+                  <div>
+                    <div className="text-xs text-slate-500">Opened</div>
+                    <div className="text-2xl font-bold text-slate-800">{data.cases.opened}</div>
+                    <div className="text-[11px] text-slate-400">in this range</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">Still open</div>
+                    <div className={`text-2xl font-bold ${data.cases.pending ? 'text-red-600' : 'text-slate-800'}`}>
+                      {data.cases.pending}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {data.cases.pending ? 'guest waiting' : 'nothing outstanding'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">Avg close <span className="text-slate-300">goal {data.cases.goalHours}h</span></div>
+                    <div className={`text-2xl font-bold ${(data.cases.avgHours ?? 0) > data.cases.goalHours ? 'text-red-600' : 'text-slate-800'}`}>
+                      {data.cases.avgHours != null ? `${data.cases.avgHours.toFixed(0)}h` : '—'}
+                    </div>
+                    <div className="text-[11px] text-slate-400">{data.cases.overSla} past goal</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">Escalated</div>
+                    <div className="text-2xl font-bold text-slate-800">{data.cases.escalated}</div>
+                    <div className="text-[11px] text-slate-400">
+                      {data.cases.opened ? `${Math.round(100 * data.cases.escalated / data.cases.opened)}% of cases` : '—'}
+                    </div>
+                  </div>
+                </div>
+                {data.caseDays.length === 0 ? (
+                  <div className="text-xs text-slate-400">No cases raised in this range.</div>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead><tr className="text-slate-400 border-b border-slate-200">
+                      <th className="px-2 py-1.5 text-left font-semibold">Date raised</th>
+                      <th className="px-2 py-1.5 text-right font-semibold">Cases</th>
+                      <th className="px-2 py-1.5 text-right font-semibold">Still open</th>
+                      <th className="px-2 py-1.5 text-right font-semibold">Avg close</th>
+                    </tr></thead>
+                    <tbody>
+                      {data.caseDays.map(c => (
+                        <tr key={c.date} className="border-b border-slate-100">
+                          <td className="px-2 py-1.5 font-medium text-slate-700">{md(c.date)}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-slate-700">{c.opened}</td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums ${c.pending ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>{c.pending}</td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums font-semibold ${(c.avgHours ?? 0) > (data.cases?.goalHours ?? 24) ? 'text-red-600' : 'text-slate-700'}`}>
+                            {c.avgHours != null ? `${Number(c.avgHours).toFixed(0)}h` : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                <div className="text-[10px] text-slate-400 mt-2">
+                  Every case type carries a {data.cases.goalHours}-hour callback goal · the guest&apos;s name and
+                  number sit in SMG, not here yet
+                </div>
+              </div>
+            </Section>
+          )}
+
           {thin && (
             <div className="text-[11px] rounded-lg px-3 py-2.5 bg-amber-50 text-amber-800 max-w-[84ch]">
               <b>This window is thin.</b> {data.osat!.n} response{data.osat!.n === 1 ? '' : 's'} — under
@@ -198,7 +285,9 @@ export default function GuestVoicePage() {
             </div>
           )}
 
-          {/* volume + score, both by range so a thin window is obvious */}
+          {/* 2 — survey scores */}
+          <Section n={2} title="Survey scores" source="SMG Guest Experience Survey"
+            note={data.combinedScores ? 'Pines and Miramar cannot be separated' : undefined}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="card">
               <div className="flex items-baseline justify-between mb-2">
@@ -369,7 +458,10 @@ export default function GuestVoicePage() {
             </div>
           </div>
 
-          {/* themes, comments folded inside */}
+          </Section>
+
+          {/* 3 — commentary */}
+          <Section n={3} title="Commentary" source="SMG Comments report · survey, Contact Us and SOCi">
           <div className="card">
             <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">What guests talk about</span>
@@ -392,7 +484,11 @@ export default function GuestVoicePage() {
               : data.themes.map(t => <Theme key={t.theme} t={t} />)}
           </div>
 
-          {/* reviews */}
+          </Section>
+
+          {/* 4 — reviews */}
+          <Section n={4} title="Reviews" source="SOCi · Google and Yelp"
+            note={store === 'pines' || store === 'miramar' ? 'Margate only' : undefined}>
           <div className="card">
             <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Reviews</span>
@@ -423,6 +519,7 @@ export default function GuestVoicePage() {
               </div>
             )}
           </div>
+          </Section>
 
         </div>
       )}

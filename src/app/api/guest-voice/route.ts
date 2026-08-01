@@ -42,6 +42,11 @@ export interface ThemeRow {
   theme: string; mentions: number; negative: number; positive: number
   leaves: LeafRow[]; comments: CommentRow[]
 }
+export interface CaseSummary {
+  opened: number; resolved: number; pending: number; escalated: number
+  overSla: number; avgHours: number | null; goalHours: number
+}
+export interface CaseDay { date: string; opened: number; pending: number; avgHours: number | null }
 export interface ReviewRow {
   site: string; when: string | null; rating: number | null
   reviewer: string | null; text: string | null; replied: boolean
@@ -57,6 +62,8 @@ export interface GuestVoiceDetail {
   daily: DayRow[]
   themes: ThemeRow[]
   newBad: CommentRow[]
+  cases: CaseSummary | null
+  caseDays: CaseDay[]
   reviews: ReviewRow[]
   counts: { comments: number; negative: number }
 }
@@ -64,7 +71,8 @@ export interface GuestVoiceDetail {
 const EMPTY: GuestVoiceDetail = {
   range: null, scoreScope: '', commentScope: '', combinedScores: false,
   minN: MIN_N, newDays: NEW_DAYS, osat: null, scores: [], ranges: [], weekly: [],
-  daily: [], themes: [], newBad: [], reviews: [], counts: { comments: 0, negative: 0 },
+  daily: [], themes: [], newBad: [], cases: null, caseDays: [], reviews: [],
+  counts: { comments: 0, negative: 0 },
 }
 
 export async function GET(req: NextRequest) {
@@ -187,6 +195,42 @@ export async function GET(req: NextRequest) {
     const newBad = comments.filter(c =>
       c.sentiment < 0 && c.when && c.when.slice(0, 10) >= newSince)
 
+    // --- cases: guest recovery, its own report and its own clock ---------------------
+    const CASE_GOAL = 24
+    const caseAgg = await query<{
+      opened: number; resolved: number; pending: number; escalated: number
+      over_sla: number; hours_sum: number
+    }[]>(`
+      SELECT ISNULL(SUM(opened), 0) opened, ISNULL(SUM(resolved), 0) resolved,
+             ISNULL(SUM(unresolved) + SUM(inprogress), 0) pending,
+             ISNULL(SUM(escalated), 0) escalated,
+             ISNULL(SUM(CASE WHEN hours_sum / NULLIF(opened, 0) > ${CASE_GOAL}
+                             THEN opened ELSE 0 END), 0) over_sla,
+             ISNULL(SUM(hours_sum), 0) hours_sum
+      FROM smoothieking.guest_cases
+      WHERE ${sf(store)} AND case_date BETWEEN '${start}' AND '${end}'`).catch(() => null)
+
+    const caseDays = await query<CaseDay[]>(`
+      SELECT CONVERT(char(10), case_date, 23) AS date, opened,
+             unresolved + inprogress AS pending,
+             hours_sum / NULLIF(opened, 0) AS avgHours
+      FROM smoothieking.guest_cases
+      WHERE ${sf(store)} AND case_date BETWEEN '${start}' AND '${end}' AND opened > 0
+      ORDER BY case_date DESC`).catch(() => [])
+
+    const openedN = Number(caseAgg?.[0]?.opened ?? 0)
+    const cases: CaseSummary | null = caseAgg?.[0]
+      ? {
+          opened: openedN,
+          resolved: Number(caseAgg[0].resolved),
+          pending: Number(caseAgg[0].pending),
+          escalated: Number(caseAgg[0].escalated),
+          overSla: Number(caseAgg[0].over_sla),
+          avgHours: openedN ? Number(caseAgg[0].hours_sum) / openedN : null,
+          goalHours: CASE_GOAL,
+        }
+      : null
+
     const reviews = store === 'all' || store === 'margate'
       ? await query<ReviewRow[]>(`
           SELECT site, CONVERT(char(16), review_date, 120) AS [when], rating, reviewer,
@@ -204,7 +248,7 @@ export async function GET(req: NextRequest) {
       minN: MIN_N, newDays: NEW_DAYS,
       osat: scores.find(s => s.metric === 'Overall Satisfaction') ?? null,
       scores: scores.filter(s => s.metric !== 'Overall Satisfaction'),
-      ranges, weekly, daily, themes, newBad,
+      ranges, weekly, daily, themes, newBad, cases, caseDays,
       reviews: reviews.map(r => ({ ...r, replied: Boolean(r.replied) })),
       counts: {
         comments: comments.length,

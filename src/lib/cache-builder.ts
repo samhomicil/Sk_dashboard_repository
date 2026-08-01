@@ -12,10 +12,17 @@ import {
 } from 'date-fns'
 import { PROXY_URL, TARGETS } from './config'
 import { wmtFood } from './core/sources'
+// Sales/orders/channels: live from smoothieking.sales (Phase 1 of removing Sigma).
+// Reconciled to the dollar vs Sigma for settled periods; aliased to the sigma* names
+// so every call site is unchanged. COGS / EE / heatmap / employees stay on Sigma for now.
 import {
-  sigmaSales, sigmaCogsPct, sigmaMonthSales, sigmaWeeklySales, sigmaDailySales,
-  sigmaOrders, sigmaChannels, sigmaThruDate,
-  sigmaEmployees, sigmaEEDailyPct, sigmaHeatmap, sigmaHeatmapWeekly,
+  loadSalesCache,
+  sqlSales as sigmaSales, sqlMonthSales as sigmaMonthSales, sqlWeeklySales as sigmaWeeklySales,
+  sqlDailySales as sigmaDailySales, sqlOrders as sigmaOrders, sqlChannels as sigmaChannels,
+  sqlThruDate as sigmaThruDate,
+} from './salesCache'
+import {
+  sigmaCogsPct, sigmaEmployees, sigmaEEDailyPct, sigmaHeatmap, sigmaHeatmapWeekly,
 } from './sigma'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
@@ -942,6 +949,7 @@ const STORES: Store[] = ['all', 'pines', 'miramar', 'margate']
 const PERIODS: CachePeriod[] = ['weekly', 'monthly', 'quarterly', 'ytd']
 
 export async function buildCacheData() {
+  await loadSalesCache()   // live sales from smoothieking.sales (must precede the sql* accessors)
   const dr = ranges()
 
   const kpisEntries = await Promise.all(

@@ -51,6 +51,21 @@ export interface ReviewRow {
   site: string; when: string | null; rating: number | null
   reviewer: string | null; text: string | null; replied: boolean
 }
+// On the All tab the page compares instead of pooling. The column sets differ by section
+// because the sources do: scores and cases come from per-login queries (Margate,
+// Pines+Miramar), while comments carry their own unit and separate into all three.
+export interface CompareCell { value: number | null; n: number }
+export interface CompareMetric { metric: string; cells: Record<string, CompareCell>; gap: number | null }
+export interface CompareTheme { theme: string; cells: Record<string, { mentions: number; negative: number }> }
+export interface CompareBlock {
+  scoreStores: string[]
+  commentStores: string[]
+  scores: CompareMetric[]
+  cases: Record<string, CaseSummary>
+  themes: CompareTheme[]
+  commentCounts: Record<string, { comments: number; negative: number }>
+}
+
 export interface GuestVoiceDetail {
   range: { start: string; end: string } | null
   scoreScope: string; commentScope: string; combinedScores: boolean
@@ -64,6 +79,7 @@ export interface GuestVoiceDetail {
   newBad: CommentRow[]
   cases: CaseSummary | null
   caseDays: CaseDay[]
+  compare: CompareBlock | null
   reviews: ReviewRow[]
   counts: { comments: number; negative: number }
 }
@@ -71,7 +87,7 @@ export interface GuestVoiceDetail {
 const EMPTY: GuestVoiceDetail = {
   range: null, scoreScope: '', commentScope: '', combinedScores: false,
   minN: MIN_N, newDays: NEW_DAYS, osat: null, scores: [], ranges: [], weekly: [],
-  daily: [], themes: [], newBad: [], cases: null, caseDays: [], reviews: [],
+  daily: [], themes: [], newBad: [], cases: null, caseDays: [], compare: null, reviews: [],
   counts: { comments: 0, negative: 0 },
 }
 
@@ -231,6 +247,84 @@ export async function GET(req: NextRequest) {
         }
       : null
 
+    // --- All tab: per-store columns rather than one pooled figure --------------------
+    let compare: CompareBlock | null = null
+    if (store === 'all') {
+      const sc = await query<{ metric: string; store: string; v: number | null; n: number }[]>(`
+        SELECT metric, store, CAST(SUM(topbox_count) AS float) / NULLIF(SUM(n_count), 0) AS v,
+               SUM(n_count) AS n
+        FROM smoothieking.guest_daily
+        WHERE survey_date BETWEEN '${start}' AND '${end}'
+        GROUP BY metric, store`).catch(() => [])
+
+      const scoreStores = [...new Set(sc.map(r => r.store))].sort()
+      const byMetric = new Map<string, Record<string, CompareCell>>()
+      for (const r of sc) {
+        const row = byMetric.get(r.metric) ?? {}
+        row[r.store] = { value: r.v == null ? null : Number(r.v), n: Number(r.n) }
+        byMetric.set(r.metric, row)
+      }
+      const scoresCmp: CompareMetric[] = [...byMetric].map(([metric, cells]) => {
+        const vals = Object.values(cells).map(c => c.value).filter((v): v is number => v != null)
+        return {
+          metric, cells,
+          gap: vals.length > 1 ? Math.max(...vals) - Math.min(...vals) : null,
+        }
+      }).sort((a, b) => (b.gap ?? -1) - (a.gap ?? -1))
+
+      const cs = await query<{
+        store: string; opened: number; resolved: number; pending: number
+        escalated: number; over_sla: number; hours_sum: number
+      }[]>(`
+        SELECT store, ISNULL(SUM(opened),0) opened, ISNULL(SUM(resolved),0) resolved,
+               ISNULL(SUM(unresolved)+SUM(inprogress),0) pending,
+               ISNULL(SUM(escalated),0) escalated,
+               ISNULL(SUM(CASE WHEN hours_sum/NULLIF(opened,0) > 24 THEN opened ELSE 0 END),0) over_sla,
+               ISNULL(SUM(hours_sum),0) hours_sum
+        FROM smoothieking.guest_cases
+        WHERE case_date BETWEEN '${start}' AND '${end}' GROUP BY store`).catch(() => [])
+      const casesCmp: Record<string, CaseSummary> = {}
+      for (const c of cs) {
+        const o = Number(c.opened)
+        casesCmp[c.store] = {
+          opened: o, resolved: Number(c.resolved), pending: Number(c.pending),
+          escalated: Number(c.escalated), overSla: Number(c.over_sla),
+          avgHours: o ? Number(c.hours_sum) / o : null, goalHours: 24,
+        }
+      }
+
+      const th = await query<{ theme: string; store: string; mentions: number; negative: number }[]>(`
+        SELECT LTRIM(RTRIM(value)) AS theme, store, COUNT(*) AS mentions,
+               SUM(CASE WHEN sentiment < 0 THEN 1 ELSE 0 END) AS negative
+        FROM smoothieking.guest_comments CROSS APPLY STRING_SPLIT(themes, ',')
+        WHERE source = 'Survey' AND themes <> ''
+          AND CAST(${COMMENT_DATE} AS date) BETWEEN '${start}' AND '${end}'
+        GROUP BY LTRIM(RTRIM(value)), store`).catch(() => [])
+      const commentStores = [...new Set(th.map(r => r.store))].sort()
+      const byTheme = new Map<string, Record<string, { mentions: number; negative: number }>>()
+      for (const r of th) {
+        const row = byTheme.get(r.theme) ?? {}
+        row[r.store] = { mentions: Number(r.mentions), negative: Number(r.negative) }
+        byTheme.set(r.theme, row)
+      }
+      const themesCmp: CompareTheme[] = [...byTheme].map(([theme, cells]) => ({ theme, cells }))
+        .sort((a, b) =>
+          Object.values(b.cells).reduce((s, c) => s + c.negative, 0) -
+          Object.values(a.cells).reduce((s, c) => s + c.negative, 0))
+
+      const cc = await query<{ store: string; comments: number; negative: number }[]>(`
+        SELECT store, COUNT(*) AS comments,
+               SUM(CASE WHEN sentiment < 0 THEN 1 ELSE 0 END) AS negative
+        FROM smoothieking.guest_comments
+        WHERE CAST(${COMMENT_DATE} AS date) BETWEEN '${start}' AND '${end}'
+        GROUP BY store`).catch(() => [])
+      const commentCounts: Record<string, { comments: number; negative: number }> = {}
+      for (const r of cc) commentCounts[r.store] = { comments: Number(r.comments), negative: Number(r.negative) }
+
+      compare = { scoreStores, commentStores, scores: scoresCmp, cases: casesCmp,
+                  themes: themesCmp, commentCounts }
+    }
+
     const reviews = store === 'all' || store === 'margate'
       ? await query<ReviewRow[]>(`
           SELECT site, CONVERT(char(16), review_date, 120) AS [when], rating, reviewer,
@@ -248,7 +342,7 @@ export async function GET(req: NextRequest) {
       minN: MIN_N, newDays: NEW_DAYS,
       osat: scores.find(s => s.metric === 'Overall Satisfaction') ?? null,
       scores: scores.filter(s => s.metric !== 'Overall Satisfaction'),
-      ranges, weekly, daily, themes, newBad, cases, caseDays,
+      ranges, weekly, daily, themes, newBad, cases, caseDays, compare,
       reviews: reviews.map(r => ({ ...r, replied: Boolean(r.replied) })),
       counts: {
         comments: comments.length,

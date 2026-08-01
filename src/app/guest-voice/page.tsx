@@ -12,7 +12,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import type { GuestVoiceDetail, ThemeRow, CommentRow } from '@/app/api/guest-voice/route'
+import type { GuestVoiceDetail, ThemeRow, CommentRow, CompareBlock } from '@/app/api/guest-voice/route'
 
 const STORES = ['all', 'margate', 'pines', 'miramar'] as const
 const STORE_LABEL: Record<string, string> = {
@@ -49,6 +49,129 @@ function Section({ n, title, source, note, children }: {
       </div>
       {children}
     </section>
+  )
+}
+
+// On All, every section compares by store instead of pooling. Column sets differ per
+// section because the sources do — scores and cases resolve to two logins, comments to
+// three units — so each table renders its own header rather than assuming one shape.
+function Compare({ c }: { c: CompareBlock }) {
+  const cell = (v: number | null, n: number) =>
+    v == null ? <span className="text-slate-300">—</span>
+      : <><span className={n < 10 ? 'text-slate-400' : 'font-bold text-slate-800'}>{pct(v)}</span>
+          <span className="text-slate-400 ml-1">({n})</span></>
+
+  return (
+    <div className="space-y-4">
+      <div className="card">
+        <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Scores by store</span>
+          <span className="text-[10px] text-slate-400">widest gap first · Pines and Miramar share one SMG login</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-slate-400 border-b border-slate-200">
+              <th className="px-2 py-1.5 text-left font-semibold">Metric</th>
+              {c.scoreStores.map(s2 => <th key={s2} className="px-2 py-1.5 text-right font-semibold">{s2}</th>)}
+              <th className="px-2 py-1.5 text-right font-semibold">Gap</th>
+            </tr></thead>
+            <tbody>
+              {c.scores.map(m => (
+                <tr key={m.metric} className="border-b border-slate-100">
+                  <td className="px-2 py-1.5 font-medium text-slate-700 whitespace-nowrap">{m.metric}</td>
+                  {c.scoreStores.map(s2 => (
+                    <td key={s2} className="px-2 py-1.5 text-right tabular-nums">
+                      {cell(m.cells[s2]?.value ?? null, m.cells[s2]?.n ?? 0)}
+                    </td>
+                  ))}
+                  <td className="px-2 py-1.5 text-right tabular-nums">
+                    {m.gap == null ? <span className="text-slate-300">—</span>
+                      : m.gap >= 0.05 ? <span className="text-red-600 font-semibold">{(m.gap * 100).toFixed(0)}pts</span>
+                        : <span className="text-slate-400">{(m.gap * 100).toFixed(0)}pts</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Incidents by store</span>
+          <span className="text-[10px] text-slate-400">24h callback goal</span>
+        </div>
+        <table className="w-full text-xs">
+          <thead><tr className="text-slate-400 border-b border-slate-200">
+            <th className="px-2 py-1.5 text-left font-semibold">Store</th>
+            <th className="px-2 py-1.5 text-right font-semibold">Opened</th>
+            <th className="px-2 py-1.5 text-right font-semibold">Still open</th>
+            <th className="px-2 py-1.5 text-right font-semibold">Avg close</th>
+            <th className="px-2 py-1.5 text-right font-semibold">Past goal</th>
+            <th className="px-2 py-1.5 text-right font-semibold">Escalated</th>
+          </tr></thead>
+          <tbody>
+            {Object.entries(c.cases).map(([s2, v]) => (
+              <tr key={s2} className="border-b border-slate-100">
+                <td className="px-2 py-1.5 font-medium text-slate-700">{s2}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-slate-700">{v.opened}</td>
+                <td className={`px-2 py-1.5 text-right tabular-nums ${v.pending ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>{v.pending}</td>
+                <td className={`px-2 py-1.5 text-right tabular-nums font-semibold ${(v.avgHours ?? 0) > v.goalHours ? 'text-red-600' : 'text-slate-700'}`}>
+                  {v.avgHours != null ? `${v.avgHours.toFixed(0)}h` : '—'}
+                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-slate-500">{v.overSla}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-slate-500">{v.escalated}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card">
+        <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Themes by store</span>
+          <span className="text-[10px] text-slate-400">
+            mentions (negative) · comments split all three ways
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-slate-400 border-b border-slate-200">
+              <th className="px-2 py-1.5 text-left font-semibold">Theme</th>
+              {c.commentStores.map(s2 => <th key={s2} className="px-2 py-1.5 text-right font-semibold">{s2}</th>)}
+            </tr></thead>
+            <tbody>
+              {c.themes.map(t => (
+                <tr key={t.theme} className="border-b border-slate-100">
+                  <td className="px-2 py-1.5 font-medium text-slate-700 whitespace-nowrap">{t.theme}</td>
+                  {c.commentStores.map(s2 => {
+                    const v = t.cells[s2]
+                    return (
+                      <td key={s2} className="px-2 py-1.5 text-right tabular-nums">
+                        {!v ? <span className="text-slate-300">—</span>
+                          : <><span className="text-slate-700">{v.mentions}</span>
+                              {v.negative > 0 && <span className="text-red-600 font-semibold ml-1">({v.negative})</span>}</>}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+              <tr className="bg-slate-50">
+                <td className="px-2 py-1.5 font-bold text-slate-700">All comments</td>
+                {c.commentStores.map(s2 => {
+                  const v = c.commentCounts[s2]
+                  return (
+                    <td key={s2} className="px-2 py-1.5 text-right tabular-nums font-bold">
+                      {v ? <>{v.comments}<span className="text-red-600 ml-1">({v.negative})</span></> : '—'}
+                    </td>
+                  )
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -210,8 +333,15 @@ export default function GuestVoicePage() {
             </section>
           )}
 
+          {/* On All, compare rather than pool — a single blended figure hides a 22pt spread */}
+          {data.compare && (
+            <Section n={1} title="Store comparison" source="every metric, side by side">
+              <Compare c={data.compare} />
+            </Section>
+          )}
+
           {/* 1 — cases: the only feed with a person waiting on the other end */}
-          {data.cases && (
+          {!data.compare && data.cases && (
             <Section n={1} title="Incidents" source="SMG guest recovery cases"
               note={data.cases.pending > 0 ? `${data.cases.pending} still open` : undefined}>
               <div className="card">
@@ -286,7 +416,7 @@ export default function GuestVoicePage() {
           )}
 
           {/* 2 — survey scores */}
-          <Section n={2} title="Survey scores" source="SMG Guest Experience Survey"
+          {!data.compare && <Section n={2} title="Survey scores" source="SMG Guest Experience Survey"
             note={data.combinedScores ? 'Pines and Miramar cannot be separated' : undefined}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="card">
@@ -458,7 +588,7 @@ export default function GuestVoicePage() {
             </div>
           </div>
 
-          </Section>
+          </Section>}
 
           {/* 3 — commentary */}
           <Section n={3} title="Commentary" source="SMG Comments report · survey, Contact Us and SOCi">
@@ -500,6 +630,31 @@ export default function GuestVoicePage() {
               <div className="text-xs text-slate-400 py-2">
                 {store === 'pines' || store === 'miramar' ? 'Not connected for this store.' : 'No reviews left in this range.'}
               </div>
+            ) : data.compare ? (
+              // On All the review list is Margate-only, so it can't join the comparison —
+              // fold it away rather than let one store's raw feed sit among cross-store tables.
+              <details className="group">
+                <summary className="list-none cursor-pointer py-1.5 flex items-center gap-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 rounded-md">
+                  <svg className="w-3.5 h-3.5 text-slate-400 transition-transform group-open:rotate-90" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 3l5 5-5 5" /></svg>
+                  {data.reviews.length} review{data.reviews.length === 1 ? '' : 's'} — Margate only, not comparable across stores
+                </summary>
+                <div className="max-h-[420px] overflow-y-auto mt-1">
+                  {data.reviews.map((r, i) => (
+                    <div key={i} className="py-2.5 border-t border-slate-100 first:border-t-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                        <span className="text-amber-400 text-xs">{'★'.repeat(r.rating ?? 0)}{'☆'.repeat(5 - (r.rating ?? 0))}</span>
+                        <span className="text-[11px] text-slate-400 tabular-nums">{md(r.when)}</span>
+                        <span className="text-[10px] text-slate-400 border border-slate-200 rounded px-1.5 uppercase">
+                          {r.site === 'gmb' ? 'Google' : r.site}
+                        </span>
+                        {r.reviewer && <span className="text-[11px] font-semibold text-slate-500">{r.reviewer}</span>}
+                        {!r.replied && <span className="text-[10px] font-semibold text-red-600">no reply</span>}
+                      </div>
+                      {r.text && <div className="text-[13px] text-slate-700">{r.text}</div>}
+                    </div>
+                  ))}
+                </div>
+              </details>
             ) : (
               <div className="max-h-[420px] overflow-y-auto">
                 {data.reviews.map((r, i) => (

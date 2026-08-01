@@ -1,5 +1,6 @@
 import { query } from '@/lib/db'
 import { getPrisma } from '@/lib/prisma'
+import { requireOwner } from '@/lib/owner-guard'
 import { STORES, LABOR_TARGET, HIST_WEEKS } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf } from '@/lib/core/dates'
 import { buildRateFor, type EmpRateRow } from '@/lib/core/labor'
@@ -72,6 +73,9 @@ function weekSplit(daily: Map<string, number>, days: string[], maxIso: string, w
 }
 
 export async function GET() {
+  const gate = await requireOwner()
+  if (gate) return gate
+
   const today = etToday()
   const wk0 = mondayOf(today)                                       // current week Monday
   const weeks = Array.from({ length: HORIZON_HIST + HORIZON_FWD + 1 },

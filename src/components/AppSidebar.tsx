@@ -15,8 +15,12 @@ const INVENTORY_SUB = [
 
 // Owner-only financial modules (rendered only when session role === 'owner').
 const FINANCIALS_SUB = [
-  { label: 'Budget',    href: '/financials' },
-  { label: 'Cash Flow', href: '/cashflow' },
+  { label: 'Budget',       href: '/financials' },
+  { label: 'Cash Flow',    href: '/cashflow' },
+  { label: 'Bills',        href: '/bills' },
+  { label: 'P&L',          href: '/pnl' },
+  { label: 'Transactions', href: '/transactions' },
+  { label: 'Settings',     href: '/settings' },
 ]
 
 export default function AppSidebar() {

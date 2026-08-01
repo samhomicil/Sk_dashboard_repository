@@ -13,15 +13,23 @@ import type { Store } from '@/lib/types'
 // Falls back to the period-grained guest_feedback table until the daily backfill has run,
 // so the strip degrades to "nearest period" rather than going blank.
 
-// SMG logins don't map one-to-one to stores. `sk2384@` sees Margate alone; the ops login
-// sees Pines + Miramar and returns them COMBINED — SMG's hierarchy filter can't be driven
-// through the API, so those two share one row and are reported as a pair.
-const COMBINED = 'Pines+Miramar'
+// Every store now has its own rows: the extractor narrows the two-store ops login with
+// SMG's hierarchy filter ({"<projectId>": ["<unitDimId>"]}), so Pines and Miramar separate.
 const DB_STORE: Record<string, string> = {
-  pines: COMBINED, miramar: COMBINED, margate: 'Margate',
+  pines: 'Pines', miramar: 'Miramar', margate: 'Margate',
 }
-// How many stores a selection actually represents, for prorating the survey goal.
-const STORES_IN: Record<string, number> = { pines: 2, miramar: 2, margate: 1, all: 3 }
+const STORES_IN: Record<string, number> = { pines: 1, miramar: 1, margate: 1, all: 3 }
+
+// Cases are the exception: /api/report ignores the hierarchy filter that works on the card
+// endpoints, so the two-store login still reports them combined. Splitting cases needs the
+// rawdatareport path (its rows carry UNIT_ID). Until then they keep their own store map and
+// the UI says the figure covers both.
+const CASE_STORE: Record<string, string> = {
+  pines: 'Pines+Miramar', miramar: 'Pines+Miramar', margate: 'Margate',
+}
+const caseFilter = (s: Store) =>
+  s === 'all' ? '1=1' : `store = '${CASE_STORE[s] ?? ''}'`
+
 const NEW_WINDOW_DAYS = 14                       // "new" bad reports worth chasing
 const DAYS_PER_MONTH = 30.44
 const CASE_GOAL_HOURS = 24            // SMG resolutionTimeGoal = 1440 minutes on every case type
@@ -31,10 +39,6 @@ function sf(store: Store, col = 'store') {
 }
 function storeCount(store: Store) {
   return STORES_IN[store] ?? 1
-}
-// True when the selection resolves to the combined Pines+Miramar row rather than one store.
-function isCombined(store: Store) {
-  return store === 'pines' || store === 'miramar'
 }
 
 export interface CaseSummary {
@@ -62,6 +66,7 @@ export interface GuestSummary {
   newBadSince: string | null
   worstMetric: { metric: string; value: number } | null
   cases: CaseSummary | null
+  casesCombined: boolean
   dataThrough: string | null
   coverageFrom: string | null
 }
@@ -69,13 +74,12 @@ export interface GuestSummary {
 const EMPTY: GuestSummary = {
   connected: false, source: 'daily', combined: false, scope: '', range: null, osat: null, osatPrior: null,
   responses: 0, goal: 0, pace: null, newBad: null, newBadSince: null,
-  worstMetric: null, cases: null, dataThrough: null, coverageFrom: null,
+  worstMetric: null, cases: null, casesCombined: false, dataThrough: null, coverageFrom: null,
 }
 
 function scopeLabel(store: Store) {
   if (store === 'all') return 'all three stores'
-  if (isCombined(store)) return 'Pines + Miramar combined'
-  return 'Margate'
+  return DB_STORE[store] ?? 'Margate'
 }
 
 const iso = /^\d{4}-\d{2}-\d{2}$/
@@ -123,7 +127,7 @@ export async function GET(req: NextRequest) {
                              THEN opened ELSE 0 END), 0) AS over_sla,
              ISNULL(SUM(hours_sum), 0) AS hours_sum
       FROM smoothieking.guest_cases
-      WHERE ${sf(store)} AND case_date BETWEEN '${from}' AND '${to}'`)
+      WHERE ${caseFilter(store)} AND case_date BETWEEN '${from}' AND '${to}'`)
       .then(r => {
         const c = r[0]
         if (!c) return null
@@ -180,7 +184,7 @@ export async function GET(req: NextRequest) {
       return Response.json({
         connected: true,
         source: 'daily',
-        combined: isCombined(store),
+        combined: false,
         scope: scopeLabel(store),
         range: { start, end },
         osat: n ? Number(cur.topbox) / n : null,
@@ -193,6 +197,7 @@ export async function GET(req: NextRequest) {
         worstMetric: worst[0]?.value != null
           ? { metric: worst[0].metric, value: Number(worst[0].value) } : null,
         cases: await caseSummary(start, end),
+        casesCombined: store === 'pines' || store === 'miramar',
         ...await coverage().then(c => ({ coverageFrom: c.from, dataThrough: c.through })),
       } satisfies GuestSummary)
     }
@@ -231,7 +236,7 @@ export async function GET(req: NextRequest) {
     return Response.json({
       connected: true,
       source: 'period',
-      combined: isCombined(store),
+      combined: false,
       scope: scopeLabel(store),
       range: { start: periods[0].ps, end: periods[0].pe },
       osat: osatRow?.value ?? null,
@@ -243,6 +248,7 @@ export async function GET(req: NextRequest) {
       newBadSince: null,
       worstMetric: worst ? { metric: worst.metric, value: worst.value } : null,
       cases: await caseSummary(start, end),
+      casesCombined: store === 'pines' || store === 'miramar',
       ...await coverage().then(c => ({ coverageFrom: c.from, dataThrough: c.through })),
     } satisfies GuestSummary)
   } catch (err) {

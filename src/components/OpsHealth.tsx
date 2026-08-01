@@ -87,9 +87,10 @@ function GuestVoiceRow(
           dot={cases.opened === 0 ? 'g' : owed ? 'r' : 'y'}
           value={String(cases.opened)} tone={cases.opened ? 'bad' : undefined}
           note={cases.pending ? `${cases.pending} open` : undefined}
-          tip={cases.opened
+          tip={(cases.opened
             ? `Guest-recovery cases opened in range · avg close ${cases.avgHours?.toFixed(0) ?? '—'}h against a ${cases.goalHours}h callback goal · ${cases.overSla} past goal · ${cases.pending} still open`
-            : 'No guest complaints raised in this range'} />,
+            : 'No guest complaints raised in this range')
+            + (guest.casesCombined ? ' · covers Pines and Miramar together — cases cannot be split by store yet' : '')} />,
       )
     }
   }

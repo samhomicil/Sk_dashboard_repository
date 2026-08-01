@@ -11,13 +11,26 @@ import type { Store } from '@/lib/types'
 // filtered by unit, so they share a 'Pines+Miramar' row. Each section resolves its own
 // store filter and the page labels which is which.
 
+// Scores and comments now share a store vocabulary: the extractor narrows the two-store
+// ops login with SMG's hierarchy filter, so Pines and Miramar have their own score rows.
 const SCORE_STORE: Record<string, string> = {
-  pines: 'Pines+Miramar', miramar: 'Pines+Miramar', margate: 'Margate',
+  pines: 'Pines', miramar: 'Miramar', margate: 'Margate',
 }
 const COMMENT_STORE: Record<string, string> = {
   pines: 'Pines', miramar: 'Miramar', margate: 'Margate',
 }
-const STORES_IN: Record<string, number> = { pines: 2, miramar: 2, margate: 1, all: 3 }
+const STORES_IN: Record<string, number> = { pines: 1, miramar: 1, margate: 1, all: 3 }
+
+// Cases are the exception: /api/report ignores the hierarchy filter that works on the card
+// endpoints, so the two-store login still reports them combined. Splitting cases needs the
+// rawdatareport path (its rows carry UNIT_ID). Until then they keep their own store map and
+// the UI says the figure covers both.
+const CASE_STORE: Record<string, string> = {
+  pines: 'Pines+Miramar', miramar: 'Pines+Miramar', margate: 'Margate',
+}
+const caseFilter = (s: Store) =>
+  s === 'all' ? '1=1' : `store = '${CASE_STORE[s] ?? ''}'`
+
 const DAYS_PER_MONTH = 30.44
 const MIN_N = 10          // SMG's own display threshold
 const NEW_DAYS = 14       // "new" bad reports worth chasing
@@ -101,7 +114,7 @@ export async function GET(req: NextRequest) {
   const days = Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1)
   const priorEnd = shift(start, -1)
   const priorStart = shift(start, -days)
-  const combined = store === 'pines' || store === 'miramar'
+  const combined = false
   const storeCount = STORES_IN[store] ?? 1
 
   try {
@@ -224,14 +237,14 @@ export async function GET(req: NextRequest) {
                              THEN opened ELSE 0 END), 0) over_sla,
              ISNULL(SUM(hours_sum), 0) hours_sum
       FROM smoothieking.guest_cases
-      WHERE ${sf(store)} AND case_date BETWEEN '${start}' AND '${end}'`).catch(() => null)
+      WHERE ${caseFilter(store)} AND case_date BETWEEN '${start}' AND '${end}'`).catch(() => null)
 
     const caseDays = await query<CaseDay[]>(`
       SELECT CONVERT(char(10), case_date, 23) AS date, opened,
              unresolved + inprogress AS pending,
              hours_sum / NULLIF(opened, 0) AS avgHours
       FROM smoothieking.guest_cases
-      WHERE ${sf(store)} AND case_date BETWEEN '${start}' AND '${end}' AND opened > 0
+      WHERE ${caseFilter(store)} AND case_date BETWEEN '${start}' AND '${end}' AND opened > 0
       ORDER BY case_date DESC`).catch(() => [])
 
     const openedN = Number(caseAgg?.[0]?.opened ?? 0)
@@ -336,7 +349,7 @@ export async function GET(req: NextRequest) {
 
     return Response.json({
       range: { start, end },
-      scoreScope: store === 'all' ? 'all stores' : combined ? 'Pines + Miramar combined' : 'Margate',
+      scoreScope: store === 'all' ? 'all stores' : SCORE_STORE[store],
       commentScope: store === 'all' ? 'all stores' : COMMENT_STORE[store],
       combinedScores: combined,
       minN: MIN_N, newDays: NEW_DAYS,

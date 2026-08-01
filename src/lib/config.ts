@@ -5,8 +5,7 @@ export const TARGETS = {
   voidPct: 0.02,
   discountPct: 0.08,
   salesGrowthYoY: 0.10,
-  // Guest satisfaction (SMG). osatPct is a working threshold — confirm against whatever
-  // corporate publishes before treating a red dot as authoritative.
+  // Guest satisfaction (SMG). 90% OSAT is the confirmed target.
   osatPct: 0.90,
   surveysPerStoreMonth: 22,
 }

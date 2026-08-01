@@ -1,5 +1,11 @@
 import { query } from '@/lib/db'
 import { holidayName, priorYearHoliday } from '@/lib/holiday'
+import {
+  LABOR_TARGET, LABOR_AMBER, COGS_TARGET, HIST_WEEKS, STORES, DOW,
+} from '@/lib/core/targets'
+import { etToday, isoAdd, dowOf, monthDay } from '@/lib/core/dates'
+import { buildRateFor } from '@/lib/core/labor'
+import { buildForecaster, orderSplit, deriveCogsTarget } from '@/lib/core/forecast'
 
 // Mid-week ops report data layer.
 // Emits the {week, stores, ...} contract the /ops-report page renders. All numbers
@@ -19,77 +25,14 @@ import { holidayName, priorYearHoliday } from '@/lib/holiday'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const LABOR_TARGET = 0.22   // matches daily recap TARGET_LABOR_PCT default
-const LABOR_AMBER = 0.03    // amber band = target .. target+3pts (daily recap)
-const COGS_TARGET = 0.25          // default/fallback when a store has no recipe history yet
-// Derived COGS target = each store's trailing recipe run-rate minus an improvement goal,
-// clamped — a realistic "beat your own baseline" budget rather than a flat aspiration.
-const COGS_IMPROVEMENT = 0.005    // 0.5 pt stretch below the run-rate
-const COGS_FLOOR = 0.20, COGS_CAP = 0.28
-const DEFAULT_RATE = 13.50  // matches daily recap DEFAULT_RATE fallback
-
-// Weeks of history used for the PROJ-day sales forecast and the OTB spend base.
-const HIST_WEEKS = 4
-
-const STORES = [
-  { key: 'pines', name: 'Pines', num: '1392', wm: 'pines' },
-  { key: 'miramar', name: 'Miramar', num: '1892', wm: 'miramar' },
-  { key: 'margate', name: 'Margate', num: '2384', wm: 'margate' },
-] as const
+// Targets, store config, date helpers, and the rate / forecast / order-split rules
+// now live in src/lib/core/* — the single source of truth shared with the daily
+// recap and the owner budget view, so these numbers can never diverge.
 
 // Both store ZIPs (33027 Pines/Miramar, 33065 Margate) sit in the same South
 // Florida weather system ~20mi apart — one regional pull covers all three.
 const WX_LAT = 26.05
 const WX_LON = -80.28
-
-const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-// PFG delivery cadence by store (JS getUTCDay: Tue=2, Fri=5) — same source of truth
-// as the order guide (orderGuide.ts DELIVERY_DAYS). Pines/Miramar deliver Tue+Fri,
-// Margate Tue. Used to split the weekly food budget per order, demand-curve weighted.
-const DELIVERY_DOWS: Record<string, number[]> = { Pines: [2, 5], Miramar: [2, 5], Margate: [2] }
-
-// Split a week's food budget across each delivery. Each order stocks the days from
-// its delivery up to (not including) the next delivery — cycling past Sunday — and
-// its target is 25% of THAT window's projected sales, so the demand curve (weekday
-// forecast incl. weather/holiday) sizes each order exactly like the order guide.
-function orderSplit(name: string, weekDates: string[], sa: number[], cogsTarget: number) {
-  const dows = DELIVERY_DOWS[name]
-  if (!dows) return []
-  const idxDow = weekDates.map(dowOf)                     // week-array index -> JS dow
-  const dIdx = idxDow.map((dw, i) => (dows.includes(dw) ? i : -1)).filter(i => i >= 0).sort((a, b) => a - b)
-  if (dIdx.length === 0) return []
-  // A single delivery (Margate) still returns one order covering the whole week, so it
-  // folds into the All-view Tuesday bucket; per-store display is gated on length > 1.
-  return dIdx.map((start, k) => {
-    const next = dIdx[(k + 1) % dIdx.length]
-    const days: number[] = []
-    let d = start
-    do { days.push(d); d = (d + 1) % 7 } while (d !== next)
-    const target = Math.round(cogsTarget * days.reduce((t, i) => t + sa[i], 0))
-    return { day: DOW[idxDow[start]], covers: `${DOW[idxDow[days[0]]]}–${DOW[idxDow[days[days.length - 1]]]}`, target }
-  })
-}
-
-/* ---------- date helpers (ET-anchored) ---------- */
-function etToday(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date())
-}
-function isoAdd(iso: string, n: number): string {
-  const d = new Date(iso + 'T12:00:00Z')
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
-}
-function dowOf(iso: string): number {
-  return new Date(iso + 'T12:00:00Z').getUTCDay()
-}
-function monthDay(iso: string): string {
-  return new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', timeZone: 'UTC',
-  })
-}
 
 /* ---------- weather ---------- */
 function wxMap(code: number): { icon: string; condition: string } {
@@ -229,19 +172,8 @@ export async function GET(req: Request) {
   const salesPYMap = new Map<string, number>()     // `${store}|${pyDate}` -> net
   for (const r of salesPY) salesPYMap.set(`${r.store}|${r.d}`, Number(r.net) || 0)
 
-  // Rates: each employee's most-recent rate; store average as fallback (daily recap).
-  const empRate = new Map<string, number>()        // `${store}|${employee}` -> rate
-  const storeRateList = new Map<string, number[]>()
-  for (const r of empRates) {
-    const rt = Number(r.rate) || 0
-    empRate.set(`${r.store}|${r.employee}`, rt)
-    if (!storeRateList.has(r.store)) storeRateList.set(r.store, [])
-    storeRateList.get(r.store)!.push(rt)
-  }
-  const storeAvgRate = new Map<string, number>()
-  for (const [st, list] of storeRateList) storeAvgRate.set(st, list.length ? list.reduce((a, b) => a + b, 0) / list.length : DEFAULT_RATE)
-  const rateFor = (store: string, emp: string): number =>
-    empRate.get(`${store}|${emp}`) ?? storeAvgRate.get(store) ?? DEFAULT_RATE
+  // Rates: each employee's most-recent rate; store average as fallback (shared core).
+  const rateFor = buildRateFor(empRates)
 
   // Scheduled hours + cost per store/day (cost weights each shift by its own rate).
   const schedHours = new Map<string, number>()     // `${store}|${date}` -> hours
@@ -258,16 +190,6 @@ export async function GET(req: Request) {
   for (const r of laborWeek) {
     laborHours.set(`${r.store}|${r.d}`, Number(r.h) || 0)
     laborPay.set(`${r.store}|${r.d}`, Number(r.pay) || 0)
-  }
-
-  // history: per store, per weekday -> [nets] (sales days only, matches daily recap)
-  const histByStoreDow = new Map<string, number[]>()  // `${store}|${dow}` -> nets
-  for (const r of salesHist) {
-    const net = Number(r.net) || 0
-    if (net <= 0) continue
-    const k = `${r.store}|${dowOf(r.d)}`
-    if (!histByStoreDow.has(k)) histByStoreDow.set(k, [])
-    histByStoreDow.get(k)!.push(net)
   }
 
   // Holiday factors: only if a PROJ day in the week is a holiday (rare). Per store,
@@ -304,13 +226,8 @@ export async function GET(req: Request) {
     }
   }
 
-  const forecastFor = (store: string, date: string): number => {
-    const arr = histByStoreDow.get(`${store}|${dowOf(date)}`) ?? []
-    if (!arr.length) return 0
-    const base = arr.reduce((a, b) => a + b, 0) / arr.length
-    const f = holidayFactor.get(`${store}|${date}`)
-    return Math.round(f ? base * f : base)
-  }
+  // Same-weekday forecaster (shared core), holiday-factor aware.
+  const forecastFor = buildForecaster(salesHist, holidayFactor)
 
   // OTB base = typical single PFG order per store (avg per order date). With pfs_invoices
   // each store orders directly, so the old sales-share/transfer workaround is obsolete.
@@ -334,9 +251,8 @@ export async function GET(req: Request) {
   for (const [store, arr] of cogsRates) {
     arr.sort((a, b) => a.wk < b.wk ? -1 : 1)
     cogsWeeks = Math.max(cogsWeeks, arr.length)
-    const baseline = arr.reduce((s, x) => s + x.rate, 0) / arr.length
     cogsByStore.set(store, arr[arr.length - 1].rate)
-    cogsTargetByStore.set(store, Math.round(Math.min(COGS_CAP, Math.max(COGS_FLOOR, baseline - COGS_IMPROVEMENT)) * 1000) / 1000)
+    cogsTargetByStore.set(store, deriveCogsTarget(arr.map(x => x.rate)))
   }
 
   const week = weekDates.map(d => ({

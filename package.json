@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && sh -c 'if [ -n \"$DATABASE_URL\" ]; then prisma db push; fi' && next build",
     "start": "next start",
+    "postinstall": "prisma generate",
     "lint": "eslint",
     "import": "python3 src/scripts/import_labor_till.py",
     "sigma": "python3 src/scripts/sigma-fetch.py",
@@ -19,6 +20,7 @@
     "refresh:full": "npm run inject && npm run ship"
   },
   "dependencies": {
+    "@prisma/client": "^6.0.0",
     "date-fns": "^4.4.0",
     "mssql": "^12.6.0",
     "next": "16.2.9",
@@ -36,6 +38,7 @@
     "concurrently": "^10.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "prisma": "^6.0.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
     "typescript": "^5"

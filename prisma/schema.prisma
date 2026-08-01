@@ -1,0 +1,116 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+  schemas  = ["sk_bills"]
+}
+
+// recurrence stores the RecurrenceRule as a JSON string (SQL Server has no native JSON column type).
+model Bill {
+  id          String   @id @default(cuid())
+  store       String
+  vendor      String
+  category    String
+  recurrence  String
+  amountType  String
+  amountValue Float
+  payment     String
+  account     String?
+  paidFrom    String?
+  anchor      String?
+  end         String?
+  notes       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([store])
+  @@index([active])
+  @@schema("sk_bills")
+}
+
+model BillPayment {
+  id      String   @id @default(cuid())
+  billId  String
+  dueDate String
+  paidAt  DateTime @default(now())
+
+  @@unique([billId, dueDate])
+  @@index([billId])
+  @@schema("sk_bills")
+}
+
+model Sales {
+  store     String
+  ym        String
+  projected Float?
+  actual    Float?
+  updatedAt DateTime @updatedAt
+
+  @@id([store, ym])
+  @@schema("sk_bills")
+}
+
+model QbToken {
+  company      String   @id
+  realmId      String
+  accessToken  String   @db.NVarChar(Max)
+  refreshToken String   @db.NVarChar(Max)
+  expiresAt    BigInt
+  updatedAt    DateTime @updatedAt
+
+  @@schema("sk_bills")
+}
+
+// Mirrors the table created at runtime by /api/sync (the daily QB balance cron).
+// Declared here so `prisma db push` recognizes it and does not try to drop it.
+model QbBalance {
+  store      String   @id @db.NVarChar(20)
+  checking   Float    @default(0)
+  savings    Float    @default(0)
+  petty      Float    @default(0)
+  creditCard Float    @default(0)
+  cashTotal  Float    @default(0)
+  updatedAt  DateTime @default(now())
+
+  @@schema("sk_bills")
+}
+
+// Per-store daily cash-forecast ledger, written by the local forecast.py job and
+// read by the /cashflow dashboard view. Declared so `prisma db push` won't drop it.
+model Forecast {
+  store     String    @db.NVarChar(20)
+  d         DateTime  @db.Date
+  inflow    Float?
+  outflow   Float?
+  balance   Float?
+  asOf      DateTime? @map("as_of") @db.Date
+  balSrc    String?   @map("bal_src") @db.NVarChar(24)
+  stale     Boolean?
+  updatedAt DateTime  @default(now())
+
+  @@id([store, d])
+  @@schema("sk_bills")
+}
+
+// Per-store WEEKLY cost plan (accrual view), written by the local cost_plan.py job.
+// One row per store/week/metric; each amount split actual/committed/forecast.
+// metric in: sales, cogs_pfg, cogs_walmart, labor, corporate, fixed. Declared so
+// `prisma db push` won't drop it.
+model CostPlan {
+  store     String    @db.NVarChar(20)
+  weekStart DateTime  @map("week_start") @db.Date
+  metric    String    @db.NVarChar(24)
+  actual    Float?
+  committed Float?
+  forecast  Float?
+  asOf      DateTime? @map("as_of") @db.Date
+  updatedAt DateTime  @default(now())
+
+  @@id([store, weekStart, metric])
+  @@schema("sk_bills")
+}

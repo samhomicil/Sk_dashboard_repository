@@ -1,0 +1,976 @@
+[
+  {
+    "store": "Margate",
+    "vendor": "FPL \u2014 Utilities- Power",
+    "category": "Utilities",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 27
+    },
+    "amountType": "fixed",
+    "amountValue": 483.5,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Ref: FPL Site",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Ledger Frame Works \u2014 Bookkeeping",
+    "category": "Professional Services",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 300.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Comcast \u2014 Internet",
+    "category": "Internet / Phone",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 118.91,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Internet \u00b7 Ref: Xfinity Business",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Comcast \u2014 Business VoiceEdge",
+    "category": "Internet / Phone",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 56.95,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Phone Service",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Rent \u2014 Base Rent",
+    "category": "Rent / Lease",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 1590.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Pending Michael response. Goes to $1766.67 Y2",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Rent \u2014 Property Expense",
+    "category": "Rent / Lease",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 1167.7,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "CAM, NNN, Tax",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Lockton Insurance \u2014 Business Insurance",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 2
+    },
+    "amountType": "fixed",
+    "amountValue": 213.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Ref: Lockton",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Lockton Insurance \u2014 Umbrella Policy",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 2
+    },
+    "amountType": "fixed",
+    "amountValue": 37.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Ref: Lockton",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Huntington \u2014 Loan Payments",
+    "category": "Loan / Debt",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 4
+    },
+    "amountType": "fixed",
+    "amountValue": 5928.8,
+    "payment": "auto",
+    "paidFrom": "Huntington",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Auto deducted 4th via BOA Zelle",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Huntington \u2014 Loan Payments - LOC",
+    "category": "Loan / Debt",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 5
+    },
+    "amountType": "fixed",
+    "amountValue": 100.0,
+    "payment": "manual",
+    "paidFrom": "Huntington",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Scheduled via BOA Zelle",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Canva \u2014 Canva Pro",
+    "category": "Subscriptions",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 8
+    },
+    "amountType": "fixed",
+    "amountValue": 15.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Switched from personal CC",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "City of Margate \u2014 Utilities- Water",
+    "category": "Utilities",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 12
+    },
+    "amountType": "fixed",
+    "amountValue": 184.73,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Set up again 12/27/2026 \u00b7 Ref: Margate Water",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Quickbooks \u2014 Essentials Package",
+    "category": "Subscriptions",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 14
+    },
+    "amountType": "fixed",
+    "amountValue": 38.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Dues and subscription",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Workstream \u2014 Hiring",
+    "category": "Subscriptions",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 15
+    },
+    "amountType": "fixed",
+    "amountValue": 59.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Workstream \u2014 Payroll Module",
+    "category": "Subscriptions",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 15
+    },
+    "amountType": "fixed",
+    "amountValue": 35.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Workstream \u2014 Onboarding",
+    "category": "Subscriptions",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 15
+    },
+    "amountType": "fixed",
+    "amountValue": 15.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Ref: Invoice Link",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Workstream \u2014 Records",
+    "category": "Subscriptions",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 15
+    },
+    "amountType": "fixed",
+    "amountValue": 15.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Lockton Insurance \u2014 Workers Comp",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 16
+    },
+    "amountType": "fixed",
+    "amountValue": 155.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "LRR-WK-10000238-00 \u00b7 Ref: Lockton",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Smoothie King Corporate \u2014 Royalty Fees",
+    "category": "Franchise Fees",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 16
+    },
+    "amountType": "percent",
+    "amountValue": 6.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "6% of Sales",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Smoothie King Corporate \u2014 National Marketing Fee",
+    "category": "Franchise Fees",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 16
+    },
+    "amountType": "percent",
+    "amountValue": 2.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "2% of Sales",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Smoothie King Corporate \u2014 Regional Marketing Fee",
+    "category": "Franchise Fees",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 16
+    },
+    "amountType": "percent",
+    "amountValue": 1.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "1% of Sales",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Florida Dept. of Revenue \u2014 Sales Tax Payable",
+    "category": "Taxes",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 16
+    },
+    "amountType": "estimate",
+    "amountValue": 0,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Paid By Maxwell",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Northwest Extermination \u2014 Pest Control",
+    "category": "Maintenance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 18
+    },
+    "amountType": "fixed",
+    "amountValue": 20.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Ref: Northwest Portal",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Northwest Extermination \u2014 Rodent Monitoring",
+    "category": "Maintenance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 18
+    },
+    "amountType": "fixed",
+    "amountValue": 58.85,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Ref: Northwest Portal",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Chase Bank \u2014 Monthly Credit Card",
+    "category": "Bank / Finance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 28
+    },
+    "amountType": "fixed",
+    "amountValue": 500.0,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Min Payment \u00b7 Ref: Chase",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Smoothie King Corporate \u2014 Technology Fee",
+    "category": "Franchise Fees",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 23
+    },
+    "amountType": "fixed",
+    "amountValue": 26.5,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "C3MS \u2014 Music Subscription",
+    "category": "Subscriptions",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 24
+    },
+    "amountType": "fixed",
+    "amountValue": 29.45,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Crunch Fitness \u2014 Crunch Perks Program",
+    "category": "Subscriptions",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 27
+    },
+    "amountType": "fixed",
+    "amountValue": 162.75,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Cancel after 90 days. In-person 30-day notice.",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "Storage \u2014 Storage Unit",
+    "category": "Other",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 146.48,
+    "payment": "manual",
+    "paidFrom": null,
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "Amtrust Group \u2014 Workers Comp",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 13
+    },
+    "amountType": "fixed",
+    "amountValue": 250.0,
+    "payment": "manual",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "amtrustgroup.com",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "Lockton Insurance \u2014 Business Insurance",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 3
+    },
+    "amountType": "fixed",
+    "amountValue": 138.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "Lockton Insurance \u2014 Umbrella Policy",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 3
+    },
+    "amountType": "fixed",
+    "amountValue": 36.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "Capital One \u2014 CC Bill",
+    "category": "Bank / Finance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 5
+    },
+    "amountType": "fixed",
+    "amountValue": 500.0,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "M&F Bank \u2014 Loan Payments",
+    "category": "Loan / Debt",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 5
+    },
+    "amountType": "fixed",
+    "amountValue": 2833.63,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Total $229,723.50 @ 10.5%",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "FPL \u2014 Utilities- Power",
+    "category": "Utilities",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 16
+    },
+    "amountType": "fixed",
+    "amountValue": 273.1,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "Comcast \u2014 Internet + Phone",
+    "category": "Internet / Phone",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 8
+    },
+    "amountType": "fixed",
+    "amountValue": 137.55,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "ADP \u2014 Payroll Processing",
+    "category": "Payroll",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 99.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "Rent \u2014 Base Rent",
+    "category": "Rent / Lease",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 5278.78,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "Amtrust Group \u2014 Workers Comp",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 13
+    },
+    "amountType": "fixed",
+    "amountValue": 250.0,
+    "payment": "manual",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "amtrustgroup.com",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "Lockton Insurance \u2014 Umbrella Policy",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 3
+    },
+    "amountType": "fixed",
+    "amountValue": 138.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "Lockton Insurance \u2014 Business Insurance",
+    "category": "Insurance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 3
+    },
+    "amountType": "fixed",
+    "amountValue": 36.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "Chase Bank \u2014 CC Bill",
+    "category": "Bank / Finance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 5
+    },
+    "amountType": "fixed",
+    "amountValue": 500.0,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Scheduled for Jan",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "Rent \u2014 Base Rent",
+    "category": "Rent / Lease",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 5613.84,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Increases to $8,182.96 after Jan",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "FPL \u2014 Utilities- Power",
+    "category": "Utilities",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 9
+    },
+    "amountType": "fixed",
+    "amountValue": 904.01,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "Northwest Extermination \u2014 Pest Control",
+    "category": "Maintenance",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 22
+    },
+    "amountType": "fixed",
+    "amountValue": 80.0,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "Airtech \u2014 AC Maintenance",
+    "category": "Maintenance",
+    "recurrence": {
+      "type": "every_n_months",
+      "n": 3,
+      "day": 5
+    },
+    "amountType": "fixed",
+    "amountValue": 215.0,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": "2026-01-05",
+    "end": null,
+    "notes": "$860 yearly contract",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "M&F Bank \u2014 Loan Payments",
+    "category": "Loan / Debt",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 5
+    },
+    "amountType": "fixed",
+    "amountValue": 2833.63,
+    "payment": "manual",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "Total $229,723.50 @ 10.5%",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "Comcast \u2014 Internet + Phone",
+    "category": "Internet / Phone",
+    "recurrence": {
+      "type": "every_n_months",
+      "n": 2,
+      "day": 11
+    },
+    "amountType": "fixed",
+    "amountValue": 370.39,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": "2026-01-11",
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "ADP \u2014 Payroll Processing",
+    "category": "Payroll",
+    "recurrence": {
+      "type": "monthly_day",
+      "day": 1
+    },
+    "amountType": "fixed",
+    "amountValue": 99.0,
+    "payment": "auto",
+    "paidFrom": "Chase",
+    "account": null,
+    "anchor": null,
+    "end": null,
+    "notes": "",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "PFG — Food Order (Tue)",
+    "category": "Food / COGS",
+    "recurrence": {
+      "type": "weekly",
+      "weekday": 2
+    },
+    "amountType": "estimate",
+    "amountValue": 2200.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": "2026-01-06",
+    "end": null,
+    "notes": "Placeholder estimate — food order withdrawn the week after ordering.",
+    "active": true
+  },
+  {
+    "store": "Miramar",
+    "vendor": "PFG — Food Order (Wed)",
+    "category": "Food / COGS",
+    "recurrence": {
+      "type": "weekly",
+      "weekday": 3
+    },
+    "amountType": "estimate",
+    "amountValue": 2200.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": "2026-01-06",
+    "end": null,
+    "notes": "Placeholder estimate — food order withdrawn the week after ordering.",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "PFG — Food Order (Tue)",
+    "category": "Food / COGS",
+    "recurrence": {
+      "type": "weekly",
+      "weekday": 2
+    },
+    "amountType": "estimate",
+    "amountValue": 2200.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": "2026-01-06",
+    "end": null,
+    "notes": "Placeholder estimate — food order withdrawn the week after ordering.",
+    "active": true
+  },
+  {
+    "store": "Pines",
+    "vendor": "PFG — Food Order (Wed)",
+    "category": "Food / COGS",
+    "recurrence": {
+      "type": "weekly",
+      "weekday": 3
+    },
+    "amountType": "estimate",
+    "amountValue": 2200.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": "2026-01-06",
+    "end": null,
+    "notes": "Placeholder estimate — food order withdrawn the week after ordering.",
+    "active": true
+  },
+  {
+    "store": "Margate",
+    "vendor": "PFG — Food Order (Tue)",
+    "category": "Food / COGS",
+    "recurrence": {
+      "type": "weekly",
+      "weekday": 2
+    },
+    "amountType": "estimate",
+    "amountValue": 1500.0,
+    "payment": "auto",
+    "paidFrom": "BOA",
+    "account": null,
+    "anchor": "2026-01-06",
+    "end": null,
+    "notes": "Placeholder estimate — weekly food order withdrawn the week after ordering.",
+    "active": true
+  }
+]

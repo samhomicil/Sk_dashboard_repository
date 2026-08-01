@@ -26,6 +26,26 @@ export function isAllowed(email?: string | null): boolean {
   return false
 }
 
+// Owner allowlist — a subset of allowed users who additionally see the financial
+// (bills) modules. Everyone else who can sign in is a manager. Read from
+// OWNER_EMAILS (comma-separated env, editable in Vercel) with a safe default.
+const DEFAULT_OWNERS = [
+  'samhomicil@gmail.com',
+  'danieljaybar@gmail.com',
+  'admin@smoothiekingsoflo.com',
+]
+
+function ownerEmails(): string[] {
+  const raw = process.env.OWNER_EMAILS
+  const list = raw && raw.trim() ? raw.split(',') : DEFAULT_OWNERS
+  return list.map(e => e.trim().toLowerCase()).filter(Boolean)
+}
+
+export function isOwner(email?: string | null): boolean {
+  if (!email) return false
+  return ownerEmails().includes(email.toLowerCase())
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Google({
@@ -47,7 +67,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return verified && isAllowed(email)
     },
     session({ session, token }) {
-      if (session.user && token.sub) session.user.id = token.sub
+      if (session.user) {
+        if (token.sub) session.user.id = token.sub
+        // Derive role from the signed-in email (session first, JWT as fallback)
+        // so the UI can hide owner-only modules. proxy.ts enforces it server-side.
+        const email = session.user.email ?? (token.email as string | undefined)
+        session.user.role = isOwner(email) ? 'owner' : 'manager'
+      }
       return session
     },
   },

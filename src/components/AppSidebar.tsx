@@ -13,6 +13,16 @@ const INVENTORY_SUB = [
   { label: 'Order Guide',         href: '/inventory/watchlist' },
 ]
 
+// Owner-only financial modules (rendered only when session role === 'owner').
+const FINANCIALS_SUB = [
+  { label: 'Budget',       href: '/financials' },
+  { label: 'Cash Flow',    href: '/cashflow' },
+  { label: 'Bills',        href: '/bills' },
+  { label: 'P&L',          href: '/pnl' },
+  { label: 'Transactions', href: '/transactions' },
+  { label: 'Settings',     href: '/settings' },
+]
+
 export default function AppSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
@@ -93,6 +103,33 @@ export default function AppSidebar() {
             })}
           </div>
         </div>
+
+        {/* Financials — owners only (managers never see this; also gated server-side). */}
+        {session?.user?.role === 'owner' && (() => {
+          const onFin = FINANCIALS_SUB.some(s => pathname.startsWith(s.href))
+          return (
+            <>
+              <Link href="/financials" className={item(onFin, onFin ? 'section' : '')}>
+                <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" />
+                </svg>
+                <span className="sk-lbl">Financials</span>
+              </Link>
+              <div className="sk-subnav open">
+                <div className="sk-subwrap">
+                  {FINANCIALS_SUB.map(s => {
+                    const active = s.href === '/financials' ? pathname === '/financials' : pathname.startsWith(s.href)
+                    return (
+                      <Link key={s.href} href={s.href} className={`sk-subitem${active ? ' active' : ''}`}>
+                        <span className="sk-sdot" />{s.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            </>
+          )
+        })()}
       </nav>
 
       <div className="sk-spring" />

@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import type { KpiData } from '@/lib/types'
 import type { SociData } from '@/app/api/soci/route'
 import type { GuestSummary } from '@/app/api/guest-satisfaction/route'
@@ -15,169 +17,112 @@ interface Props {
 function pct(n: number) { return `${(n * 100).toFixed(1)}%` }
 function dol(n: number) { return n >= 0 ? `+$${Math.abs(Math.round(n))}` : `-$${Math.abs(Math.round(n))}` }
 
-function ReviewRow({ soci }: { soci: SociData }) {
-  const p = soci.period
-  const rating = p?.rating ?? soci.avgRating
-  const count = p?.reviews ?? soci.newReviews
-  const stars = rating ? '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating)) : ''
-
-  // No reviews in range is normal at this volume — say so rather than render 0 stars.
-  const none = count === 0
-  const ratingDot = none ? 'dot-y' : (rating ?? 0) >= 4.5 ? 'dot-g' : (rating ?? 0) >= 4 ? 'dot-y' : 'dot-r'
-  const negDot = !p ? 'dot-y' : p.negative === 0 ? 'dot-g' : p.negative <= 2 ? 'dot-y' : 'dot-r'
-
+// Same shape as the Void/Discount/Till metrics above: a sub-header naming the metric and
+// its target, then the dot and value. Detail lives in the tooltip.
+function VTile({ header, target, dot, value, unit, note, tip, tone, emphasis }: {
+  header: string
+  target?: string
+  dot: 'g' | 'y' | 'r'
+  value: string
+  unit?: string
+  note?: string
+  tip: string
+  tone?: 'bad' | 'dim'
+  emphasis?: boolean
+}) {
+  const cls = tone === 'bad' ? 'text-red-600' : tone === 'dim' ? 'text-slate-400' : 'text-slate-700'
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <div className="flex items-start gap-2">
-        <span className={`mt-1 ${ratingDot}`} />
-        <div>
-          <div className="flex items-baseline gap-1.5">
-            <span className={`text-lg font-bold ${none ? 'text-slate-400' : 'text-slate-700'}`}>
-              {none ? '—' : rating!.toFixed(2)}
-            </span>
-            {!none && <span className="text-amber-400 text-sm">{stars}</span>}
-          </div>
-          <div className="text-xs text-slate-500">
-            {none ? 'no reviews this period' : `avg of ${count} review${count === 1 ? '' : 's'} in range`}
-          </div>
-          <div className="text-xs text-slate-400 mt-0.5">
-            Lifetime {soci.avgRating?.toFixed(2) ?? '—'} over {soci.reviews.total}
-          </div>
-        </div>
+    <div title={tip}>
+      <div className="text-xs font-medium text-slate-700 mb-0.5 truncate">
+        {header} {target && <span className="font-normal text-slate-400">{target}</span>}
       </div>
-
-      <div className="flex items-start gap-2">
-        <span className={`mt-1 ${count ? 'dot-g' : 'dot-y'}`} />
-        <div>
-          <div className="text-lg font-bold text-slate-700">
-            {count}<span className="text-xs font-normal text-slate-400"> review{count === 1 ? '' : 's'}</span>
-          </div>
-          <div className="text-xs text-slate-500">
-            {p ? `${p.google} Google · ${p.yelp} Yelp (lifetime)` : `${soci.reviews.gmb} Google · ${soci.reviews.yelp} Yelp`}
-          </div>
-          <div className="text-xs mt-0.5">
-            {p && p.newLast7 > 0
-              ? <span className="text-emerald-600 font-semibold">{p.newLast7} new in last 7 days</span>
-              : <span className="text-slate-400">none in the last 7 days</span>}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-start gap-2">
-        <span className={`mt-1 ${negDot}`} />
-        <div>
-          <div className={`text-lg font-bold ${p?.negative ? 'text-red-600' : 'text-slate-700'}`}>
-            {p?.negative ?? '—'}<span className="text-xs font-normal text-slate-400"> negative</span>
-          </div>
-          <div className="text-xs text-slate-500">1–2★ reviews in range</div>
-          <div className="text-xs text-slate-400 mt-0.5">
-            {p ? `${p.replied} of ${p.reviews} replied to` : ''}
-          </div>
-        </div>
+      <div className="flex items-center gap-2">
+        <span className={`dot-${dot}`} />
+        <span className={`text-lg font-bold ${cls}`}>
+          {value}{unit && <span className="text-xs font-normal text-slate-400"> {unit}</span>}
+        </span>
+        {note && (
+          <span className={`text-xs truncate ${emphasis ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+            {note}
+          </span>
+        )}
       </div>
     </div>
   )
 }
 
-function GuestRow({ guest }: { guest: GuestSummary }) {
-  const { osat, osatPrior, responses, goal, pace, worstMetric, cases } = guest
+function GuestVoiceRow(
+  { guest, soci }: { guest?: GuestSummary | null; soci?: SociData | null },
+) {
+  const tiles: React.ReactNode[] = []
+  const pct = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(0)}%`)
 
-  // SMG suppresses its own display under 10 responses; below that we show the number but
-  // don't colour it, because one guest moves it 20+ points.
-  const thin = responses > 0 && responses < 10
-  const osatOk = osat != null && osat >= TARGETS.osatPct
-  const osatDot = osat == null || thin ? 'dot-y' : osatOk ? 'dot-g' : 'dot-r'
-  const delta = osat != null && osatPrior != null ? osat - osatPrior : null
+  if (guest?.connected) {
+    const { osat, osatPrior, responses, goal, pace, worstMetric, cases } = guest
+    const thin = responses > 0 && responses < 10
+    const osatOk = osat != null && osat >= TARGETS.osatPct
+    const delta = osat != null && osatPrior != null ? osat - osatPrior : null
 
-  const paceOk = (pace ?? 0) >= 1
-  const paceDot = pace == null ? 'dot-y' : paceOk ? 'dot-g' : (pace >= 0.8 ? 'dot-y' : 'dot-r')
+    tiles.push(
+      <VTile key="osat"
+        header="Overall Satisfaction" target={`tgt ${(TARGETS.osatPct * 100).toFixed(0)}%`}
+        dot={osat == null || thin ? 'y' : osatOk ? 'g' : 'r'}
+        value={pct(osat)} tone={thin ? 'dim' : osatOk ? undefined : 'bad'}
+        note={thin ? 'too few' : delta != null ? `${delta >= 0 ? '▲' : '▼'}${Math.abs(delta * 100).toFixed(0)}pts` : undefined}
+        tip={`${guest.scope} · ${responses} responses in range · target ${(TARGETS.osatPct * 100).toFixed(0)}%`
+          + (worstMetric ? ` · weakest: ${worstMetric.metric} ${pct(worstMetric.value)}` : '')
+          + (thin ? ' · below 10 responses, widen the range' : '')} />,
+      <VTile key="surveys"
+        header="Surveys" target={`goal ${TARGETS.surveysPerStoreMonth}/store/mo`}
+        dot={pace == null ? 'y' : pace >= 1 ? 'g' : pace >= 0.8 ? 'y' : 'r'}
+        value={String(responses)} unit={`/ ${goal.toFixed(0)}`}
+        note={pace != null ? `${(pace * 100).toFixed(0)}%` : undefined}
+        tip={`Surveys collected vs a ${TARGETS.surveysPerStoreMonth}/store/month goal, prorated to the selected range`} />,
+    )
+    if (cases) {
+      const owed = cases.pending > 0 || cases.overSla > 0
+      tiles.push(
+        <VTile key="cases"
+          header="Incidents" target={`goal ${cases.goalHours}h`}
+          dot={cases.opened === 0 ? 'g' : owed ? 'r' : 'y'}
+          value={String(cases.opened)} tone={cases.opened ? 'bad' : undefined}
+          note={cases.pending ? `${cases.pending} open` : undefined}
+          tip={cases.opened
+            ? `Guest-recovery cases opened in range · avg close ${cases.avgHours?.toFixed(0) ?? '—'}h against a ${cases.goalHours}h callback goal · ${cases.overSla} past goal · ${cases.pending} still open`
+            : 'No guest complaints raised in this range'} />,
+      )
+    }
+  }
 
-  // Incidents = guest-recovery cases opened in the window. Green only when there were
-  // none; any case that blew the 24h callback goal is red regardless of count.
-  const inc = cases?.opened ?? null
-  const overSla = cases?.overSla ?? 0
-  const incDot = inc == null ? 'dot-y' : inc === 0 ? 'dot-g'
-    : (cases?.pending ?? 0) > 0 || overSla > 0 ? 'dot-r' : 'dot-y'
-  const avgHrs = cases?.avgHours ?? null
-  const pending = cases?.pending ?? 0
+  if (soci?.connected) {
+    const p = soci.period
+    const count = p?.reviews ?? soci.newReviews
+    const rating = p?.rating ?? soci.avgRating
+    const none = count === 0
+    const newest = p && p.newLast7 > 0 ? `${p.newLast7} new in 7d` : 'none in 7d'
+    tiles.push(
+      <VTile key="rating"
+        header="Reviews" target="Google + Yelp"
+        dot={none ? 'y' : (rating ?? 0) >= 4.5 ? 'g' : (rating ?? 0) >= 4 ? 'y' : 'r'}
+        value={none ? '—' : rating!.toFixed(2)} unit={none ? undefined : '★'}
+        tone={none ? 'dim' : undefined}
+        note={none ? newest : `${count} · ${newest}`}
+        emphasis={Boolean(p && p.newLast7 > 0)}
+        tip={`Rating computed from reviews inside the range · lifetime ${soci.avgRating?.toFixed(2) ?? '—'} over ${soci.reviews.total} reviews`
+          + (p ? ` · ${p.google} Google in range, ${p.yelp} Yelp lifetime (Yelp can't be sliced by period) · ${p.negative} rated 1–2★` : '')} />,
+    )
+  }
 
-  const fmt = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(0)}%`)
-
+  if (tiles.length === 0) return null
   return (
-    <div>
+    <div className="mt-3 pt-3 border-t border-slate-100">
       <div className="text-xs text-slate-400 mb-2">
-        Surveys <span className="text-slate-300">— {guest.scope} (SMG)</span>
-        {guest.combined && (
-          <span className="ml-1 text-slate-300">· one SMG login covers both, so they can&apos;t be split</span>
-        )}
-        {guest.coverageFrom && guest.range && guest.coverageFrom > guest.range.start && (
-          <span className="ml-1 text-amber-600">· only has data from {guest.coverageFrom}</span>
-        )}
-        {guest.source === 'period' && (
-          <span className="ml-1 text-slate-300">· nearest period, not the selected range</span>
-        )}
+        <Link href="/guest-voice" className="text-slate-500 hover:text-teal-600 font-medium">
+          Guest Voice →
+        </Link>
+        <span className="text-slate-300 ml-1">— {guest?.scope ?? 'Margate'} · SMG survey + SOCi reviews</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="flex items-start gap-2">
-          <span className={`mt-1 ${osatDot}`} />
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className={`text-lg font-bold ${thin ? 'text-slate-400' : osatOk ? 'text-slate-700' : 'text-red-600'}`}>
-                {fmt(osat)}
-              </span>
-              <span className="text-xs text-slate-400">OSAT</span>
-              {delta != null && !thin && (
-                <span className={`text-xs font-semibold ${delta >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {delta >= 0 ? '▲' : '▼'}{Math.abs(delta * 100).toFixed(0)}pts
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-slate-500">
-              {responses} response{responses === 1 ? '' : 's'} · tgt {(TARGETS.osatPct * 100).toFixed(0)}%
-            </div>
-            <div className="text-xs text-slate-400 mt-0.5">
-              {thin ? 'Too few to read — widen the range'
-                : worstMetric ? `Weakest: ${worstMetric.metric} ${fmt(worstMetric.value)}`
-                : 'All metrics tracking'}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-2">
-          <span className={`mt-1 ${paceDot}`} />
-          <div>
-            <div className="text-lg font-bold text-slate-700">
-              {responses}<span className="text-xs font-normal text-slate-400"> / {goal.toFixed(0)} surveys</span>
-            </div>
-            <div className="text-xs text-slate-500">
-              {pace != null ? `${(pace * 100).toFixed(0)}% of pace` : '—'} · goal {TARGETS.surveysPerStoreMonth}/store/mo
-            </div>
-            <div className="text-xs text-slate-400 mt-0.5">
-              {paceOk ? 'Collection on target' : 'Behind on survey collection'}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-2">
-          <span className={`mt-1 ${incDot}`} />
-          <div>
-            <div className={`text-lg font-bold ${inc ? 'text-red-600' : inc == null ? 'text-slate-400' : 'text-slate-700'}`}>
-              {inc ?? '—'}<span className="text-xs font-normal text-slate-400"> incident{inc === 1 ? '' : 's'}</span>
-            </div>
-            <div className="text-xs text-slate-500">
-              {inc
-                ? `avg ${avgHrs ? avgHrs.toFixed(0) : '—'}h vs ${cases?.goalHours ?? 24}h callback goal`
-                : inc === 0 ? 'no guest complaints raised' : 'case feed not loaded yet'}
-            </div>
-            <div className="text-xs text-slate-400 mt-0.5">
-              {inc == null ? ''
-                : pending > 0 ? `${pending} still open — guest waiting`
-                : overSla > 0 ? `${overSla} past the ${cases?.goalHours ?? 24}h goal`
-                : inc ? 'All handled within goal' : 'Nothing outstanding'}
-            </div>
-          </div>
-        </div>
-      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{tiles}</div>
     </div>
   )
 }
@@ -248,24 +193,7 @@ export default function OpsHealth({ kpis, soci, guest, loading }: Props) {
           : `⚠️ ${metrics.filter(m => !m.ok).map(m => m.label).join(', ')} outside target — review needed`
         }
       </div>
-      {(guest?.connected || soci?.connected) && (
-        <div className="mt-3 pt-3 border-t border-slate-100">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            Guest Voice
-          </div>
-          <div className="space-y-3">
-            {guest?.connected && <GuestRow guest={guest} />}
-            {soci?.connected && (
-              <div className={guest?.connected ? 'pt-3 border-t border-slate-50' : ''}>
-                <div className="text-xs text-slate-400 mb-2">
-                  Reviews <span className="text-slate-300">— Margate (SOCi)</span>
-                </div>
-                <ReviewRow soci={soci} />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <GuestVoiceRow guest={guest} soci={soci} />
     </div>
   )
 }

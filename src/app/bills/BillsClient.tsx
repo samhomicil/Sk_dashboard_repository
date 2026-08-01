@@ -734,58 +734,24 @@ function ForecastView({ bills, sales, store, now }: { bills: ClientBill[]; sales
 
 /* ---------------- Sales ---------------- */
 function SalesView({ sales, store, now }: { sales: SalesData; store: string; now: Date }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const months = useMemo(
     () => Array.from({ length: 12 }, (_, i) => ymOf(new Date(now.getFullYear(), now.getMonth() + i, 1))),
     [now],
   );
-  const initial = useMemo(() => {
-    const s: Record<string, { projected: string; actual: string }> = {};
-    months.forEach((ym: string) => {
-      const r = sales?.[store]?.[ym] || {};
-      s[ym] = { projected: r.projected != null ? String(r.projected) : '', actual: r.actual != null ? String(r.actual) : '' };
-    });
-    return s;
-  }, [sales, store, months]);
-  const [edits, setEdits] = useState(initial);
-  const [saved, setSaved] = useState(false);
 
   if (store === 'All') {
-    return <Empty>Sales are tracked per store. Pick Margate, Miramar, or Pines to enter projected and actual monthly sales — these drive the % -of-sales bills.</Empty>;
+    return <Empty>Sales are tracked per store. Pick Margate, Miramar, or Pines to see the monthly net sales that drive the % -of-sales bills.</Empty>;
   }
 
-  const save = () => {
-    setSaved(false);
-    startTransition(async () => {
-      for (const ym of months) {
-        const e = edits[ym];
-        const o = initial[ym];
-        if (e.projected === o.projected && e.actual === o.actual) continue;
-        await fetch('/api/sales', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ store, ym, projected: e.projected, actual: e.actual }),
-        });
-      }
-      setSaved(true);
-      router.refresh();
-    });
-  };
+  const money = (v: number | null | undefined) => (v == null ? '—' : `$${Math.round(Number(v)).toLocaleString()}`);
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <p className="text-[13px] text-slate-500">Actual overrides projected. % -of-sales bills resolve against these figures, month by month.</p>
-        <button
-          onClick={save}
-          disabled={pending}
-          className="ml-auto rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-ink-soft disabled:opacity-50"
-        >
-          {pending ? 'Saving…' : 'Save sales'}
-        </button>
-      </div>
-      {saved && <div className="text-[13px] text-emerald-600">Sales updated.</div>}
+      <p className="text-[13px] text-slate-500">
+        Auto-derived from POS. Completed months show realized net sales (actual); the current and
+        upcoming months are projected with the shared sales forecast — the same figures Budget and
+        Weekly Ops use. % -of-sales bills resolve against these, month by month.
+      </p>
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead>
@@ -798,17 +764,13 @@ function SalesView({ sales, store, now }: { sales: SalesData; store: string; now
           </thead>
           <tbody>
             {months.map((ym: string) => {
-              const e = edits[ym];
-              const basis = e.actual ? 'actual' : e.projected ? 'projected' : null;
+              const r = sales?.[store]?.[ym] || {};
+              const basis = r.actual != null ? 'actual' : r.projected != null ? 'projected' : null;
               return (
                 <tr key={ym} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-2 text-ink">{ymLabel(ym)}</td>
-                  <td className="px-4 py-2">
-                    <MoneyInput value={e.projected} onChange={(v) => setEdits({ ...edits, [ym]: { ...e, projected: v } })} />
-                  </td>
-                  <td className="px-4 py-2">
-                    <MoneyInput value={e.actual} onChange={(v) => setEdits({ ...edits, [ym]: { ...e, actual: v } })} />
-                  </td>
+                  <td className="px-4 py-2 text-slate-600">{money(r.projected)}</td>
+                  <td className="px-4 py-2 text-slate-600">{money(r.actual)}</td>
                   <td className="px-4 py-2 text-right text-[12px] text-slate-400">{basis ?? '—'}</td>
                 </tr>
               );
@@ -816,21 +778,6 @@ function SalesView({ sales, store, now }: { sales: SalesData; store: string; now
           </tbody>
         </table>
       </div>
-    </div>
-  );
-}
-
-function MoneyInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="flex items-center rounded-md border border-slate-200 bg-white px-2 focus-within:border-ink">
-      <span className="text-slate-400">$</span>
-      <input
-        inputMode="decimal"
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ''))}
-        placeholder="0"
-        className="tnum w-28 bg-transparent px-1 py-1.5 text-right outline-none"
-      />
     </div>
   );
 }

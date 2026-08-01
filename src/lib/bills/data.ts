@@ -3,6 +3,9 @@ import type { BillRecord } from './types';
 import type { SalesData } from './billsEngine';
 import { getPrisma } from './db';
 import { resolveAccount } from './accountMap';
+import { query } from '@/lib/db';
+import { buildForecaster, type SalesRow } from '@/lib/core/forecast';
+import { NET_SALES } from '@/lib/core/sources';
 
 export const dataMode = (): 'db' | 'seed' => (getPrisma() !== null ? 'db' : 'seed');
 
@@ -150,16 +153,54 @@ export async function deleteBill(id: string): Promise<void> {
 const _memSales: Record<string, Record<string, { projected?: number | null; actual?: number | null }>> = {};
 
 export async function loadSales(): Promise<SalesData> {
-  const db = getPrisma();
-  if (db) {
-    const rows = await db.sales.findMany();
-    const out: SalesData = {};
+  // Canonical sales for percent-of-sales bills (royalty, marketing). Realized
+  // monthly net comes from smoothieking.sales (the POS); the current + next 11
+  // months are PROJECTED with the shared core forecaster (same-weekday mean)
+  // summed over each month — the same engine Budget & Ops-Week use, so these
+  // bills reconcile with those surfaces. Retires the manual sk_bills.Sales table
+  // as a metric source (that table is left in place but no longer read here).
+  try {
+    const rows = await query<{ store: string; d: string; net: number }[]>(
+      `SELECT store, CONVERT(char(10), closed_datetime, 23) AS d, ${NET_SALES} AS net
+         FROM smoothieking.sales
+        GROUP BY store, CONVERT(char(10), closed_datetime, 23)`,
+    );
+    if (!rows.length) return JSON.parse(JSON.stringify(_memSales));
+
+    const forecastFor = buildForecaster(rows as SalesRow[]);
+    const curYm = new Date().toISOString().slice(0, 7);
+    const stores = new Set(rows.map((r) => r.store));
+
+    // realized monthly net for COMPLETE past months (current month is projected in full)
+    const actual = new Map<string, number>(); // `${store}|${ym}` -> net
     for (const r of rows) {
-      (out[r.store] ??= {})[r.ym] = { projected: r.projected, actual: r.actual };
+      const ym = r.d.slice(0, 7);
+      if (ym < curYm) actual.set(`${r.store}|${ym}`, (actual.get(`${r.store}|${ym}`) ?? 0) + Number(r.net));
+    }
+
+    const out: SalesData = {};
+    const [cy, cm] = curYm.split('-').map(Number);
+    for (const store of stores) {
+      const rec: Record<string, { projected?: number | null; actual?: number | null }> = {};
+      for (const [k, v] of actual) {
+        if (k.startsWith(`${store}|`)) rec[k.slice(store.length + 1)] = { actual: Math.round(v), projected: null };
+      }
+      // project the current + next 11 months by summing the daily forecaster
+      for (let i = 0; i < 12; i++) {
+        const first = new Date(Date.UTC(cy, cm - 1 + i, 1));
+        const y = first.getUTCFullYear(), mo = first.getUTCMonth();
+        const ym = `${y}-${String(mo + 1).padStart(2, '0')}`;
+        const dim = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+        let proj = 0;
+        for (let day = 1; day <= dim; day++) proj += forecastFor(store, `${ym}-${String(day).padStart(2, '0')}`);
+        rec[ym] = { actual: rec[ym]?.actual ?? null, projected: Math.round(proj) };
+      }
+      out[store] = rec;
     }
     return out;
+  } catch {
+    return JSON.parse(JSON.stringify(_memSales));
   }
-  return JSON.parse(JSON.stringify(_memSales));
 }
 
 // ---- Manual payment records ----
@@ -194,19 +235,6 @@ export async function loadLastSyncedAt(): Promise<string | null> {
   return row ? row.updatedAt.toISOString() : null;
 }
 
-export async function saveSales(
-  store: string,
-  ym: string,
-  data: { projected?: number | null; actual?: number | null },
-): Promise<void> {
-  const db = getPrisma();
-  if (db) {
-    await db.sales.upsert({
-      where: { store_ym: { store, ym } },
-      update: { ...data },
-      create: { store, ym, ...data },
-    });
-    return;
-  }
-  (_memSales[store] ??= {})[ym] = { ...(_memSales[store]?.[ym] ?? {}), ...data };
-}
+// saveSales was removed: sales are a single derived source now (loadSales pulls
+// realized net from smoothieking.sales + projects with the shared forecaster), so
+// there is no manual write path that could diverge from Budget / Weekly Ops.

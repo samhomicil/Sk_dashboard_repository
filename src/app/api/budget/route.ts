@@ -5,6 +5,7 @@ import { STORES, LABOR_TARGET, HIST_WEEKS } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf } from '@/lib/core/dates'
 import { buildRateFor, type EmpRateRow } from '@/lib/core/labor'
 import { buildForecaster, type SalesRow } from '@/lib/core/forecast'
+import { pfgFood, wmtFood } from '@/lib/core/sources'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -97,13 +98,8 @@ export async function GET() {
     query<EmpRateRow[]>(`SELECT store, employee, rate FROM (
         SELECT store, employee, rate, ROW_NUMBER() OVER (PARTITION BY store, employee ORDER BY shift_date DESC) rn
         FROM smoothieking.labor WHERE rate > 0) t WHERE rn = 1`),
-    query<{ store_number: string; d: string; total: number }[]>(`WITH inv AS (
-        SELECT DISTINCT invoice_number, store_number, invoice_date, invoice_total
-        FROM smoothieking.pfs_invoices WHERE invoice_type='Invoice' AND invoice_date >= '${trainStart}')
-      SELECT RIGHT(store_number,4) store_number, CONVERT(char(10),invoice_date,23) d, SUM(invoice_total) total
-      FROM inv GROUP BY RIGHT(store_number,4), invoice_date`),
-    query<{ d: string; total: number }[]>(`WITH o AS (SELECT DISTINCT order_id, order_date, order_net_total FROM smoothieking.walmart_spend WHERE order_date >= '${trainStart}')
-      SELECT CONVERT(char(10),order_date,23) d, SUM(order_net_total) total FROM o GROUP BY order_date`),
+    query<{ store: string; d: string; total: number }[]>(pfgFood.byStoreDay(`invoice_date >= '${trainStart}'`)),
+    query<{ d: string; spend: number }[]>(wmtFood.byDay(`order_date >= '${trainStart}'`)),
     query<{ store: string; rate: number }[]>(`SELECT store, SUM(taxes)/NULLIF(SUM(net_sales),0) rate FROM smoothieking.sales
       WHERE CAST(closed_datetime AS DATE) >= '${trainStart}' AND CAST(closed_datetime AS DATE) < '${wk0}'
         AND voided=0 AND is_modifier=0 GROUP BY store`),
@@ -129,7 +125,7 @@ export async function GET() {
     const sched = new Map<string, number>()   // d -> scheduled cost
     for (const r of schedRows) if (r.store === name) sched.set(r.d, (sched.get(r.d) ?? 0) + num(r.h) * rateFor(name, r.employee))
     const pfg = new Map<string, number>()
-    for (const r of pfgRows) if (PFG_TO_NAME[r.store_number] === name) pfg.set(r.d, (pfg.get(r.d) ?? 0) + num(r.total))
+    for (const r of pfgRows) if (PFG_TO_NAME[r.store] === name) pfg.set(r.d, (pfg.get(r.d) ?? 0) + num(r.total))
     return { sales, labor, sched, pfg }
   }
 
@@ -140,7 +136,7 @@ export async function GET() {
     for (const [d, v] of daily) if (d >= lo && d < wk0) t += v
     return t / weeksBack
   }
-  const wmDaily = new Map(wmRows.map(r => [r.d, num(r.total)]))
+  const wmDaily = new Map(wmRows.map(r => [r.d, num(r.spend)]))
   const wmWkAvg = weeklyAvg(wmDaily)
   // store sales share (trailing) to split all-store Walmart
   const shareDen = STORE_NAMES.reduce((t, n) => {

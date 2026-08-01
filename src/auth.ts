@@ -67,10 +67,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return verified && isAllowed(email)
     },
     session({ session, token }) {
-      if (session.user && token.sub) session.user.id = token.sub
-      // Derive role from the signed-in email so the UI can hide owner-only
-      // modules. The route gate (proxy.ts) enforces it server-side regardless.
-      if (session.user) session.user.role = isOwner(session.user.email) ? 'owner' : 'manager'
+      if (session.user) {
+        if (token.sub) session.user.id = token.sub
+        // Derive role from the signed-in email (session first, JWT as fallback)
+        // so the UI can hide owner-only modules. proxy.ts enforces it server-side.
+        const email = session.user.email ?? (token.email as string | undefined)
+        session.user.role = isOwner(email) ? 'owner' : 'manager'
+      }
       return session
     },
   },

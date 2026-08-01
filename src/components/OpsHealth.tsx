@@ -15,56 +15,63 @@ interface Props {
 function pct(n: number) { return `${(n * 100).toFixed(1)}%` }
 function dol(n: number) { return n >= 0 ? `+$${Math.abs(Math.round(n))}` : `-$${Math.abs(Math.round(n))}` }
 
-function SociRow({ soci }: { soci: SociData }) {
-  const rating = soci.avgRating ?? 0
-  const ratingOk = rating >= 4.5
-  const ratingWarn = rating >= 4.0
-  const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating))
-  const aging = soci.awaitingReply
-  const socFailed = soci.social.failed
-  const socUnpub = soci.social.unpublished
+function ReviewRow({ soci }: { soci: SociData }) {
+  const p = soci.period
+  const rating = p?.rating ?? soci.avgRating
+  const count = p?.reviews ?? soci.newReviews
+  const stars = rating ? '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating)) : ''
 
-  // reputation status: aging replies act, else negative share is informational
-  const repDot = aging > 0 ? 'dot-r' : 'dot-g'
-  const repNote = aging > 0
-    ? `${aging} review${aging !== 1 ? 's' : ''} awaiting reply >24h`
-    : 'All reviews replied — healthy'
-
-  // social status
-  const socDot = socFailed > 0 ? 'dot-r' : socUnpub > 0 ? 'dot-y' : 'dot-g'
-  const socNote = socFailed > 0
-    ? `${socFailed} post${socFailed !== 1 ? 's' : ''} failed to publish`
-    : socUnpub > 0
-      ? `${socUnpub} drafted, not yet published`
-      : 'Publishing queue clear'
+  // No reviews in range is normal at this volume — say so rather than render 0 stars.
+  const none = count === 0
+  const ratingDot = none ? 'dot-y' : (rating ?? 0) >= 4.5 ? 'dot-g' : (rating ?? 0) >= 4 ? 'dot-y' : 'dot-r'
+  const negDot = !p ? 'dot-y' : p.negative === 0 ? 'dot-g' : p.negative <= 2 ? 'dot-y' : 'dot-r'
 
   return (
-    <div className="mt-3 pt-3 border-t border-slate-100">
-      <div className="text-xs text-slate-400 mb-2">
-        Reputation &amp; Social <span className="text-slate-300">— Margate (SOCi)</span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="flex items-start gap-2">
-          <span className={`mt-1 ${repDot}`} />
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className={`text-lg font-bold ${ratingOk ? 'text-slate-700' : ratingWarn ? 'text-amber-600' : 'text-red-600'}`}>
-                {rating.toFixed(2)}
-              </span>
-              <span className={ratingOk ? 'text-amber-400 text-sm' : 'text-amber-400 text-sm'}>{stars}</span>
-            </div>
-            <div className="text-xs text-slate-500">
-              {soci.reviews.total} reviews · {soci.reviews.gmb} Google, {soci.reviews.yelp} Yelp · {soci.newReviews} new/{soci.windowDays}d
-            </div>
-            <div className="text-xs text-slate-400 mt-0.5">{repNote}</div>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="flex items-start gap-2">
+        <span className={`mt-1 ${ratingDot}`} />
+        <div>
+          <div className="flex items-baseline gap-1.5">
+            <span className={`text-lg font-bold ${none ? 'text-slate-400' : 'text-slate-700'}`}>
+              {none ? '—' : rating!.toFixed(2)}
+            </span>
+            {!none && <span className="text-amber-400 text-sm">{stars}</span>}
+          </div>
+          <div className="text-xs text-slate-500">
+            {none ? 'no reviews this period' : `avg of ${count} review${count === 1 ? '' : 's'} in range`}
+          </div>
+          <div className="text-xs text-slate-400 mt-0.5">
+            Lifetime {soci.avgRating?.toFixed(2) ?? '—'} over {soci.reviews.total}
           </div>
         </div>
-        <div className="flex items-start gap-2">
-          <span className={`mt-1 ${socDot}`} />
-          <div>
-            <div className="text-lg font-bold text-slate-700">{soci.social.sent}<span className="text-xs font-normal text-slate-400"> published</span></div>
-            <div className="text-xs text-slate-500">{soci.social.total} tasks total</div>
-            <div className="text-xs text-slate-400 mt-0.5">{socNote}</div>
+      </div>
+
+      <div className="flex items-start gap-2">
+        <span className={`mt-1 ${count ? 'dot-g' : 'dot-y'}`} />
+        <div>
+          <div className="text-lg font-bold text-slate-700">
+            {count}<span className="text-xs font-normal text-slate-400"> review{count === 1 ? '' : 's'}</span>
+          </div>
+          <div className="text-xs text-slate-500">
+            {p ? `${p.google} Google · ${p.yelp} Yelp (lifetime)` : `${soci.reviews.gmb} Google · ${soci.reviews.yelp} Yelp`}
+          </div>
+          <div className="text-xs mt-0.5">
+            {p && p.newLast7 > 0
+              ? <span className="text-emerald-600 font-semibold">{p.newLast7} new in last 7 days</span>
+              : <span className="text-slate-400">none in the last 7 days</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-start gap-2">
+        <span className={`mt-1 ${negDot}`} />
+        <div>
+          <div className={`text-lg font-bold ${p?.negative ? 'text-red-600' : 'text-slate-700'}`}>
+            {p?.negative ?? '—'}<span className="text-xs font-normal text-slate-400"> negative</span>
+          </div>
+          <div className="text-xs text-slate-500">1–2★ reviews in range</div>
+          <div className="text-xs text-slate-400 mt-0.5">
+            {p ? `${p.replied} of ${p.reviews} replied to` : ''}
           </div>
         </div>
       </div>
@@ -97,9 +104,9 @@ function GuestRow({ guest }: { guest: GuestSummary }) {
   const fmt = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(0)}%`)
 
   return (
-    <div className="mt-3 pt-3 border-t border-slate-100">
+    <div>
       <div className="text-xs text-slate-400 mb-2">
-        Guest Satisfaction <span className="text-slate-300">— {guest.scope} (SMG survey)</span>
+        Surveys <span className="text-slate-300">— {guest.scope} (SMG)</span>
         {guest.combined && (
           <span className="ml-1 text-slate-300">· one SMG login covers both, so they can&apos;t be split</span>
         )}
@@ -241,8 +248,24 @@ export default function OpsHealth({ kpis, soci, guest, loading }: Props) {
           : `⚠️ ${metrics.filter(m => !m.ok).map(m => m.label).join(', ')} outside target — review needed`
         }
       </div>
-      {guest?.connected && <GuestRow guest={guest} />}
-      {soci && <SociRow soci={soci} />}
+      {(guest?.connected || soci?.connected) && (
+        <div className="mt-3 pt-3 border-t border-slate-100">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+            Guest Voice
+          </div>
+          <div className="space-y-3">
+            {guest?.connected && <GuestRow guest={guest} />}
+            {soci?.connected && (
+              <div className={guest?.connected ? 'pt-3 border-t border-slate-50' : ''}>
+                <div className="text-xs text-slate-400 mb-2">
+                  Reviews <span className="text-slate-300">— Margate (SOCi)</span>
+                </div>
+                <ReviewRow soci={soci} />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

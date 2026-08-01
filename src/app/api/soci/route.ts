@@ -43,6 +43,17 @@ export interface SociData {
   windowDays: number
   newReviews: number
   awaitingReply: number   // reviews open > 24h (24-48 + 48-72 + >72)
+  // Per-period figures, counted from review-level rows so a range is exact. The snapshot
+  // table only holds lifetime totals, which can't be sliced.
+  period: {
+    reviews: number
+    rating: number | null      // recomputed from reviews in the window, not a sliced lifetime avg
+    negative: number
+    replied: number
+    google: number
+    yelp: number               // count only — individual Yelp reviews aren't in the feed
+    newLast7: number
+  } | null
   social: { total: number; sent: number; failed: number; unpublished: number }
   engagementSentiment: number | null
   connected: boolean
@@ -54,7 +65,7 @@ export async function GET(req: NextRequest) {
   const empty: SociData = {
     store: 'Margate', snapshotDate: '', avgRating: null,
     reviews: { total: 0, positive: 0, neutral: 0, negative: 0, gmb: 0, yelp: 0 },
-    windowDays: 30, newReviews: 0, awaitingReply: 0,
+    windowDays: 30, newReviews: 0, awaitingReply: 0, period: null,
     social: { total: 0, sent: 0, failed: 0, unpublished: 0 },
     engagementSentiment: null, connected: false,
   }
@@ -77,6 +88,40 @@ export async function GET(req: NextRequest) {
     const r = rows[0]
     const n = (v: number | null | undefined) => Number(v ?? 0)
 
+    // Review-level counts for the selected range. Google is effectively the only channel
+    // (114 of 116 lifetime); Yelp can't be sliced because its reviews aren't in the feed,
+    // so it stays a lifetime count.
+    const sp2 = req.nextUrl.searchParams
+    const start = sp2.get('start')
+    const end = sp2.get('end')
+    const isoRe = /^\d{4}-\d{2}-\d{2}$/
+    let period: SociData['period'] = null
+    if (start && end && isoRe.test(start) && isoRe.test(end)) {
+      const l7 = new Date(Date.parse(end) - 6 * 86_400_000).toISOString().slice(0, 10)
+      const p = await query<{
+        n: number; rating: number | null; neg: number; replied: number
+        google: number; new7: number
+      }[]>(`
+        SELECT COUNT(*) AS n,
+               AVG(CAST(rating AS float)) AS rating,
+               SUM(CASE WHEN rating <= 2 THEN 1 ELSE 0 END) AS neg,
+               SUM(CASE WHEN replied = 1 THEN 1 ELSE 0 END) AS replied,
+               SUM(CASE WHEN site = 'gmb' THEN 1 ELSE 0 END) AS google,
+               SUM(CASE WHEN review_date >= '${l7}' THEN 1 ELSE 0 END) AS new7
+        FROM smoothieking.soci_reviews
+        WHERE store = '${DB_STORE.margate}'
+          AND CAST(review_date AS date) BETWEEN '${start}' AND '${end}'`)
+        .catch(() => null)
+      if (p?.[0]) {
+        period = {
+          reviews: Number(p[0].n), rating: p[0].rating,
+          negative: Number(p[0].neg), replied: Number(p[0].replied),
+          google: Number(p[0].google), yelp: n(r.rev_yelp),
+          newLast7: Number(p[0].new7),
+        }
+      }
+    }
+
     return Response.json({
       store: 'Margate',
       snapshotDate: r.snapshot_date,
@@ -92,6 +137,7 @@ export async function GET(req: NextRequest) {
         total: n(r.soc_total), sent: n(r.soc_sent),
         failed: n(r.soc_failed), unpublished: n(r.soc_unpublished),
       },
+      period,
       engagementSentiment: r.eng_avg_sentiment,
       connected: true,
     } satisfies SociData)

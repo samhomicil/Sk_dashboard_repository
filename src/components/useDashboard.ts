@@ -90,7 +90,7 @@ export function useDashboard() {
         fetch(`/api/jolt?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
         fetch(`/api/jolt-quality?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
         fetch(`/api/guest-satisfaction?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
-        fetch(`/api/soci?store=${s.store}`).then(r => r.json()),
+        fetch(`/api/soci?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
       ])
 
       setData({

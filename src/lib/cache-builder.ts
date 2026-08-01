@@ -19,11 +19,11 @@ import {
   loadSalesCache,
   sqlSales as sigmaSales, sqlMonthSales as sigmaMonthSales, sqlWeeklySales as sigmaWeeklySales,
   sqlDailySales as sigmaDailySales, sqlOrders as sigmaOrders, sqlChannels as sigmaChannels,
-  sqlThruDate as sigmaThruDate,
+  sqlThruDate as sigmaThruDate, sqlEEDailyPct as sigmaEEDailyPct,
+  sqlEmployeeShifts,
 } from './salesCache'
-import {
-  sigmaCogsPct, sigmaEmployees, sigmaEEDailyPct, sigmaHeatmap, sigmaHeatmapWeekly,
-} from './sigma'
+import { loadHeatmapCache, sqlHeatmap as sigmaHeatmap, sqlHeatmapWeekly as sigmaHeatmapWeekly } from './heatmapCache'
+import { sigmaCogsPct } from './sigma'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
   QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee, Promotion,
@@ -330,7 +330,7 @@ const LOC_CODE_TO_STORE_KEY: Record<string, Store> = {
 }
 
 async function fetchEmployees(store: Store, start: string, end: string): Promise<EmployeeRow[]> {
-  const shifts = sigmaEmployees(store, start, end)
+  const shifts = await sqlEmployeeShifts(store, start, end)
 
   type EmpAgg = {
     firstName: string; lastName: string; name: string; role: string
@@ -818,12 +818,6 @@ async function fetchDailyKpis(store: Store, start: string, end: string): Promise
   const laborMap       = new Map(laborRows.map(r => [String(r.shift_date), Number(r.total_pay)]))
   const laborHoursMap2 = new Map(laborRows.map(r => [String(r.shift_date), Number(r.total_hrs)]))
 
-  const sigmaShifts   = sigmaEmployees(store, start, end)
-  const sigmaLaborMap = new Map<string, number>()
-  for (const s of sigmaShifts) {
-    sigmaLaborMap.set(s.date, (sigmaLaborMap.get(s.date) ?? 0) + s.pay)
-  }
-
   const sigSalesMap = sigmaDailySales(store, start, end)
   const startDate   = new Date(start + 'T00:00:00')
 
@@ -834,7 +828,7 @@ async function fetchDailyKpis(store: Store, start: string, end: string): Promise
     const sales    = sigSalesMap.get(dateStr) ?? 0
     const hasSigma = sigSalesMap.has(dateStr)
     const orders   = sigmaOrders(store, dateStr, dateStr)
-    const labor    = laborMap.get(dateStr) ?? sigmaLaborMap.get(dateStr) ?? 0
+    const labor    = laborMap.get(dateStr) ?? 0
     const hours    = laborHoursMap2.get(dateStr) ?? 0
     return {
       date:        dateStr,
@@ -949,7 +943,7 @@ const STORES: Store[] = ['all', 'pines', 'miramar', 'margate']
 const PERIODS: CachePeriod[] = ['weekly', 'monthly', 'quarterly', 'ytd']
 
 export async function buildCacheData() {
-  await loadSalesCache()   // live sales from smoothieking.sales (must precede the sql* accessors)
+  await Promise.all([loadSalesCache(), loadHeatmapCache()])  // live sales + heatmap (precede the sql* accessors)
   const dr = ranges()
 
   const kpisEntries = await Promise.all(

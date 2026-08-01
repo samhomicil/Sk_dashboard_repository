@@ -16,12 +16,13 @@
 import 'server-only'
 import { query } from './db'
 import type { Store } from './types'
-import type { SigmaSalesSummary, SigmaDailyRow } from './sigma'
+import type { SigmaSalesSummary, SigmaDailyRow, EmployeeShiftRow } from './sigma'
 
 type DayRow = {
   store: string; date: string
   net_sales: number; gross_sales: number; voids_amount: number
   orders: number; void_orders: number
+  sm: number; ee: number   // enhancer: sm = order_id (is_modifier=0), ee = order_id (revenue_center='Modifiers'), voided=0
 }
 type ChanRow = { store: string; date: string; destination: string; sales: number }
 
@@ -43,7 +44,9 @@ export async function loadSalesCache(): Promise<void> {
                SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) AS gross_sales,
                SUM(CASE WHEN voided=1 AND is_modifier=0 THEN price        ELSE 0 END) AS voids_amount,
                COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END) AS orders,
-               COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END) AS void_orders
+               COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END) AS void_orders,
+               COUNT(DISTINCT CASE WHEN voided=0 AND is_modifier=0 THEN order_id END) AS sm,
+               COUNT(DISTINCT CASE WHEN voided=0 AND revenue_center='Modifiers' THEN order_id END) AS ee
           FROM smoothieking.sales
          GROUP BY LOWER(store), CONVERT(char(10), closed_datetime, 23)`),
       query<ChanRow[]>(`
@@ -56,7 +59,7 @@ export async function loadSalesCache(): Promise<void> {
     _days = days.map(r => ({
       store: r.store, date: r.date,
       net_sales: n(r.net_sales), gross_sales: n(r.gross_sales), voids_amount: n(r.voids_amount),
-      orders: n(r.orders), void_orders: n(r.void_orders),
+      orders: n(r.orders), void_orders: n(r.void_orders), sm: n(r.sm), ee: n(r.ee),
     }))
     _chans = chans.map(r => ({ store: r.store, date: r.date, destination: r.destination, sales: n(r.sales) }))
   })()
@@ -139,6 +142,41 @@ export function sqlDailySales(store: Store, start: string, end: string): Map<str
     if (inRange(r.date, start, end) && matches(r.store, store)) out.set(r.date, (out.get(r.date) ?? 0) + r.net_sales)
   }
   return out
+}
+
+// Employee shifts live from smoothieking.labor (was sigma.ts employees[], which the
+// SQL generators only PRESERVED — never refreshed — so it had gone stale). Same
+// EmployeeShiftRow shape as sigma.ts. employee = "Last, First"; store -> loc_code.
+const STORE_TO_LOC: Record<string, string> = { pines: '1392', miramar: '1892', margate: '2384' }
+
+export async function sqlEmployeeShifts(store: Store, start: string, end: string): Promise<EmployeeShiftRow[]> {
+  const rows = await query<{ store: string; employee: string; d: string; role: string; hrs: number; rate: number; pay: number }[]>(
+    `SELECT LOWER(store) AS store, employee, CONVERT(char(10), shift_date, 23) AS d,
+            employee_role AS role, total_hrs AS hrs, rate, total_pay AS pay
+       FROM smoothieking.labor
+      WHERE shift_date >= '${start}' AND shift_date <= '${end}'
+        AND employee IS NOT NULL AND employee_role NOT IN ('NON_EMP', 'Support')`,
+  )
+  const out: EmployeeShiftRow[] = []
+  for (const r of rows) {
+    if (store !== 'all' && r.store !== store) continue
+    const ci = r.employee.indexOf(',')
+    const last = ci >= 0 ? r.employee.slice(0, ci).trim() : r.employee.trim()
+    const first = ci >= 0 ? r.employee.slice(ci + 1).trim() : ''
+    out.push({
+      date: r.d, location_code: STORE_TO_LOC[r.store] ?? '', location: r.store,
+      first_name: first, last_name: last, position: r.role ?? '',
+      rate: n(r.rate), hours: n(r.hrs), pay: n(r.pay),
+    })
+  }
+  return out
+}
+
+/** Enhancer-attach % for a single day = ee / sm (both distinct order_id, voided=0). */
+export function sqlEEDailyPct(store: Store, date: string): number | null {
+  let sm = 0, ee = 0
+  for (const r of days()) if (r.date === date && matches(r.store, store)) { sm += r.sm; ee += r.ee }
+  return sm > 0 ? ee / sm : null
 }
 
 export function sqlChannels(store: Store, start: string, end: string): Map<string, number> {

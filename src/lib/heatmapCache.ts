@@ -12,7 +12,8 @@
 import 'server-only'
 import { query } from './db'
 import type { Store } from './types'
-import type { HeatCell } from './sigma'
+// Type formerly in sigma.ts (kept the name to avoid churn; sigma.ts is being removed).
+export interface HeatCell { hourNum: number; day: number; uplh: number; rawUnits: number; staff: number }
 
 type DailyCell = { store: string; dow: number; hour: number; days: number; avg_units: number }
 type WeeklyCell = { store: string; dow: number; hour: number; units: number }

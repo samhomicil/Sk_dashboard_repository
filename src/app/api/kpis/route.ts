@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { cacheKpisAsync } from '@/lib/cache'
-import { sigmaCogsPct } from '@/lib/sigma'
+import { loadSalesCache } from '@/lib/salesCache'
+import { loadCogsCache, sqlCogsPct as sigmaCogsPct } from '@/lib/cogsCache'
 import { query, dateFilter } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
   const py  = await salesAgg(store, pyStart, pyEnd)
   const sig     = { net_sales: cur.net, gross_sales: cur.gross, voids_amount: cur.voids }
   const sigPY   = { net_sales: py.net,  gross_sales: py.gross,  voids_amount: py.voids }
+  await Promise.all([loadSalesCache(), loadCogsCache()])  // COGS % now from NetChef (needs sales denom)
   const cogsPctData = sigmaCogsPct(store, start, end)
   const orders  = cur.orders
   const ordersPY = py.orders

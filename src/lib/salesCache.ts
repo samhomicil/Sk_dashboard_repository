@@ -16,7 +16,14 @@
 import 'server-only'
 import { query } from './db'
 import type { Store } from './types'
-import type { SigmaSalesSummary, SigmaDailyRow, EmployeeShiftRow } from './sigma'
+// Types formerly in sigma.ts (kept the names to avoid churn; sigma.ts is being removed).
+export interface SigmaSalesSummary { net_sales: number; gross_sales: number; voids_amount: number; void_orders: number }
+export interface SigmaDailyRow { net_sales: number; gross_sales: number; voids_amount: number; orders: number }
+export interface EmployeeShiftRow {
+  date: string; location_code: string; location: string
+  first_name: string; last_name: string; position: string
+  rate: number; hours: number; pay: number
+}
 
 type DayRow = {
   store: string; date: string

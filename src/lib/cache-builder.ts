@@ -23,7 +23,7 @@ import {
   sqlEmployeeShifts,
 } from './salesCache'
 import { loadHeatmapCache, sqlHeatmap as sigmaHeatmap, sqlHeatmapWeekly as sigmaHeatmapWeekly } from './heatmapCache'
-import { sigmaCogsPct } from './sigma'
+import { loadCogsCache, sqlCogsPct as sigmaCogsPct } from './cogsCache'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
   QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee, Promotion,
@@ -943,7 +943,7 @@ const STORES: Store[] = ['all', 'pines', 'miramar', 'margate']
 const PERIODS: CachePeriod[] = ['weekly', 'monthly', 'quarterly', 'ytd']
 
 export async function buildCacheData() {
-  await Promise.all([loadSalesCache(), loadHeatmapCache()])  // live sales + heatmap (precede the sql* accessors)
+  await Promise.all([loadSalesCache(), loadHeatmapCache(), loadCogsCache()])  // live sales + heatmap + COGS (precede the sql* accessors)
   const dr = ranges()
 
   const kpisEntries = await Promise.all(

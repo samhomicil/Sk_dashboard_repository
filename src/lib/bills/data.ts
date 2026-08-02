@@ -6,6 +6,7 @@ import { resolveAccount } from './accountMap';
 import { query } from '@/lib/db';
 import { buildForecaster, type SalesRow } from '@/lib/core/forecast';
 import { NET_SALES } from '@/lib/core/sources';
+import { financialPeriods } from './periods';
 
 export const dataMode = (): 'db' | 'seed' => (getPrisma() !== null ? 'db' : 'seed');
 
@@ -168,8 +169,26 @@ export async function loadSales(): Promise<SalesData> {
     if (!rows.length) return JSON.parse(JSON.stringify(_memSales));
 
     const forecastFor = buildForecaster(rows as SalesRow[]);
-    const curYm = new Date().toISOString().slice(0, 7);
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const curYm = todayISO.slice(0, 7);
     const stores = new Set(rows.map((r) => r.store));
+
+    // Per-store daily actuals, for summing net over fiscal-period date ranges.
+    const dailyByStore = new Map<string, Map<string, number>>();
+    for (const r of rows) {
+      let m = dailyByStore.get(r.store);
+      if (!m) { m = new Map(); dailyByStore.set(r.store, m); }
+      m.set(r.d, (m.get(r.d) ?? 0) + Number(r.net));
+    }
+    const addDaysISO = (d: string, n: number) => {
+      const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n);
+      return t.toISOString().slice(0, 10);
+    };
+    // Only the periods a franchise forecast can touch: from a year ago through ~14
+    // months out (the bills forecast horizon plus the ~2-week draw lag).
+    const perFrom = addDaysISO(todayISO, -400);
+    const perTo = addDaysISO(todayISO, 430);
+    const periods = financialPeriods().filter((p) => p.end >= perFrom && p.begin <= perTo);
 
     // realized monthly net for COMPLETE past months (current month is projected in full)
     const actual = new Map<string, number>(); // `${store}|${ym}` -> net
@@ -194,6 +213,23 @@ export async function loadSales(): Promise<SalesData> {
         let proj = 0;
         for (let day = 1; day <= dim; day++) proj += forecastFor(store, `${ym}-${String(day).padStart(2, '0')}`);
         rec[ym] = { actual: rec[ym]?.actual ?? null, projected: Math.round(proj) };
+      }
+
+      // Fiscal-period net sales (keyed by period id, e.g. "2026-P04"), used by the
+      // period-based franchise fees. A closed period = summed actual daily net; a
+      // period still open or in the future = actual-to-date + same-weekday forecast
+      // for its remaining days, so the current period isn't thrown away.
+      const dm = dailyByStore.get(store) ?? new Map<string, number>();
+      for (const p of periods) {
+        let net = 0; let anyForecast = false;
+        for (let d = p.begin; d <= p.end; d = addDaysISO(d, 1)) {
+          const a = dm.get(d);
+          if (a != null && d < todayISO) net += a;               // settled day
+          else { net += forecastFor(store, d); anyForecast = true; } // open/future day
+        }
+        rec[p.id] = p.end < todayISO && !anyForecast
+          ? { actual: Math.round(net), projected: null }
+          : { actual: null, projected: Math.round(net) };
       }
       out[store] = rec;
     }

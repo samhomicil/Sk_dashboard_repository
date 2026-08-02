@@ -52,7 +52,7 @@ export function reconcile(
     for (const o of occ) {
       const dueISO = iso(o.due);
       const ym = ymOf(o.due);
-      const { val: staticExpected } = resolveAmount(bill as any, sales, ym);
+      const { val: staticExpected } = resolveAmount(bill as any, sales, ym, dueISO);
 
       // For matching past/current: use static expected so we don't miss transactions outside rolling tolerance.
       let match: ActualTxn | undefined;

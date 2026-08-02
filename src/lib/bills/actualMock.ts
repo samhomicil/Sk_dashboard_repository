@@ -36,7 +36,7 @@ export function buildMockTxns(
       const dueISO = iso(o.due);
       if (DEMO_UNPAID.has(bill.vendor) && ymOf(o.due) === curYM) continue;
 
-      let amt = resolveAmount(bill as any, sales, ymOf(o.due)).val;
+      let amt = resolveAmount(bill as any, sales, ymOf(o.due), dueISO).val;
       if (amt == null) {
         amt = (bill.amountValue / 100) * (ASSUMED_SALES[bill.store] ?? 60000);
       }

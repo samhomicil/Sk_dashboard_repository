@@ -2,6 +2,8 @@
 // Framework-agnostic bill scheduling engine extracted from the SK tracker.
 // Pure functions, no DOM, no storage. Safe to import on server or client.
 
+import { isFranchisePercentFee, periodForDraw, BASIS_FACTOR } from './periods';
+
 export type RecurrenceRule =
   | { type: 'monthly_day'; day: number }
   | { type: 'monthly_last_day' }
@@ -108,8 +110,27 @@ export function dueDatesInRange(rule: RecurrenceRule, anchorISO: string | null, 
   return out;
 }
 
-export function resolveAmount(bill: Bill, sales: SalesData, ym: string): { val: number | null; known: boolean; salesBasis?: 'actual' | 'projected' } {
+export function resolveAmount(
+  bill: Bill,
+  sales: SalesData,
+  ym: string,
+  dueISO?: string,
+): { val: number | null; known: boolean; salesBasis?: 'actual' | 'projected' } {
   if (bill.amountType === 'fixed' || bill.amountType === 'estimate') return { val: +bill.amountValue || 0, known: true };
+
+  // Franchise %-of-sales fees (royalty / national+regional ad fund) bill on the
+  // just-CLOSED fiscal period's net sales — not the calendar month of the draw —
+  // and against SK's slightly-lower reportable net (per-store BASIS_FACTOR). See
+  // ./periods.ts. Falls back to the monthly path if we don't have a draw date.
+  if (isFranchisePercentFee(bill) && dueISO) {
+    const period = periodForDraw(dueISO);
+    const s = period ? sales?.[bill.store]?.[period.id] : undefined;
+    const basis = BASIS_FACTOR[bill.store] ?? 1;
+    if (s?.actual != null) return { val: (+bill.amountValue / 100) * +s.actual * basis, known: true, salesBasis: 'actual' };
+    if (s?.projected != null) return { val: (+bill.amountValue / 100) * +s.projected * basis, known: true, salesBasis: 'projected' };
+    return { val: null, known: false };
+  }
+
   const s = sales?.[bill.store]?.[ym];
   const actual = s?.actual, projected = s?.projected;
   if (actual != null && actual !== ('' as any)) return { val: (+bill.amountValue / 100) * +actual, known: true, salesBasis: 'actual' };

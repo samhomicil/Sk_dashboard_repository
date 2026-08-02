@@ -98,19 +98,28 @@ function GuestVoiceRow(
   if (soci?.connected) {
     const p = soci.period
     const count = p?.reviews ?? soci.newReviews
-    const rating = p?.rating ?? soci.avgRating
-    const none = count === 0
+    // Always show a live rating. A quiet week is not missing data — the store still has a
+    // standing Google score, and blanking it just because nobody reviewed lately hides the
+    // number that actually matters. Fall back to the standing rating and say which it is.
+    const inRange = count > 0 && p?.rating != null
+    const rating = inRange ? p!.rating! : soci.avgRating
     const newest = p && p.newLast7 > 0 ? `${p.newLast7} new in 7d` : 'none in 7d'
+    // SOCi only covers Margate, so on All this is one store's score, never a blend.
+    const margateOnly = guest?.scope === 'all three stores'
+
     tiles.push(
       <VTile key="rating"
-        header="Reviews" target="Google + Yelp"
-        dot={none ? 'y' : (rating ?? 0) >= 4.5 ? 'g' : (rating ?? 0) >= 4 ? 'y' : 'r'}
-        value={none ? '—' : rating!.toFixed(2)} unit={none ? undefined : '★'}
-        tone={none ? 'dim' : undefined}
-        note={none ? newest : `${count} · ${newest}`}
+        header="Reviews" target={margateOnly ? 'Margate only' : 'Google + Yelp'}
+        dot={rating == null ? 'y' : rating >= 4.5 ? 'g' : rating >= 4 ? 'y' : 'r'}
+        value={rating == null ? '—' : rating.toFixed(2)} unit={rating == null ? undefined : '★'}
+        note={inRange ? `${count} · ${newest}` : `current · ${newest}`}
         emphasis={Boolean(p && p.newLast7 > 0)}
-        tip={`Rating computed from reviews inside the range · lifetime ${soci.avgRating?.toFixed(2) ?? '—'} over ${soci.reviews.total} reviews`
-          + (p ? ` · ${p.google} Google in range, ${p.yelp} Yelp lifetime (Yelp can't be sliced by period) · ${p.negative} rated 1–2★` : '')} />,
+        tip={(inRange
+          ? `Rating from the ${count} review${count === 1 ? '' : 's'} inside the range`
+          : `No reviews inside the range — showing the standing rating as of ${soci.snapshotDate || 'today'}`)
+          + ` · lifetime ${soci.avgRating?.toFixed(2) ?? '—'} over ${soci.reviews.total} reviews`
+          + (p ? ` · ${p.google} Google in range, ${p.yelp} Yelp lifetime · ${p.negative} rated 1–2★` : '')
+          + (margateOnly ? ' · SOCi covers Margate only, so this is not a company figure' : '')} />,
     )
   }
 

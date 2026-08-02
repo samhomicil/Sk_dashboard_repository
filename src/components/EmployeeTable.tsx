@@ -33,13 +33,19 @@ export default function EmployeeTable({ employees, loading }: Props) {
 
   const totalHrs = employees.reduce((s, e) => s + e.hours, 0)
   const totalPay = employees.reduce((s, e) => s + e.totalPay, 0)
+  const storeFallbacks = employees.filter(e => e.salesSource === 'store').length
 
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
         <div>
           <div className="text-sm font-bold text-slate-700">Employee Labor</div>
-          <div className="text-xs text-slate-400 mt-0.5">Source: Sigma Labor · Sales/hr is store-level</div>
+          <div className="text-xs text-slate-400 mt-0.5">
+            Source: smoothieking.labor · Sales/hr is per-employee where attributed
+            {storeFallbacks > 0 && (
+              <> · <span className="text-amber-600">{storeFallbacks} showing store avg</span></>
+            )}
+          </div>
         </div>
         <span className="pill pill-gray">{employees.length} employees</span>
       </div>
@@ -73,10 +79,17 @@ export default function EmployeeTable({ employees, loading }: Props) {
                   {e.totalPay > 0 ? `$${Math.round(e.totalPay).toLocaleString()}` : '—'}
                 </td>
                 <td
-                  className="text-right text-slate-600 cursor-help"
-                  title={e.totalSales != null ? `Period sales attributed: $${Math.round(e.totalSales).toLocaleString()}` : undefined}
+                  className={`text-right cursor-help ${e.salesSource === 'store' ? 'text-slate-300 italic' : 'text-slate-600'}`}
+                  title={
+                    e.salesSource === 'store'
+                      ? 'No sales attributed to this employee — showing the store average, not their own figure'
+                      : e.totalSales != null
+                        ? `Period sales attributed: $${Math.round(e.totalSales).toLocaleString()}`
+                        : undefined
+                  }
                 >
                   {e.salesPerHour > 0 ? `$${e.salesPerHour.toFixed(0)}` : '—'}
+                  {e.salesSource === 'store' && <span className="ml-0.5 text-[9px]">store</span>}
                 </td>
                 <td className={`text-right ${colorEE(e.eePct)}`}>
                   {e.eePct !== null ? `${e.eePct.toFixed(1)}%` : '—'}

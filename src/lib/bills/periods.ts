@@ -50,16 +50,27 @@ export function financialPeriods(): FiscalPeriod[] {
   return out;
 }
 
+// SK processes a franchise draw only after the sales period has closed for a
+// while. Royalty/national debit ~14-17 days after period close (the ~16th of the
+// month); regional (RAF) debits a full period later (~28-31 days, at month-end).
+// Requiring the target period to have closed at least this many days before the
+// draw maps BOTH cadences to the right period — crucially in the months where a
+// month-end draw lands 1 day after a period boundary (e.g. Mar-31 vs P3's Mar-30,
+// which actually bills P2), where "most-recently-closed" would pick the wrong one.
+const DRAW_LAG_DAYS = 12;
+
 /**
- * The period whose franchise fee is drawn on/around `drawISO` = the most recently
- * CLOSED period at draw time (latest period whose end date is before the draw).
- * Matches the observed ~2-week billing lag: a May-16 draw bills the period that
- * ended ~May 4. Returns null if the draw predates the calendar.
+ * The fiscal period a franchise fee drawn on `drawISO` is billing: the latest
+ * period whose end is at least DRAW_LAG_DAYS before the draw. Returns null if the
+ * draw predates the calendar.
  */
 export function periodForDraw(drawISO: string): FiscalPeriod | null {
+  const cutoff = new Date(drawISO + 'T00:00:00Z');
+  cutoff.setUTCDate(cutoff.getUTCDate() - DRAW_LAG_DAYS);
+  const cutoffISO = cutoff.toISOString().slice(0, 10);
   let best: FiscalPeriod | null = null;
   for (const p of financialPeriods()) {
-    if (p.end < drawISO && (!best || p.end > best.end)) best = p;
+    if (p.end <= cutoffISO && (!best || p.end > best.end)) best = p;
   }
   return best;
 }

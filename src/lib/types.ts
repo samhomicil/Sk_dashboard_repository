@@ -73,10 +73,18 @@ export interface EmployeeRow {
   rate: number      // most recent hourly rate from DB
   totalPay: number  // sum of total_pay over rolling 90 days
   salesPerHour: number
+  /**
+   * Where salesPerHour came from. 'employee' = this person's own attributed sales;
+   * 'store' = the store average standing in because they have no attributed sales.
+   * A store number in a person's row must never render as if it were theirs.
+   */
+  salesSource: 'employee' | 'store'
   totalSales: number | null  // period sales attributed to this employee (from EE data)
   eePct: number | null
-  voidPct: number
-  discountPct: number
+  /** Store-level void% — NOT per employee. null until a per-employee source exists. */
+  voidPct: number | null
+  /** Store-level discount% — NOT per employee. null until a per-employee source exists. */
+  discountPct: number | null
   atv: number
 }
 

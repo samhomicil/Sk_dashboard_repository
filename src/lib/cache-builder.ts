@@ -12,6 +12,7 @@ import {
 } from 'date-fns'
 import { PROXY_URL, TARGETS } from './config'
 import { wmtFood } from './core/sources'
+import { empKey, keyFromParts, isRealEmployee } from './core/employee'
 // Sales/orders/channels: live from smoothieking.sales (Phase 1 of removing Sigma).
 // Reconciled to the dollar vs Sigma for settled periods; aliased to the sigma* names
 // so every call site is unchanged. COGS / EE / heatmap / employees stay on Sigma for now.
@@ -103,22 +104,13 @@ async function fetchEmployeeEE(store: Store, start: string, end: string): Promis
       AND ${sf(store)} AND ${df(start, end, 'closed_datetime')}
     GROUP BY employee
   `).catch(() => [])
-  // sales.employee comes in two formats across the history: "Last, First" (older) and
-  // "First Last" (newer). Normalize both to `last|first` and accumulate — the same person can
-  // appear under both within a range.
+  // sales.employee comes in two formats across the history ("Last, First" and "First Last").
+  // empKey (core/employee.ts) normalises both — the same person can appear under both
+  // within a single range, so accumulate rather than overwrite.
   const out = new Map<string, { ee: number; sm: number; net: number }>()
   for (const r of rows) {
-    const raw = String(r.employee).trim()
-    let last: string, first: string
-    if (raw.includes(',')) {
-      const [l, ...f] = raw.split(',')
-      last = l.trim(); first = f.join(',').trim()
-    } else {
-      const parts = raw.split(/\s+/)
-      if (parts.length < 2) continue
-      first = parts[0]; last = parts.slice(1).join(' ')
-    }
-    const key = `${last.toLowerCase()}|${first.toLowerCase()}`
+    const key = empKey(r.employee)
+    if (!isRealEmployee(key)) continue
     const acc = out.get(key) ?? { ee: 0, sm: 0, net: 0 }
     acc.ee += Number(r.ee) || 0; acc.sm += Number(r.sm) || 0; acc.net += Number(r.net) || 0
     out.set(key, acc)
@@ -339,7 +331,7 @@ async function fetchEmployees(store: Store, start: string, end: string): Promise
   }
   const map = new Map<string, EmpAgg>()
   for (const s of shifts) {
-    const key = `${s.last_name.toLowerCase()}|${s.first_name.toLowerCase()}`
+    const key = keyFromParts(s.last_name, s.first_name)
     const existing = map.get(key)
     if (existing) {
       existing.hours += s.hours
@@ -389,9 +381,8 @@ async function fetchEmployees(store: Store, start: string, end: string): Promise
       const sigma        = storeSigma.get(primaryLoc) ?? { net: 0, voidOrders: 0, orders: 0 }
       const hrs          = storeHours.get(primaryLoc) ?? 0
       const storeSalesPerHour = hrs > 0 ? Math.round(sigma.net / hrs * 100) / 100 : 0
-      const storeVoidPct      = sigma.orders > 0 ? Math.round(sigma.voidOrders / sigma.orders * 1000) / 10 : 0
 
-      const eeAgg = empEE.get(`${e.lastName.toLowerCase()}|${e.firstName.toLowerCase()}`)
+      const eeAgg = empEE.get(keyFromParts(e.lastName, e.firstName))
         ?? { ee: 0, sm: 0, net: 0 }
       const eePct = eeAgg.sm >= 5 ? Math.round(eeAgg.ee / eeAgg.sm * 1000) / 10 : null
 
@@ -406,11 +397,16 @@ async function fetchEmployees(store: Store, start: string, end: string): Promise
         hours:        Math.round(e.hours * 10) / 10,
         rate:         e.rate,
         totalPay:     Math.round(e.pay * 100) / 100,
+        // Fall back to the store average only so the column isn't blank — but say so,
+        // so the UI can render it as the store number it actually is.
         salesPerHour: empSalesPerHour ?? storeSalesPerHour,
+        salesSource:  empSalesPerHour !== null ? 'employee' : 'store',
         totalSales:   eeAgg.net > 0 ? Math.round(eeAgg.net * 100) / 100 : null,
         eePct,
-        voidPct:      storeVoidPct,
-        discountPct:  0,
+        // No per-employee void/discount source exists yet. The old code put the STORE
+        // void% in this column and hardcoded discount to 0, which read as per-person.
+        voidPct:      null,
+        discountPct:  null,
         atv:          0,
       }
     })

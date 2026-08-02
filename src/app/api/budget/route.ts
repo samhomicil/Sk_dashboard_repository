@@ -36,7 +36,12 @@ const HORIZON_HIST = 3         // completed weeks for context + 4-wk run-rate
 // (The $3,333 "consulting" on Miramar/Pines is NOT him — that's the Tome seller-
 // financing note, already booked to Debt.) Owners don't draw W-2 wages yet.
 const MGR_WK: Record<string, number> = { Miramar: 625, Pines: 625, Margate: 0 }
-const MERCHANT = 0.03          // card processing, est % of net sales
+// Card processing, % of sales. QB-validated against Lakay/Margate's reconciled
+// P&L "Merchant Fees" line: Apr $189.18 / May $201.65 / Jun $187.52 on Store Sales
+// = 0.62% / 0.69% / 0.57%, Q2 avg 0.63% ($578.35 / $92,253). SK's franchise-
+// negotiated processing runs ~0.6%, not the retail 2.5-3% (sales are booked gross,
+// so this isn't a netting artifact; 3rd-party delivery commission settles off-book).
+const MERCHANT = 0.0065
 // Franchise %-fees (royalty/national/regional/local) are NOT hardcoded — they are
 // read from the same sk_bills franchise bills the cash forecast uses, so the two
 // can't diverge. They accrue at rate x week's net sales x per-store BASIS_FACTOR

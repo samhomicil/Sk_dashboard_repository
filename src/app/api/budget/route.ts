@@ -28,7 +28,13 @@ export const revalidate = 0
 
 const HORIZON_FWD = 5          // weeks ahead (+ current)
 const HORIZON_HIST = 3         // completed weeks for context + 4-wk run-rate
-const GM_WK = 693              // salaried GM, per store per week (fixed bucket)
+// Salaried management (Dan Madaffari, "Manager - Salary") — allocated to the
+// entities that ACTUALLY pay him: Miramar + Pines ADP (~$1,390/biweekly period per
+// entity ≈ $695/wk each, ADP-confirmed). $0 at Margate: he manages there and clocks
+// the most hours, but his Margate comp is bundled through Miramar+Pines payroll, so
+// no cash leaves Margate for it. He's $0-pay in Brink, so this never double-counts
+// hourly wages. Revisit if Margate gets its own salaried manager.
+const MGMT_WK: Record<string, number> = { Miramar: 695, Pines: 695, Margate: 0 }
 const MERCHANT = 0.03          // card processing, est % of net sales
 // Franchise %-fees (royalty/national/regional/local) are NOT hardcoded — they are
 // read from the same sk_bills franchise bills the cash forecast uses, so the two
@@ -286,7 +292,7 @@ export async function GET() {
           { name: `Payroll taxes & WC (${(bRate * 100).toFixed(1)}%, incl. tips)`, ...burden },
           ...(fixedItems['Labor'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) ] },
         { key: 'Management', variable: false, items: [
-          { name: 'GM salary', ...L(0, GM_WK, 0) } ] },
+          { name: 'Management salary (D. Madaffari)', ...L(0, MGMT_WK[name] ?? 0, 0) } ] },
         { key: 'Franchise', variable: false, items: [
           ...franchiseItems,
           ...(fixedItems['Franchise'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) ] },

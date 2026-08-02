@@ -15,7 +15,7 @@ interface Payload {
 const COLOR: Record<string, string> = { Margate: '#2a78d6', Miramar: '#00832f', Pines: '#cf5a92' }
 const TINT: Record<string, string> = { Margate: '#eaf2fb', Miramar: '#e4f3e9', Pines: '#fbe9f1' }
 const BUCKET_LABEL: Record<string, string> = {
-  Food: 'Food', Labor: 'Labor', Management: 'Management salary', Franchise: 'Franchise & corporate', Occupancy: 'Rent / occupancy',
+  Food: 'Food', Labor: 'Labor', Franchise: 'Franchise & corporate', Occupancy: 'Rent / occupancy',
   Debt: 'Debt service', Utilities: 'Utilities', Insurance: 'Insurance', Operating: 'Operating & admin', 'Sales tax': 'Sales tax',
 }
 const SLAB: Record<string, string> = { good: 'On plan', warn: 'Watch', crit: 'Over' }
@@ -207,12 +207,12 @@ export default function BudgetView() {
       </div>
 
       <div className="foot">
-        <b>Prime cost</b> (hero) = recipe COGS + fully-loaded labor (wages + payroll burden + management), the number a franchise operator runs on. <b>Food</b> is <i>recipe COGS</i> — theoretical usage from NetChef ÷ sales vs 25%, the same basis as Weekly Ops — so it&apos;s stable and comparable; the PFG/Walmart <i>purchase</i> lines ride along in italics as cash-restock reference and are <i>not</i> counted in cost (that cash lives in the bill forecast).{' '}
+        <b>Prime cost</b> (hero) = recipe COGS + fully-loaded labor (hourly + tips + manager + payroll burden), the number a franchise operator runs on. <b>Food</b> is <i>recipe COGS</i> — theoretical usage from NetChef ÷ sales vs 25%, the same basis as Weekly Ops — so it&apos;s stable and comparable; the PFG/Walmart <i>purchase</i> lines ride along in italics as cash-restock reference and are <i>not</i> counted in cost (that cash lives in the bill forecast).{' '}
         <b>Weekly budget</b> = the flexible plan: food at 25% and labor at 22% of <i>this week&apos;s</i> sales (same targets as Weekly Ops &amp; the daily recap), franchise at contract rate, every fixed cost at its run-rate. <b>Over / under</b> is actual − budget, so the variance is really food + labor — the two levers a manager controls.{' '}
         <b>Certainty:</b> solid = incurred · mid = committed (scheduled labor, received invoices, dated bills) · hatched = forecast.{' '}
         <b>Cash timing</b> — fixed costs shown as an even weekly run-rate; in cash they land lumpy (rent day 1, debt 4–5, royalty &amp; national ad fund ~the 16th on the just-closed 4-week period, regional ad fund month-end, tech fee ~the 23rd, sales tax day 16, payroll on payday).{' '}
         <b>Debt</b> includes loan principal — most of the weekly deficit is principal paydown funded by the LOC.{' '}
-        Labor % is unloaded hourly wages (reconciles with the sales dashboard). <b>Payroll taxes &amp; WC</b> is the real employer burden — FICA 7.65% + FUTA/FL-SUI on each employee&apos;s first $7k + WC 2.2% (ADP-reconciled), so the rate shifts by store and season as caps fill; it also carries the tax on the 85% of CC tips run through payroll (the tip payout itself is customer money, offset by the card deposit, so it isn&apos;t booked as a cost). Management salary is allocated to the entities that actually pay it (Miramar &amp; Pines ADP, ~$695/wk each); Margate shows $0 — the manager works there but his comp is bundled through the other two stores&apos; payroll. Merchant fees estimated.
+        <b>Labor</b> ties to actual ADP payroll: hourly wages (Brink) + 85% of CC tips paid to hourly staff (the manager doesn&apos;t share tips) + the salaried manager ($65k/yr, split Miramar+Pines, $0 Margate) + the real employer <b>burden</b> — FICA 7.65% + FUTA/FL-SUI on each employee&apos;s first $7k + WC 2.2% (all ADP-reconciled; the rate shifts by store/season as caps fill). This build reconciles to June&apos;s actual Staff Wages within ~1%. Labor <b>%</b> stays unloaded hourly wages (so it reconciles with the sales dashboard); the bucket total is the fully-loaded cost. Merchant fees estimated.
       </div>
     </Shell>
   )

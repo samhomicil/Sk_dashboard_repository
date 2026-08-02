@@ -5,6 +5,9 @@ export const TARGETS = {
   voidPct: 0.02,
   discountPct: 0.08,
   salesGrowthYoY: 0.10,
+  // Guest satisfaction (SMG). 90% OSAT is the confirmed target.
+  osatPct: 0.90,
+  surveysPerStoreMonth: 22,
 }
 
 export const STORE_CODES: Record<string, string> = {

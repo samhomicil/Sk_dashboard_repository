@@ -4,6 +4,7 @@ import { requireOwner } from '@/lib/owner-guard'
 import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf } from '@/lib/core/dates'
 import { buildRateFor, type EmpRateRow } from '@/lib/core/labor'
+import { empBurden, uncappedRate, TIP_PAYOUT } from '@/lib/core/laborBurden'
 import { buildForecaster, type SalesRow } from '@/lib/core/forecast'
 import { pfgFood, wmtFood } from '@/lib/core/sources'
 import { BASIS_FACTOR } from '@/lib/bills/periods'
@@ -27,7 +28,6 @@ export const revalidate = 0
 
 const HORIZON_FWD = 5          // weeks ahead (+ current)
 const HORIZON_HIST = 3         // completed weeks for context + 4-wk run-rate
-const BURDEN = 1.111           // employer payroll taxes/WC (labor bucket only)
 const GM_WK = 693              // salaried GM, per store per week (fixed bucket)
 const MERCHANT = 0.03          // card processing, est % of net sales
 // Franchise %-fees (royalty/national/regional/local) are NOT hardcoded — they are
@@ -98,8 +98,9 @@ export async function GET() {
     (_, i) => isoAdd(wk0, (i - HORIZON_HIST) * 7))
   const end = isoAdd(weeks[weeks.length - 1], 7)                    // exclusive
   const trainStart = isoAdd(wk0, -7 * (HIST_WEEKS + 4))             // history for run-rates
+  const janFirst = `${today.slice(0, 4)}-01-01`                     // calendar-year start (FUTA/SUTA cap)
 
-  const [salesRows, laborRows, schedRows, empRates, pfgRows, wmRows, taxRow] = await Promise.all([
+  const [salesRows, laborRows, schedRows, empRates, pfgRows, wmRows, taxRow, empYtdBase, empActual, tipRows] = await Promise.all([
     query<SalesRow[]>(`SELECT store, CONVERT(char(10),CAST(closed_datetime AS DATE),23) d,
         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) net
       FROM smoothieking.sales WHERE CAST(closed_datetime AS DATE) >= '${trainStart}' AND CAST(closed_datetime AS DATE) < '${end}'
@@ -118,6 +119,20 @@ export async function GET() {
     query<{ store: string; rate: number }[]>(`SELECT store, SUM(taxes)/NULLIF(SUM(net_sales),0) rate FROM smoothieking.sales
       WHERE CAST(closed_datetime AS DATE) >= '${trainStart}' AND CAST(closed_datetime AS DATE) < '${wk0}'
         AND voided=0 AND is_modifier=0 GROUP BY store`),
+    // Per-employee CALENDAR-year wages before the window start — the base for the
+    // $7k FUTA/SUTA cap. And per-employee worked wages inside the window (for the
+    // marginal cap each week). Together they drive the real employer burden.
+    query<{ store: string; employee: string; ytd: number }[]>(`SELECT store, employee, SUM(total_pay) ytd
+      FROM smoothieking.labor WHERE shift_date >= '${janFirst}' AND shift_date < '${weeks[0]}'
+        AND employee IS NOT NULL AND employee_role NOT IN ('NON_EMP','Support') GROUP BY store, employee`),
+    query<{ store: string; employee: string; d: string; pay: number }[]>(`SELECT store, employee, CONVERT(char(10),shift_date,23) d, SUM(total_pay) pay
+      FROM smoothieking.labor WHERE shift_date >= '${weeks[0]}' AND shift_date < '${end}'
+        AND employee IS NOT NULL AND employee_role NOT IN ('NON_EMP','Support') GROUP BY store, employee, CONVERT(char(10),shift_date,23)`),
+    // CC tips per store/day (tillhistory.tips = card tips; sum all rows incl EOD Till).
+    // 85% is paid out through payroll and taxed — only the burden on it is an
+    // employer cost (the payout itself is customer money, offset by the card deposit).
+    query<{ store: string; d: string; tips: number }[]>(`SELECT store, CONVERT(char(10),till_date,23) d, SUM(tips) tips
+      FROM smoothieking.tillhistory WHERE till_date >= '${trainStart}' AND till_date < '${end}' GROUP BY store, CONVERT(char(10),till_date,23)`),
   ])
 
   // fixed bills (sk_bills) -> per store, per bucket, itemized monthly $
@@ -129,9 +144,49 @@ export async function GET() {
   const maxLabor = laborRows.reduce((m, r) => r.d > m ? r.d : m, '')
   const maxPfg = pfgRows.reduce((m, r) => r.d > m ? r.d : m, '')
   const maxWm = wmRows.reduce((m, r) => r.d > m ? r.d : m, '')
+  const maxTill = tipRows.reduce((m, r) => r.d > m ? r.d : m, '')
   const rateFor = buildRateFor(empRates)
   const forecastFor = buildForecaster(salesRows)
   const taxRate = new Map(taxRow.map(r => [r.store, num(r.rate)]))
+
+  // ---- real employer payroll burden (FICA + FUTA/SUTA on first $7k + WC) ----
+  // Effective rate per store per week. Wage per (store|emp|day) = actual once worked,
+  // scheduled after; walk weeks in order carrying each employee's YTD so the $7k cap
+  // applies marginally. Weeks with no employee data (fully-trailing forecast) inherit
+  // the prior week's rate, floored at the store's uncapped rate.
+  const empDayWage = new Map<string, number>()   // `${store}|${emp}|${d}` -> $
+  for (const r of empActual) if (r.d <= maxLabor) empDayWage.set(`${r.store}|${r.employee}|${r.d}`, num(r.pay))
+  for (const r of schedRows) if (r.d > maxLabor) {
+    const k = `${r.store}|${r.employee}|${r.d}`
+    empDayWage.set(k, (empDayWage.get(k) ?? 0) + num(r.h) * rateFor(r.store, r.employee))
+  }
+  const burdenRate = new Map<string, number>()   // `${store}|${weekMonday}` -> rate
+  for (const name of STORE_NAMES) {
+    const run = new Map<string, number>()        // employee -> calendar-year wages so far
+    for (const r of empYtdBase) if (r.store === name) run.set(r.employee, num(r.ytd))
+    let last = uncappedRate(name)
+    for (const w of weeks) {
+      const wkDays = new Set(Array.from({ length: 7 }, (_, i) => isoAdd(w, i)))
+      const ew = new Map<string, number>()       // employee -> wage this week
+      for (const [k, v] of empDayWage) {
+        if (!k.startsWith(name + '|')) continue
+        const rest = k.slice(name.length + 1)
+        const lp = rest.lastIndexOf('|')
+        if (!wkDays.has(rest.slice(lp + 1))) continue
+        const emp = rest.slice(0, lp)
+        ew.set(emp, (ew.get(emp) ?? 0) + v)
+      }
+      let totW = 0, totB = 0
+      for (const [emp, wage] of ew) {
+        const before = run.get(emp) ?? 0
+        totB += empBurden(name, wage, before); totW += wage
+        run.set(emp, before + wage)
+      }
+      const rate = totW > 0 ? totB / totW : last
+      burdenRate.set(`${name}|${w}`, rate)
+      if (totW > 0) last = rate
+    }
+  }
 
   const perStore = (name: string) => {
     const sales = new Map<string, number>(), labor = new Map<string, number>()
@@ -141,7 +196,9 @@ export async function GET() {
     for (const r of schedRows) if (r.store === name) sched.set(r.d, (sched.get(r.d) ?? 0) + num(r.h) * rateFor(name, r.employee))
     const pfg = new Map<string, number>()
     for (const r of pfgRows) if (PFG_TO_NAME[r.store] === name) pfg.set(r.d, (pfg.get(r.d) ?? 0) + num(r.total))
-    return { sales, labor, sched, pfg }
+    const tips = new Map<string, number>()
+    for (const r of tipRows) if (r.store === name) tips.set(r.d, num(r.tips))
+    return { sales, labor, sched, pfg, tips }
   }
 
   // trailing weekly averages (per store) for forecasting fully-future weeks
@@ -163,6 +220,7 @@ export async function GET() {
     const D = perStore(name)
     const laborWkAvg = weeklyAvg(D.labor)
     const pfgWkAvg = weeklyAvg(D.pfg)
+    const tipsWkAvg = weeklyAvg(D.tips)
     let storeShare = 0
     { const lo = isoAdd(wk0, -7 * HIST_WEEKS); for (const [d, v] of D.sales) if (d >= lo && d < wk0) storeShare += v }
     storeShare /= shareDen
@@ -190,6 +248,7 @@ export async function GET() {
 
     const wkRows = weeks.map(w => {
       const days = Array.from({ length: 7 }, (_, i) => isoAdd(w, i))
+      const bRate = burdenRate.get(`${name}|${w}`) ?? uncappedRate(name)   // employer payroll burden
       // sales
       let sA = 0, sF = 0
       for (const d of days) { if (d <= maxSales) sA += D.sales.get(d) ?? 0; else sF += forecastFor(name, d) }
@@ -209,6 +268,13 @@ export async function GET() {
       // franchise %-fees: each corporate line, on SK-reportable net (basis factor)
       const franchiseItems = franchisePct.map(fp => ({ name: fp.label, ...scale(sales, (fp.rate / 100) * basis) }))
 
+      // CC tips: 85% runs through payroll and is taxed. The payout itself is customer
+      // money (offset by the card deposit), so ONLY the employer burden on it is a
+      // cost. Add the taxed-tip base to the burden base; don't book the principal.
+      const [tipA, tipF] = weekSplit(D.tips, days, maxTill, tipsWkAvg)
+      const tipBase = L(tipA * TIP_PAYOUT, 0, tipF * TIP_PAYOUT)   // 85% of tips, taxed
+      const burden = scale(L(wages.a + tipBase.a, wages.c + tipBase.c, wages.f + tipBase.f), bRate)
+
       const fixedRun = (bk: string) => (fixedItems[bk] ?? []).reduce((t, it) => t + it.mo * WK, 0)
 
       const rawBuckets = [
@@ -217,7 +283,7 @@ export async function GET() {
           { name: 'Walmart runs', ...L(wmA, 0, wmF) } ] },
         { key: 'Labor', variable: true, items: [
           { name: 'Hourly wages', ...wages },
-          { name: 'Payroll taxes (11%)', ...scale(wages, BURDEN - 1) },
+          { name: `Payroll taxes & WC (${(bRate * 100).toFixed(1)}%, incl. tips)`, ...burden },
           ...(fixedItems['Labor'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) ] },
         { key: 'Management', variable: false, items: [
           { name: 'GM salary', ...L(0, GM_WK, 0) } ] },
@@ -243,7 +309,7 @@ export async function GET() {
       const buckets = rawBuckets.map(b => {
         const actual = itemsTot(b.items)
         const plan = b.key === 'Food' ? COGS_TARGET * totOf(sales)
-          : b.key === 'Labor' ? LABOR_TARGET * totOf(sales) * BURDEN + fixedRun('Labor')
+          : b.key === 'Labor' ? LABOR_TARGET * totOf(sales) * (1 + bRate) + fixedRun('Labor') + totOf(tipBase) * bRate
           : actual
         return { ...b, plan }
       })

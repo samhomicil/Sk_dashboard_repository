@@ -211,7 +211,7 @@ export default function BudgetView() {
         <b>Certainty:</b> solid = incurred · mid = committed (scheduled labor, received invoices, dated bills) · hatched = forecast.{' '}
         <b>Cash timing</b> — fixed costs shown as an even weekly run-rate; in cash they land lumpy (rent day 1, debt 4–5, royalty &amp; national ad fund ~the 16th on the just-closed 4-week period, regional ad fund month-end, tech fee ~the 23rd, sales tax day 16, payroll on payday).{' '}
         <b>Debt</b> includes loan principal — most of the weekly deficit is principal paydown funded by the LOC.{' '}
-        Labor % is unloaded hourly wages (reconciles with the sales dashboard); management (GM salary), payroll taxes &amp; merchant fees sit in their own buckets. Food &amp; merchant fees estimated.
+        Labor % is unloaded hourly wages (reconciles with the sales dashboard). <b>Payroll taxes &amp; WC</b> is the real employer burden — FICA 7.65% + FUTA/FL-SUI on each employee&apos;s first $7k + WC 2.2% (ADP-reconciled), so the rate shifts by store and season as caps fill; it also carries the tax on the 85% of CC tips run through payroll (the tip payout itself is customer money, offset by the card deposit, so it isn&apos;t booked as a cost). Management (GM salary) &amp; merchant fees sit in their own buckets; food &amp; merchant fees estimated.
       </div>
     </Shell>
   )

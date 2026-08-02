@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { requireOwner } from '@/lib/owner-guard'
 import { getRoster, getProductivity, getAttendance, getInStoreGross } from '@/lib/employees'
 import { checkMinorSchedule, ageOn, type ScheduledShift } from '@/lib/minorLabor'
 import { query } from '@/lib/db'
@@ -11,6 +12,13 @@ export const revalidate = 0
 function iso(d: Date) { return d.toISOString().slice(0, 10) }
 
 export async function GET(req: NextRequest) {
+  // Fail CLOSED, independently of proxy.ts. A preview deployment without AUTH env
+  // vars fails the middleware gate OPEN — which briefly served this route's full
+  // roster, including minors' dates of birth and pay rates, on a public URL.
+  // Employee PII must never depend on the middleware running.
+  const gate = await requireOwner()
+  if (gate) return gate
+
   const sp = req.nextUrl.searchParams
   const store = sp.get('store') ?? 'all'
   const end = sp.get('end') ?? iso(new Date(Date.now() - 86400000))

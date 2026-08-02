@@ -28,13 +28,14 @@ export const revalidate = 0
 
 const HORIZON_FWD = 5          // weeks ahead (+ current)
 const HORIZON_HIST = 3         // completed weeks for context + 4-wk run-rate
-// Salaried management (Dan Madaffari, "Manager - Salary") — allocated to the
-// entities that ACTUALLY pay him: Miramar + Pines ADP (~$1,390/biweekly period per
-// entity ≈ $695/wk each, ADP-confirmed). $0 at Margate: he manages there and clocks
-// the most hours, but his Margate comp is bundled through Miramar+Pines payroll, so
-// no cash leaves Margate for it. He's $0-pay in Brink, so this never double-counts
-// hourly wages. Revisit if Margate gets its own salaried manager.
-const MGMT_WK: Record<string, number> = { Miramar: 695, Pines: 695, Margate: 0 }
+// Salaried manager (Dan Madaffari, "Manager - Salary") — $65,000/yr, paid 50/50
+// through Miramar + Pines ADP = $625/wk each; $0 at Margate (his Margate management
+// is bundled through those two entities' payroll). He's $0-pay in Brink so this
+// never double-counts hourly wages, and it's what closes the labor-vs-ADP gap:
+// Brink hourly + this salary + 0.85×tips ties to actual Staff Wages within ~1%.
+// (The $3,333 "consulting" on Miramar/Pines is NOT him — that's the Tome seller-
+// financing note, already booked to Debt.) Owners don't draw W-2 wages yet.
+const MGR_WK: Record<string, number> = { Miramar: 625, Pines: 625, Margate: 0 }
 const MERCHANT = 0.03          // card processing, est % of net sales
 // Franchise %-fees (royalty/national/regional/local) are NOT hardcoded — they are
 // read from the same sk_bills franchise bills the cash forecast uses, so the two
@@ -71,7 +72,7 @@ const CAT_BUCKET: Record<string, string> = {
   'Payroll': 'Labor',            // ADP processing fee only (fixed); wages are live
   'Franchise Fees': 'Franchise', // tech fee (fixed); the 12% is computed from sales
 }
-const BUCKET_ORDER = ['Food', 'Labor', 'Management', 'Franchise', 'Occupancy', 'Debt', 'Utilities', 'Insurance', 'Operating', 'Sales tax']
+const BUCKET_ORDER = ['Food', 'Labor', 'Franchise', 'Occupancy', 'Debt', 'Utilities', 'Insurance', 'Operating', 'Sales tax']
 const VARIABLE = ['Food', 'Labor']
 const WK = 7 / 30.4             // monthly -> weekly accrual
 
@@ -295,12 +296,14 @@ export async function GET() {
       // franchise %-fees: each corporate line, on SK-reportable net (basis factor)
       const franchiseItems = franchisePct.map(fp => ({ name: fp.label, ...scale(sales, (fp.rate / 100) * basis) }))
 
-      // CC tips: 85% runs through payroll and is taxed. The payout itself is customer
-      // money (offset by the card deposit), so ONLY the employer burden on it is a
-      // cost. Add the taxed-tip base to the burden base; don't book the principal.
+      // Labor ties to actual ADP payroll (validated vs June QB Staff Wages within ~1%):
+      //  hourly wages (Brink) + 85% of CC tips paid to HOURLY staff (the manager doesn't
+      //  share in tips) + the salaried manager, all W-2 and taxed. Employer burden
+      //  applies to the whole taxable base.
       const [tipA, tipF] = weekSplit(D.tips, days, maxTill, tipsWkAvg)
-      const tipBase = L(tipA * TIP_PAYOUT, 0, tipF * TIP_PAYOUT)   // 85% of tips, taxed
-      const burden = scale(L(wages.a + tipBase.a, wages.c + tipBase.c, wages.f + tipBase.f), bRate)
+      const tips = L(tipA * TIP_PAYOUT, 0, tipF * TIP_PAYOUT)      // 85% of CC tips, to hourly
+      const mgr = L(0, MGR_WK[name] ?? 0, 0)                        // salaried manager, committed
+      const burden = scale(L(wages.a + tips.a + mgr.a, wages.c + tips.c + mgr.c, wages.f + tips.f + mgr.f), bRate)
 
       const fixedRun = (bk: string) => (fixedItems[bk] ?? []).reduce((t, it) => t + it.mo * WK, 0)
 
@@ -317,10 +320,10 @@ export async function GET() {
           { name: 'Walmart purchased (cash)', context: true, ...L(wmA, 0, wmF) } ] },
         { key: 'Labor', variable: true, items: [
           { name: 'Hourly wages', ...wages },
-          { name: `Payroll taxes & WC (${(bRate * 100).toFixed(1)}%, incl. tips)`, ...burden },
+          { name: 'CC tips (85%, to hourly)', ...tips },
+          ...((MGR_WK[name] ?? 0) > 0 ? [{ name: 'Manager salary (D. Madaffari)', ...mgr }] : []),
+          { name: `Payroll taxes & WC (${(bRate * 100).toFixed(1)}%)`, ...burden },
           ...(fixedItems['Labor'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) ] },
-        { key: 'Management', variable: false, items: [
-          { name: 'Management salary (D. Madaffari)', ...L(0, MGMT_WK[name] ?? 0, 0) } ] },
         { key: 'Franchise', variable: false, items: [
           ...franchiseItems,
           ...(fixedItems['Franchise'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) ] },
@@ -345,14 +348,13 @@ export async function GET() {
       const buckets = rawBuckets.map(b => {
         const actual = itemsTot(b.items)
         const plan = b.key === 'Food' ? COGS_TARGET * totOf(sales)
-          : b.key === 'Labor' ? LABOR_TARGET * totOf(sales) * (1 + bRate) + fixedRun('Labor') + totOf(tipBase) * bRate
+          : b.key === 'Labor' ? LABOR_TARGET * totOf(sales) * (1 + bRate) + fixedRun('Labor') + (totOf(tips) + totOf(mgr)) * (1 + bRate)
           : actual
         return { ...b, plan }
       })
       const foodPurch = totOf(L(pfgA, 0, pfgF)) + totOf(L(wmA, 0, wmF))   // cash restock, context only
-      // Fully-loaded prime = recipe COGS + loaded labor (wages+burden+fixed) + management.
+      // Fully-loaded prime = recipe COGS + loaded labor (hourly + tips + manager + burden + fixed).
       const laborLoaded = itemsTot(rawBuckets.find(b => b.key === 'Labor')!.items)
-        + itemsTot(rawBuckets.find(b => b.key === 'Management')!.items)
       return {
         wk: w,
         phase: w < wk0 ? 'history' : w === wk0 ? 'current' : 'forecast',

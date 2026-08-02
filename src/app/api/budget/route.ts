@@ -1,11 +1,12 @@
 import { query } from '@/lib/db'
 import { getPrisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/owner-guard'
-import { STORES, LABOR_TARGET, HIST_WEEKS } from '@/lib/core/targets'
+import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf } from '@/lib/core/dates'
 import { buildRateFor, type EmpRateRow } from '@/lib/core/labor'
 import { buildForecaster, type SalesRow } from '@/lib/core/forecast'
 import { pfgFood, wmtFood } from '@/lib/core/sources'
+import { BASIS_FACTOR } from '@/lib/bills/periods'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -29,7 +30,21 @@ const HORIZON_HIST = 3         // completed weeks for context + 4-wk run-rate
 const BURDEN = 1.111           // employer payroll taxes/WC (labor bucket only)
 const GM_WK = 693              // salaried GM, per store per week (fixed bucket)
 const MERCHANT = 0.03          // card processing, est % of net sales
-const CORP_PCT = 0.12          // royalty + marketing, % of sales (accrued)
+// Franchise %-fees (royalty/national/regional/local) are NOT hardcoded — they are
+// read from the same sk_bills franchise bills the cash forecast uses, so the two
+// can't diverge. They accrue at rate x week's net sales x per-store BASIS_FACTOR
+// (SK's reportable net runs ~1-2% below POS net — see lib/bills/periods.ts).
+
+// A legible label for a franchise %-fee line from its bill vendor + rate.
+function franchiseLabel(vendor: string, rate: number): string {
+  const v = vendor.toLowerCase()
+  const base = /royalty/.test(v) ? 'Royalty'
+    : /national/.test(v) ? 'National ad fund'
+    : /regional/.test(v) ? 'Regional ad fund'
+    : /local/.test(v) ? 'Local marketing'
+    : vendor.replace(/^.*?—\s*/, '').trim()
+  return `${base} (${rate}%)`
+}
 
 const STORE_NAMES = STORES.map(s => s.name)
 const PFG_TO_NAME: Record<string, string> = { '3784': 'Pines', '3783': 'Miramar', '3167': 'Margate' }
@@ -50,7 +65,7 @@ const CAT_BUCKET: Record<string, string> = {
   'Payroll': 'Labor',            // ADP processing fee only (fixed); wages are live
   'Franchise Fees': 'Franchise', // tech fee (fixed); the 12% is computed from sales
 }
-const BUCKET_ORDER = ['Food', 'Labor', 'Franchise', 'Occupancy', 'Debt', 'Utilities', 'Insurance', 'Operating', 'Sales tax']
+const BUCKET_ORDER = ['Food', 'Labor', 'Management', 'Franchise', 'Occupancy', 'Debt', 'Utilities', 'Insurance', 'Operating', 'Sales tax']
 const VARIABLE = ['Food', 'Labor']
 const WK = 7 / 30.4             // monthly -> weekly accrual
 
@@ -166,6 +181,13 @@ export async function GET() {
       ;(fixedItems[bucket] ??= []).push({ name: label, mo: b.amountValue })
     }
 
+    // Franchise %-fees for this store, read from the DB bills (the single source).
+    const franchisePct = bills
+      .filter(b => b.store === name && b.category === 'Franchise Fees' && b.amountType === 'percent')
+      .map(b => ({ label: franchiseLabel(b.vendor, num(b.amountValue)), rate: num(b.amountValue) }))
+      .sort((a, b) => b.rate - a.rate)
+    const basis = BASIS_FACTOR[name] ?? 1
+
     const wkRows = weeks.map(w => {
       const days = Array.from({ length: 7 }, (_, i) => isoAdd(w, i))
       // sales
@@ -182,11 +204,14 @@ export async function GET() {
       const [pfgA, pfgF] = weekSplit(D.pfg, days, maxPfg, pfgWkAvg)
       const [wmA, wmF] = weekSplit(wmDaily, days, maxWm, wmWkAvg, storeShare)
       // derived
-      const corp = scale(sales, CORP_PCT)
       const tax = scale(sales, rate)
       const merchant = scale(sales, MERCHANT)
+      // franchise %-fees: each corporate line, on SK-reportable net (basis factor)
+      const franchiseItems = franchisePct.map(fp => ({ name: fp.label, ...scale(sales, (fp.rate / 100) * basis) }))
 
-      const buckets = [
+      const fixedRun = (bk: string) => (fixedItems[bk] ?? []).reduce((t, it) => t + it.mo * WK, 0)
+
+      const rawBuckets = [
         { key: 'Food', variable: true, items: [
           { name: 'PFG deliveries', ...L(pfgA, 0, pfgF) },
           { name: 'Walmart runs', ...L(wmA, 0, wmF) } ] },
@@ -194,21 +219,35 @@ export async function GET() {
           { name: 'Hourly wages', ...wages },
           { name: 'Payroll taxes (11%)', ...scale(wages, BURDEN - 1) },
           ...(fixedItems['Labor'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) ] },
+        { key: 'Management', variable: false, items: [
+          { name: 'GM salary', ...L(0, GM_WK, 0) } ] },
         { key: 'Franchise', variable: false, items: [
-          { name: 'Royalty & marketing (12%)', ...corp },
+          ...franchiseItems,
           ...(fixedItems['Franchise'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) ] },
         ...['Occupancy', 'Debt', 'Utilities', 'Insurance'].map(bk => ({
           key: bk, variable: false,
           items: (fixedItems[bk] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) })),
         { key: 'Operating', variable: false, items: [
           ...(fixedItems['Operating'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })),
-          { name: 'GM salary', ...L(0, GM_WK, 0) },
           { name: 'Merchant fees (est)', ...merchant } ] },
         { key: 'Sales tax', variable: false, passthrough: true, items: [
           { name: 'FL DOR remittance', ...tax } ] },
       ]
-      const foodT = totOf(L(pfgA, 0, pfgF)) + totOf(L(wmA, 0, wmF))
       const s = totOf(sales) || 1
+      // FLEXIBLE BUDGET (plan) per bucket, using the SHARED core targets so it can't
+      // drift from ops-week / daily recap: the two levers get a target % of *this
+      // week's* sales; every fixed/contractual bucket's plan == its run-rate (so it
+      // shows on-plan by construction and the variance isolates food + labor).
+      //   Food  = 25% x sales (COGS_TARGET) · Labor = 22% x sales x burden + fixed
+      const itemsTot = (its: { a: number; c: number; f: number }[]) => its.reduce((t, i) => t + i.a + i.c + i.f, 0)
+      const buckets = rawBuckets.map(b => {
+        const actual = itemsTot(b.items)
+        const plan = b.key === 'Food' ? COGS_TARGET * totOf(sales)
+          : b.key === 'Labor' ? LABOR_TARGET * totOf(sales) * BURDEN + fixedRun('Labor')
+          : actual
+        return { ...b, plan }
+      })
+      const foodT = totOf(L(pfgA, 0, pfgF)) + totOf(L(wmA, 0, wmF))
       return {
         wk: w,
         phase: w < wk0 ? 'history' : w === wk0 ? 'current' : 'forecast',
@@ -222,7 +261,7 @@ export async function GET() {
 
   return Response.json({
     asOf: today, current: wk0,
-    target: { food: 0.25, labor: LABOR_TARGET, prime: 0.25 + LABOR_TARGET },
+    target: { food: COGS_TARGET, labor: LABOR_TARGET, prime: COGS_TARGET + LABOR_TARGET },
     bucketOrder: BUCKET_ORDER, variable: VARIABLE, stores,
   }, { headers: { 'Cache-Control': 'no-store' } })
 }

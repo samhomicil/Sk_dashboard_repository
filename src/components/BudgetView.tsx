@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 interface Layer { a: number; c: number; f: number }
 interface Item extends Layer { name: string }
-interface Bucket { key: string; variable?: boolean; passthrough?: boolean; items: Item[] }
+interface Bucket { key: string; variable?: boolean; passthrough?: boolean; plan?: number; items: Item[] }
 interface Week { wk: string; phase: 'history' | 'current' | 'forecast'; sales: Layer; buckets: Bucket[]; foodPct: number; laborPct: number }
 interface StoreData { store: string; weeks: Week[] }
 interface Payload {
@@ -15,7 +15,7 @@ interface Payload {
 const COLOR: Record<string, string> = { Margate: '#2a78d6', Miramar: '#00832f', Pines: '#cf5a92' }
 const TINT: Record<string, string> = { Margate: '#eaf2fb', Miramar: '#e4f3e9', Pines: '#fbe9f1' }
 const BUCKET_LABEL: Record<string, string> = {
-  Food: 'Food', Labor: 'Labor', Franchise: 'Franchise & corporate', Occupancy: 'Rent / occupancy',
+  Food: 'Food', Labor: 'Labor', Management: 'Management (GM salary)', Franchise: 'Franchise & corporate', Occupancy: 'Rent / occupancy',
   Debt: 'Debt service', Utilities: 'Utilities', Insurance: 'Insurance', Operating: 'Operating & admin', 'Sales tax': 'Sales tax',
 }
 const SLAB: Record<string, string> = { good: 'On plan', warn: 'Watch', crit: 'Over' }
@@ -57,18 +57,33 @@ export default function BudgetView() {
     const foodOf = (w: Week) => tot(sumL(w.buckets.find(b => b.key === 'Food')!.items))
     const food4 = win.reduce((a, w) => a + foodOf(w), 0) / (win.reduce((a, w) => a + tot(w.sales), 0) || 1)
     const opCostOf = (w: Week) => tot(sumL(w.buckets.filter(b => b.key !== 'Sales tax').flatMap(b => b.items)))
-    return { W, cur, food4, opCostOf }
+    // Flexible budget (plan) = sum of each non-tax bucket's plan (levers at target %
+    // of this week's sales; fixed buckets at run-rate). Variance isolates food+labor.
+    const planCostOf = (w: Week) => w.buckets.filter(b => b.key !== 'Sales tax').reduce((a, b) => a + (b.plan ?? tot(sumL(b.items))), 0)
+    return { W, cur, food4, opCostOf, planCostOf }
   }, [data, store])
 
   if (loading) return <Shell><p className="muted">Loading budget…</p></Shell>
   if (!data?.stores?.length || !view) return <Shell><p className="muted">No budget data yet — run the refresh or check the connection.</p></Shell>
 
-  const { W, cur, food4, opCostOf } = view
+  const { W, cur, food4, opCostOf, planCostOf } = view
   const T = data.target
   const opCost = opCostOf(cur)
   const net = tot(cur.sales) - opCost
   const takeSt = status(food4, T.food)
   const prime = cur.foodPct + cur.laborPct
+
+  // Budget (plan) vs actual for the current week. Food purchases are lumpy by
+  // delivery day, so for the headline verdict we pace food at the 4-week rate ×
+  // this week's sales (labor and the rest stay as-is). Variance = actual − plan;
+  // over budget is bad: on/under = good, up to +3% = watch, beyond = over.
+  const planCost = planCostOf(cur)
+  const foodCur = tot(sumL(cur.buckets.find(b => b.key === 'Food')!.items))
+  const opCostPaced = opCost - foodCur + food4 * tot(cur.sales)
+  const variance = opCostPaced - planCost
+  const varPct = planCost > 0 ? variance / planCost : 0
+  const budgetSt = variance <= planCost * 0.005 ? 'good' : varPct <= 0.03 ? 'warn' : 'crit'
+  const budgetWord = variance <= planCost * 0.005 ? (variance < -planCost * 0.005 ? 'Under budget' : 'On budget') : 'Over budget'
 
   const dials = [
     { nm: 'Food', v: cur.foodPct, t: T.food, sc: 0.45, sub: `4-wk ${pct(food4)} · tgt ${pct(T.food)}` },
@@ -97,12 +112,12 @@ export default function BudgetView() {
       </header>
 
       <div className="take">
-        <span className={'pill ' + takeSt}>{SLAB[takeSt]}</span>
+        <span className={'pill ' + budgetSt}>{budgetWord}</span>
         <div>
-          <span className="big">{store}: {dMoney(opCost)} of cost this week on {dMoney(tot(cur.sales))} sales.</span>{' '}
-          <span className="lede">{net < 0
-            ? `Net ${dMoney(net)} — the shortfall is mostly loan principal in Debt (funded by the LOC).`
-            : `Net ${dMoney(net)} positive. Food ${pct(cur.foodPct)}, labor ${pct(cur.laborPct)}.`}</span>
+          <span className="big">{store}: {dMoney(opCostPaced)} projected spend vs {dMoney(planCost)} budget this week — {variance >= 0 ? 'over by ' : 'under by '}{dMoney(Math.abs(variance))}.</span>{' '}
+          <span className="lede">{Math.abs(variance) < planCost * 0.01
+            ? `On plan. Food ${pct(cur.foodPct)} (tgt ${pct(T.food)}), labor ${pct(cur.laborPct)} (tgt ${pct(T.labor)}).`
+            : `Driven by ${cur.foodPct > T.food ? 'food' : ''}${cur.foodPct > T.food && cur.laborPct > T.labor ? ' & ' : ''}${cur.laborPct > T.labor ? 'labor' : ''}${cur.foodPct <= T.food && cur.laborPct <= T.labor ? 'the variable buckets' : ' over target'} — food ${pct(cur.foodPct)} vs ${pct(T.food)}, labor ${pct(cur.laborPct)} vs ${pct(T.labor)}. Net ${dMoney(net)}.`}</span>
         </div>
       </div>
 
@@ -119,10 +134,10 @@ export default function BudgetView() {
           )
         })}
         <div className="dial">
-          <div className="dh"><span className="nm">Net this week</span><span className={'pill ' + (net < 0 ? 'crit' : 'good')}>{net < 0 ? 'Deficit' : 'Positive'}</span></div>
-          <div className={'val ' + (net < 0 ? 'neg' : 'good')}>{kMoney(net)}</div>
-          <div className="meta">sales {kMoney(tot(cur.sales))} − cost {kMoney(opCost)}</div>
-          <div className="meter"><div className={'fill ' + (net < 0 ? 'crit' : 'good')} style={{ width: Math.min(100, Math.abs(net) / (tot(cur.sales) || 1) * 300) + '%' }} /></div>
+          <div className="dh"><span className="nm">vs Budget</span><span className={'pill ' + budgetSt}>{budgetWord}</span></div>
+          <div className={'val ' + (variance > planCost * 0.005 ? 'crit' : 'good')}>{variance >= 0 ? '+' : '−'}{kMoney(Math.abs(variance))}</div>
+          <div className="meta">budget {kMoney(planCost)} · pace {kMoney(opCostPaced)}</div>
+          <div className="meter"><div className={'fill ' + budgetSt} style={{ width: Math.min(100, 50 + varPct * 600) + '%' }} /><div className="tick" style={{ left: '50%' }} /><div className="ticklab" style={{ left: '50%' }}>budget</div></div>
         </div>
       </div>
 
@@ -161,6 +176,11 @@ export default function BudgetView() {
 
               <tr className="sum"><td className="rowlab">Total operating cost <span className="tag">excl. sales tax</span></td>{W.map(w => (
                 <td key={w.wk} className={'cell' + (curCol(w) ? ' cur-col' : '')}><span className="sumv">{kMoney(opCostOf(w))}</span></td>))}</tr>
+              <tr className="plan"><td className="rowlab">Weekly budget <span className="tag">food 25% · labor 22% · fixed run-rate</span></td>{W.map(w => (
+                <td key={w.wk} className={'cell' + (curCol(w) ? ' cur-col' : '')}><span className="planv">{kMoney(planCostOf(w))}</span></td>))}</tr>
+              <tr className="net"><td className="rowlab">Over / under budget</td>{W.map(w => {
+                const v = opCostOf(w) - planCostOf(w)
+                return <td key={w.wk} className={'cell' + (curCol(w) ? ' cur-col' : '')}><span className={'netv ' + (v > planCostOf(w) * 0.005 ? 'neg' : 'pos')}>{v >= 0 ? '+' : '−'}{kMoney(Math.abs(v))}</span></td>})}</tr>
               <tr className="net"><td className="rowlab">Net operating cash</td>{W.map((w, i) => (
                 <td key={w.wk} className={'cell' + (curCol(w) ? ' cur-col' : '')}><span className={'netv ' + (nets[i] >= 0 ? 'pos' : 'neg')}>{kMoney(nets[i])}</span></td>))}</tr>
             </tbody>
@@ -187,10 +207,11 @@ export default function BudgetView() {
       </div>
 
       <div className="foot">
+        <b>Weekly budget</b> = the flexible plan: food at 25% and labor at 22% of <i>this week&apos;s</i> sales (the same targets as Weekly Ops &amp; the daily recap), franchise at contract rate, every fixed cost at its run-rate. <b>Over / under</b> is actual − budget, so the variance is really food + labor — the two levers a manager controls. The headline verdict paces food at the 4-week rate so a single delivery day doesn&apos;t whipsaw it.{' '}
         <b>Certainty:</b> solid = incurred · mid = committed (scheduled labor, received invoices, dated bills) · hatched = forecast.{' '}
-        <b>Accrual view</b> — fixed costs shown as an even weekly run-rate; in cash terms they land lumpy (rent day 1, debt 4–5, corporate + tax day 16, payroll on payday).{' '}
+        <b>Cash timing</b> — fixed costs shown as an even weekly run-rate; in cash they land lumpy (rent day 1, debt 4–5, royalty &amp; national ad fund ~the 16th on the just-closed 4-week period, regional ad fund month-end, tech fee ~the 23rd, sales tax day 16, payroll on payday).{' '}
         <b>Debt</b> includes loan principal — most of the weekly deficit is principal paydown funded by the LOC.{' '}
-        Labor % is unloaded hourly wages (reconciles with the sales dashboard); GM salary, payroll taxes &amp; merchant fees sit in their buckets. Food &amp; merchant fees estimated.
+        Labor % is unloaded hourly wages (reconciles with the sales dashboard); management (GM salary), payroll taxes &amp; merchant fees sit in their own buckets. Food &amp; merchant fees estimated.
       </div>
     </Shell>
   )
@@ -298,6 +319,7 @@ function Style() {
     tr.item{background:var(--elev);} tr.item .rowlab{background:var(--elev);font-weight:500;color:var(--muted);padding:5px 12px 5px 34px;font-size:12.5px;border-top:1px solid var(--line2);} tr.item td.cell{padding:5px 11px;border-top:1px solid var(--line2);} tr.item .mval{font-weight:500;font-size:12px;color:var(--muted);}
     .cur-col{background:var(--store-tint)!important;box-shadow:inset 1px 0 0 var(--store),inset -1px 0 0 var(--store);} .hist .mval,.hist.rowlab{color:var(--muted);}
     tr.sum .rowlab{padding:11px 12px;border-top:2px solid #d5dae2;font-weight:700;} tr.sum td.cell{border-top:2px solid #d5dae2;} .sumv{font-weight:700;font-size:13px;}
+    tr.plan .rowlab{padding:9px 12px;border-top:1px dashed var(--line);font-weight:600;color:var(--muted);} tr.plan td.cell{border-top:1px dashed var(--line);} .planv{font-weight:600;font-size:12.5px;color:var(--muted);}
     tr.net .rowlab,tr.net td{border-top:1px solid var(--line);} .netv{font-weight:700;font-size:13.5px;} .netv.pos{color:var(--pos);} .netv.neg{color:var(--neg);}
     tr.pass .rowlab{padding:8px 12px;color:var(--faint);font-weight:500;font-style:italic;} tr.pass td .mval{color:var(--faint);font-weight:500;font-size:12px;}
     .stripwrap{padding:12px 16px 14px;} .strip{display:flex;align-items:center;gap:7px;height:132px;} .bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:100%;} .bar .amt{font-size:10.5px;font-weight:640;} .bar.cur .amt,.bar.cur .wl{color:var(--store);}

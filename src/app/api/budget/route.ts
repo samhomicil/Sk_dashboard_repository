@@ -145,6 +145,27 @@ export async function GET() {
   const prisma = getPrisma()
   const bills = prisma ? await prisma.bill.findMany({ where: { active: true } }) : []
 
+  // Recipe (theoretical) COGS rate per store — the cost-control food number, same
+  // basis as Weekly Ops: SUM(qty_issue x price) usage over the trailing 8 NetChef
+  // count weeks, divided by the net sales in those same weeks. Drives the food %
+  // and the food budget variance (purchases stay as cash context only).
+  const cogsRows = await query<{ store: string; theo: number; sales: number }[]>(`
+    WITH cw AS (
+      SELECT LOWER(store) store, period_start, period_end, SUM(qty_issue * price) theo
+        FROM smoothieking.netchef_usage_api
+       WHERE period_end >= (SELECT DATEADD(week, -8, MAX(period_end)) FROM smoothieking.netchef_usage_api)
+       GROUP BY LOWER(store), period_start, period_end),
+    agg AS (
+      SELECT store, SUM(theo) theo, MIN(period_start) ps, MAX(period_end) pe FROM cw GROUP BY store)
+    SELECT a.store, a.theo,
+           (SELECT SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END)
+              FROM smoothieking.sales s
+             WHERE LOWER(s.store) = a.store AND CAST(s.closed_datetime AS DATE) BETWEEN a.ps AND a.pe) sales
+      FROM agg a`).catch(() => [])
+  const NAME_OF: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
+  const cogsRate = new Map<string, number>()   // store name -> recipe COGS rate
+  for (const r of cogsRows) { const nm = NAME_OF[r.store]; if (nm && num(r.sales) > 0) cogsRate.set(nm, num(r.theo) / num(r.sales)) }
+
   // ---- index live data per store ----
   const maxSales = salesRows.reduce((m, r) => r.d > m ? r.d : m, '')
   const maxLabor = laborRows.reduce((m, r) => r.d > m ? r.d : m, '')
@@ -283,10 +304,17 @@ export async function GET() {
 
       const fixedRun = (bk: string) => (fixedItems[bk] ?? []).reduce((t, it) => t + it.mo * WK, 0)
 
+      // Food cost = recipe (theoretical) usage at the trailing NetChef rate x sales —
+      // the cost-control number (stable, comparable to 25%). Purchases (PFG/Walmart)
+      // ride along as `context` lines: shown for cash reference, never summed into cost.
+      const cRate = cogsRate.get(name) ?? COGS_TARGET
+      const recipeCogs = scale(sales, cRate)
+
       const rawBuckets = [
         { key: 'Food', variable: true, items: [
-          { name: 'PFG deliveries', ...L(pfgA, 0, pfgF) },
-          { name: 'Walmart runs', ...L(wmA, 0, wmF) } ] },
+          { name: 'Recipe COGS (usage)', ...recipeCogs },
+          { name: 'PFG purchased (cash)', context: true, ...L(pfgA, 0, pfgF) },
+          { name: 'Walmart purchased (cash)', context: true, ...L(wmA, 0, wmF) } ] },
         { key: 'Labor', variable: true, items: [
           { name: 'Hourly wages', ...wages },
           { name: `Payroll taxes & WC (${(bRate * 100).toFixed(1)}%, incl. tips)`, ...burden },
@@ -311,7 +339,9 @@ export async function GET() {
       // week's* sales; every fixed/contractual bucket's plan == its run-rate (so it
       // shows on-plan by construction and the variance isolates food + labor).
       //   Food  = 25% x sales (COGS_TARGET) · Labor = 22% x sales x burden + fixed
-      const itemsTot = (its: { a: number; c: number; f: number }[]) => its.reduce((t, i) => t + i.a + i.c + i.f, 0)
+      // `context` items (cash purchases) are shown but never counted in cost totals.
+      const itemsTot = (its: { a: number; c: number; f: number; context?: boolean }[]) =>
+        its.filter(i => !i.context).reduce((t, i) => t + i.a + i.c + i.f, 0)
       const buckets = rawBuckets.map(b => {
         const actual = itemsTot(b.items)
         const plan = b.key === 'Food' ? COGS_TARGET * totOf(sales)
@@ -319,21 +349,30 @@ export async function GET() {
           : actual
         return { ...b, plan }
       })
-      const foodT = totOf(L(pfgA, 0, pfgF)) + totOf(L(wmA, 0, wmF))
+      const foodPurch = totOf(L(pfgA, 0, pfgF)) + totOf(L(wmA, 0, wmF))   // cash restock, context only
+      // Fully-loaded prime = recipe COGS + loaded labor (wages+burden+fixed) + management.
+      const laborLoaded = itemsTot(rawBuckets.find(b => b.key === 'Labor')!.items)
+        + itemsTot(rawBuckets.find(b => b.key === 'Management')!.items)
       return {
         wk: w,
         phase: w < wk0 ? 'history' : w === wk0 ? 'current' : 'forecast',
         sales, buckets,
-        foodPct: foodT / s,
+        foodPct: totOf(recipeCogs) / s,
         laborPct: totOf(wages) / s,
+        primePct: (totOf(recipeCogs) + laborLoaded) / s,
+        foodPurch,
       }
     })
     return { store: name, weeks: wkRows }
   })
 
+  // Fully-loaded prime target: food 25% + loaded labor (22% wages x ~1.13 burden +
+  // management allowance) ≈ 52%. A single owner-facing goal for the hero metric.
+  const PRIME_TARGET = 0.52
+
   return Response.json({
     asOf: today, current: wk0,
-    target: { food: COGS_TARGET, labor: LABOR_TARGET, prime: COGS_TARGET + LABOR_TARGET },
+    target: { food: COGS_TARGET, labor: LABOR_TARGET, prime: COGS_TARGET + LABOR_TARGET, primeLoaded: PRIME_TARGET },
     bucketOrder: BUCKET_ORDER, variable: VARIABLE, stores,
   }, { headers: { 'Cache-Control': 'no-store' } })
 }

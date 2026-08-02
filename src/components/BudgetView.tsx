@@ -2,13 +2,13 @@
 import { useEffect, useMemo, useState } from 'react'
 
 interface Layer { a: number; c: number; f: number }
-interface Item extends Layer { name: string }
+interface Item extends Layer { name: string; context?: boolean }
 interface Bucket { key: string; variable?: boolean; passthrough?: boolean; plan?: number; items: Item[] }
-interface Week { wk: string; phase: 'history' | 'current' | 'forecast'; sales: Layer; buckets: Bucket[]; foodPct: number; laborPct: number }
+interface Week { wk: string; phase: 'history' | 'current' | 'forecast'; sales: Layer; buckets: Bucket[]; foodPct: number; laborPct: number; primePct: number; foodPurch: number }
 interface StoreData { store: string; weeks: Week[] }
 interface Payload {
   asOf: string; current: string
-  target: { food: number; labor: number; prime: number }
+  target: { food: number; labor: number; prime: number; primeLoaded: number }
   bucketOrder: string[]; variable: string[]; stores: StoreData[]
 }
 
@@ -54,12 +54,14 @@ export default function BudgetView() {
     const cur = W.find(w => w.phase === 'current') ?? W[Math.min(3, W.length - 1)]
     const idx = W.indexOf(cur)
     const win = W.slice(Math.max(0, idx - 3), idx + 1)
-    const foodOf = (w: Week) => tot(sumL(w.buckets.find(b => b.key === 'Food')!.items))
+    // Cost sums exclude `context` items (cash purchases shown for reference only).
+    const costItems = (items: Item[]) => items.filter(i => !i.context)
+    const foodOf = (w: Week) => tot(sumL(costItems(w.buckets.find(b => b.key === 'Food')!.items)))
     const food4 = win.reduce((a, w) => a + foodOf(w), 0) / (win.reduce((a, w) => a + tot(w.sales), 0) || 1)
-    const opCostOf = (w: Week) => tot(sumL(w.buckets.filter(b => b.key !== 'Sales tax').flatMap(b => b.items)))
+    const opCostOf = (w: Week) => tot(sumL(w.buckets.filter(b => b.key !== 'Sales tax').flatMap(b => costItems(b.items))))
     // Flexible budget (plan) = sum of each non-tax bucket's plan (levers at target %
     // of this week's sales; fixed buckets at run-rate). Variance isolates food+labor.
-    const planCostOf = (w: Week) => w.buckets.filter(b => b.key !== 'Sales tax').reduce((a, b) => a + (b.plan ?? tot(sumL(b.items))), 0)
+    const planCostOf = (w: Week) => w.buckets.filter(b => b.key !== 'Sales tax').reduce((a, b) => a + (b.plan ?? tot(sumL(costItems(b.items)))), 0)
     return { W, cur, food4, opCostOf, planCostOf }
   }, [data, store])
 
@@ -71,24 +73,22 @@ export default function BudgetView() {
   const opCost = opCostOf(cur)
   const net = tot(cur.sales) - opCost
   const takeSt = status(food4, T.food)
-  const prime = cur.foodPct + cur.laborPct
+  const prime = cur.primePct                       // fully-loaded: recipe COGS + loaded labor + mgmt
 
-  // Budget (plan) vs actual for the current week. Food purchases are lumpy by
-  // delivery day, so for the headline verdict we pace food at the 4-week rate ×
-  // this week's sales (labor and the rest stay as-is). Variance = actual − plan;
-  // over budget is bad: on/under = good, up to +3% = watch, beyond = over.
+  // Budget (plan) vs actual for the current week. Food is recipe COGS (stable, not
+  // lumpy), so no pacing is needed. Variance = actual − plan; over budget is bad:
+  // on/under = good, up to +3% = watch, beyond = over.
   const planCost = planCostOf(cur)
-  const foodCur = tot(sumL(cur.buckets.find(b => b.key === 'Food')!.items))
-  const opCostPaced = opCost - foodCur + food4 * tot(cur.sales)
+  const opCostPaced = opCost
   const variance = opCostPaced - planCost
   const varPct = planCost > 0 ? variance / planCost : 0
   const budgetSt = variance <= planCost * 0.005 ? 'good' : varPct <= 0.03 ? 'warn' : 'crit'
   const budgetWord = variance <= planCost * 0.005 ? (variance < -planCost * 0.005 ? 'Under budget' : 'On budget') : 'Over budget'
 
   const dials = [
-    { nm: 'Food', v: cur.foodPct, t: T.food, sc: 0.45, sub: `4-wk ${pct(food4)} · tgt ${pct(T.food)}` },
-    { nm: 'Labor', v: cur.laborPct, t: T.labor, sc: 0.45, sub: `hourly wages · tgt ${pct(T.labor)}` },
-    { nm: 'Prime cost', v: prime, t: T.prime, sc: 0.75, sub: `food + labor · tgt ${pct(T.prime)}` },
+    { nm: 'Prime cost', v: prime, t: T.primeLoaded, sc: 0.85, sub: `recipe COGS + loaded labor · tgt ${pct(T.primeLoaded)}`, hero: true },
+    { nm: 'Food', v: cur.foodPct, t: T.food, sc: 0.45, sub: `recipe · 4-wk ${pct(food4)} · bought ${kMoney(cur.foodPurch)}`, hero: false },
+    { nm: 'Labor', v: cur.laborPct, t: T.labor, sc: 0.45, sub: `hourly wages · tgt ${pct(T.labor)}`, hero: false },
   ]
   const nets = W.map(w => tot(w.sales) - opCostOf(w))
   const maxNet = Math.max(...nets.map(Math.abs)) || 1
@@ -125,7 +125,7 @@ export default function BudgetView() {
         {dials.map(d => {
           const s = status(d.v, d.t), fw = Math.min(100, d.v / d.sc * 100), tl = d.t / d.sc * 100
           return (
-            <div className="dial" key={d.nm}>
+            <div className={'dial' + (d.hero ? ' hero' : '')} key={d.nm}>
               <div className="dh"><span className="nm">{d.nm}</span><span className={'pill ' + s}>{SLAB[s]}</span></div>
               <div className={'val ' + s}>{pct(d.v)}</div>
               <div className="meta">{d.sub}</div>
@@ -207,7 +207,8 @@ export default function BudgetView() {
       </div>
 
       <div className="foot">
-        <b>Weekly budget</b> = the flexible plan: food at 25% and labor at 22% of <i>this week&apos;s</i> sales (the same targets as Weekly Ops &amp; the daily recap), franchise at contract rate, every fixed cost at its run-rate. <b>Over / under</b> is actual − budget, so the variance is really food + labor — the two levers a manager controls. The headline verdict paces food at the 4-week rate so a single delivery day doesn&apos;t whipsaw it.{' '}
+        <b>Prime cost</b> (hero) = recipe COGS + fully-loaded labor (wages + payroll burden + management), the number a franchise operator runs on. <b>Food</b> is <i>recipe COGS</i> — theoretical usage from NetChef ÷ sales vs 25%, the same basis as Weekly Ops — so it&apos;s stable and comparable; the PFG/Walmart <i>purchase</i> lines ride along in italics as cash-restock reference and are <i>not</i> counted in cost (that cash lives in the bill forecast).{' '}
+        <b>Weekly budget</b> = the flexible plan: food at 25% and labor at 22% of <i>this week&apos;s</i> sales (same targets as Weekly Ops &amp; the daily recap), franchise at contract rate, every fixed cost at its run-rate. <b>Over / under</b> is actual − budget, so the variance is really food + labor — the two levers a manager controls.{' '}
         <b>Certainty:</b> solid = incurred · mid = committed (scheduled labor, received invoices, dated bills) · hatched = forecast.{' '}
         <b>Cash timing</b> — fixed costs shown as an even weekly run-rate; in cash they land lumpy (rent day 1, debt 4–5, royalty &amp; national ad fund ~the 16th on the just-closed 4-week period, regional ad fund month-end, tech fee ~the 23rd, sales tax day 16, payroll on payday).{' '}
         <b>Debt</b> includes loan principal — most of the weekly deficit is principal paydown funded by the LOC.{' '}
@@ -239,7 +240,7 @@ function BucketRows({ bucketKey, open, isPass, variable, W, items, toggle, curCo
       </span></td>
       {W.map(w => {
         const b = w.buckets.find(x => x.key === bucketKey)!
-        const l = sumL(b.items)
+        const l = sumL(b.items.filter(i => !i.context))   // cost total excludes cash-context lines
         const z = tot(l) < 1
         let sub: React.ReactNode = null
         if (bucketKey === 'Food') { const p = w.foodPct; sub = <div className={'subpct ' + status(p, target.food)}>{pct(p)}</div> }
@@ -253,10 +254,11 @@ function BucketRows({ bucketKey, open, isPass, variable, W, items, toggle, curCo
     </tr>
   )
   if (open) {
-    items.forEach((_, ii) => {
+    items.forEach((it0, ii) => {
+      const ctx = !!it0.context
       rows.push(
-        <tr key={bucketKey + '-' + ii} className="item">
-          <td className="rowlab">{items[ii].name}</td>
+        <tr key={bucketKey + '-' + ii} className={'item' + (ctx ? ' ctx' : '')}>
+          <td className="rowlab">{items[ii].name}{ctx && <span className="tag"> not in cost</span>}</td>
           {W.map(w => {
             const it = w.buckets.find(x => x.key === bucketKey)!.items[ii]
             const l = { a: it.a, c: it.c, f: it.f }
@@ -297,6 +299,8 @@ function Style() {
     .pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;} .pill.good{background:var(--good-bg);color:var(--good);} .pill.warn{background:var(--warn-bg);color:var(--warn);} .pill.crit{background:var(--crit-bg);color:var(--crit);}
     .dials{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;max-width:1080px;}
     .dial{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px 14px;box-shadow:var(--shadow);}
+    .dial.hero{border:1px solid var(--store);box-shadow:inset 0 0 0 1px var(--store),var(--shadow);background:linear-gradient(180deg,var(--store-tint),var(--surface) 60%);}
+    .dial.hero .nm{font-size:13.5px;font-weight:700;} .dial.hero .val{font-size:32px;}
     .dial .dh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;} .dial .nm{font-weight:640;font-size:12.5px;}
     .dial .val{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1;margin:2px 0 3px;} .val.good{color:var(--good);} .val.warn{color:var(--warn);} .val.crit{color:var(--crit);} .val.neg{color:var(--neg);}
     .dial .meta{font-size:11.5px;color:var(--muted);margin-bottom:10px;min-height:15px;}
@@ -317,6 +321,7 @@ function Style() {
     .subpct{font-size:10.5px;font-weight:700;margin-top:1px;} .subpct.good{color:var(--good);} .subpct.warn{color:var(--warn);} .subpct.crit{color:var(--crit);}
     .cert{display:flex;height:4px;border-radius:3px;overflow:hidden;margin-top:4px;background:var(--line2);max-width:70px;margin-left:auto;} .cert i{display:block;height:100%;} .cert .a{background:var(--cert);} .cert .c{background:var(--cert);opacity:.45;} .cert .f{background-image:repeating-linear-gradient(45deg,var(--cert) 0 1.5px,transparent 1.5px 4px);opacity:.6;}
     tr.item{background:var(--elev);} tr.item .rowlab{background:var(--elev);font-weight:500;color:var(--muted);padding:5px 12px 5px 34px;font-size:12.5px;border-top:1px solid var(--line2);} tr.item td.cell{padding:5px 11px;border-top:1px solid var(--line2);} tr.item .mval{font-weight:500;font-size:12px;color:var(--muted);}
+    tr.item.ctx .rowlab,tr.item.ctx .mval{color:var(--faint);font-style:italic;}
     .cur-col{background:var(--store-tint)!important;box-shadow:inset 1px 0 0 var(--store),inset -1px 0 0 var(--store);} .hist .mval,.hist.rowlab{color:var(--muted);}
     tr.sum .rowlab{padding:11px 12px;border-top:2px solid #d5dae2;font-weight:700;} tr.sum td.cell{border-top:2px solid #d5dae2;} .sumv{font-weight:700;font-size:13px;}
     tr.plan .rowlab{padding:9px 12px;border-top:1px dashed var(--line);font-weight:600;color:var(--muted);} tr.plan td.cell{border-top:1px dashed var(--line);} .planv{font-weight:600;font-size:12.5px;color:var(--muted);}

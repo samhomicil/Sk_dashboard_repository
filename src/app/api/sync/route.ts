@@ -20,9 +20,14 @@ export const maxDuration = 60;
  * silently looking current.
  */
 export async function GET(req: Request) {
-  // Vercel Cron sends `Authorization: Bearer $CRON_SECRET` when set; enforce if present.
+  // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. This route is excluded
+  // from the session gate in proxy.ts (a cron has no user session), so the secret is
+  // its ONLY protection — fail CLOSED. A missing CRON_SECRET is a misconfiguration,
+  // not permission to run unauthenticated: it previously read `if (secret && ...)`,
+  // which silently left a public write endpoint whenever the var was absent.
+  // Same posture as /api/ingest-refresh.
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const db = getPrisma();

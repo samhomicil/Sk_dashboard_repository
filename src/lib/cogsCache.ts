@@ -1,18 +1,19 @@
 /**
- * Recipe COGS % from NetChef (Phase 3 of removing Sigma) — the SQL replacement for
- * sigma.ts's sigmaCogsPct, weekly-count-grained.
+ * Recipe COGS % from NetChef — weekly-count-grained. This is the LIVE source for the
+ * Overview's COGS %; Sigma is gone.
  *
  * NetChef `netchef_usage_api` is per store, per inventory count week:
  *   theoretical $ = SUM(qty_issue * price)                              (recipe usage)
  *   actual      $ = SUM((qty_beginning + qty_received - qty_physical) * price)
- * COGS % = that $ / net sales over the same count week(s). Matches Sigma's theoretical
- * closely and is smoother on actual (Sigma's actual had count-timing spikes).
+ * COGS % = that $ / net sales over the same count week(s).
  *
- * ⚠️ NOT WIRED IN YET. netchef_usage_api currently holds only ONE week (2026-07-27,
- * the other session's backfill is pending) — flipping now would regress the ~29 weeks
- * of historical COGS Sigma still serves. When the backfill lands: swap
- * sigmaCogsPct -> sqlCogsPct in cache-builder + api/kpis, validate on an overlapping
- * week, then delete sigma.ts's COGS. Same {actualPct, theoreticalPct, asOf} shape.
+ * `qty_issue * price` here is the same expression /api/ops-week uses for its trailing
+ * 8-week COGS, so the Overview and Weekly Ops cannot disagree about the method — only
+ * about the window each one asks for.
+ *
+ * (Superseded warning: an earlier header said "NOT WIRED IN YET / only ONE week".
+ * Both are false — `sqlCogsPct` is imported by api/kpis and cache-builder, and the
+ * table holds ~30 weeks. Don't reintroduce a Sigma fallback on that basis.)
  */
 import 'server-only'
 import { query } from './db'

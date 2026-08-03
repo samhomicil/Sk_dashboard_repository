@@ -38,7 +38,7 @@ export default function DailyTable({ data, loading }: Props) {
   if (!data || data.current.length === 0) {
     return (
       <div className="card text-sm text-slate-400 italic">
-        No daily data for this range — try refreshing Sigma data.
+        No daily data for this range — try refreshing.
       </div>
     )
   }

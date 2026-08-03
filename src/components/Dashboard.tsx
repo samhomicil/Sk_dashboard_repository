@@ -299,7 +299,7 @@ export default function Dashboard() {
                 </span>
               )}
             </div>
-            <div className="text-xs text-slate-400 mb-4">Actual vs {pct(TARGETS.cogsPct)} target · theoretical via Sigma</div>
+            <div className="text-xs text-slate-400 mb-4">Actual vs {pct(TARGETS.cogsPct)} target · theoretical recipe usage from NetChef</div>
             {loading ? (
               <div className="skeleton h-32 w-full" />
             ) : k?.cogsActualPct != null ? (

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { cacheKpisAsync } from '@/lib/cache'
 import { loadSalesCache } from '@/lib/salesCache'
-import { loadCogsCache, sqlCogsPct as sigmaCogsPct } from '@/lib/cogsCache'
+import { loadCogsCache, sqlCogsPct } from '@/lib/cogsCache'
 import { query, dateFilter } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
@@ -68,14 +68,14 @@ export async function GET(req: NextRequest) {
   if (!start || !end) return Response.json({ error: 'missing_dates' }, { status: 400 })
 
   // Sales / orders / EE for any custom range come straight from smoothieking.sales
-  // (always live) — not the bundled Sigma JSON, which only updated on deploy. COGS stays
-  // from Sigma (weekly). Definitions match the validated ones used to generate the cache.
+  // (always live) — not a bundled JSON that only updated on deploy. COGS is weekly-grained
+  // and comes from NetChef via sqlCogsPct. Both are SQL; Sigma is no longer a source.
   const cur = await salesAgg(store, start, end)
   const py  = await salesAgg(store, pyStart, pyEnd)
   const sig     = { net_sales: cur.net, gross_sales: cur.gross, voids_amount: cur.voids }
   const sigPY   = { net_sales: py.net,  gross_sales: py.gross,  voids_amount: py.voids }
   await Promise.all([loadSalesCache(), loadCogsCache()])  // COGS % now from NetChef (needs sales denom)
-  const cogsPctData = sigmaCogsPct(store, start, end)
+  const cogsPctData = sqlCogsPct(store, start, end)
   const orders  = cur.orders
   const ordersPY = py.orders
 

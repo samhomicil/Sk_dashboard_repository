@@ -43,11 +43,12 @@ export async function POST() {
   isRunning = true
   startedAt = new Date().toISOString()
 
-  // Run sigma (updates sigma-daily.json) then rebuild cache.json.
-  // Semicolon separator: cache refresh runs even if sigma fails (e.g. missing credentials).
+  // Rebuild the cached rollups from SQL. (This used to run `npm run sigma` first, but
+  // no such script exists — it failed on every invocation and was swallowed by the `;`
+  // separator. Sales/COGS now come from Azure SQL, so there is nothing to pre-fetch.)
   const child = spawn(
     'bash',
-    ['-c', 'npm run sigma; npm run refresh'],
+    ['-c', 'npm run refresh'],
     {
       cwd: process.cwd(),
       detached: true,

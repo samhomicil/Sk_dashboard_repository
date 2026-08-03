@@ -8,7 +8,8 @@ type Store = string
 const COLOR: Record<string, string> = { Margate: '#2a78d6', Miramar: '#00832f', Pines: '#cf5a92' }
 const TINT: Record<string, string> = { Margate: '#eaf2fb', Miramar: '#e4f3e9', Pines: '#fbe9f1' }
 
-interface Day { d: string; inflow: number; outflow: number; balance: number }
+interface Line { label: string; amt: number; kind: 'in' | 'out'; note: string }
+interface Day { d: string; inflow: number; outflow: number; balance: number; lines?: Line[] }
 interface StoreF {
   store: Store; balSrc: string; stale: boolean
   start: number; low: number; lowDate: string; end: number
@@ -190,7 +191,7 @@ export default function ForecastClient() {
       </div>
 
       <div className="foot">
-        <b>Reading it:</b> each week rolls the days up into one line — <i>opening</i> balance, <i>money in</i>, <i>money out</i>, and the <i>ending balance</i> the account lands at. Click a week to see the day-by-day register; the <b>Low</b> column flags the tightest point, and a red edge marks a week that dips below $0.{' '}
+        <b>Reading it:</b> expand a week to see its days, and each day lists what its money actually <i>is</i> — with the event that produced it, because almost nothing originates on the day it moves. Each week rolls the days up into one line — <i>opening</i> balance, <i>money in</i>, <i>money out</i>, and the <i>ending balance</i> the account lands at. Click a week to see the day-by-day register; the <b>Low</b> column flags the tightest point, and a red edge marks a week that dips below $0.{' '}
         <b>Money in</b> = card deposits (T+2, daily), cash (same day), and 3rd-party delivery (≈73% net, paid weekly). <b>Money out</b> = payroll on payday, fixed bills on their day of the month (rent → 1st, debt → 4–5th, franchise → ~16th/23rd, sales tax → 16th), and food (PFG net-7, Walmart same-day).{' '}
         <b>Balances</b> are anchored on the live bank balance (SimpleFIN), not QuickBooks book value.{' '}
         <b>Funding</b> sizes the smallest transfer that keeps each account above $0 — accounts are separate, so a store that dips needs its own cash even if another is flush.
@@ -226,6 +227,20 @@ function WeekRows({ w, open, dips, toggle }: { w: Wk; open: boolean; dips: boole
           <td className="cell" />
         </tr>
       )
+      // What the day's money actually IS. Almost nothing originates on the day it
+      // moves — card money is sales from two days back, food is a week-old invoice,
+      // payroll is a pay period that already closed — so each line names its source.
+      for (const [li, ln] of (d.lines ?? []).entries()) {
+        rows.push(
+          <tr key={'w' + w.i + 'd' + di + 'l' + li} className="line">
+            <td className="rowlab"><span className="lnlab">{ln.label}</span></td>
+            <td className="cell lnnote">{ln.note}</td>
+            <td className="cell">{ln.kind === 'in' && <span className="lnamt in">{dMoney(ln.amt)}</span>}</td>
+            <td className="cell">{ln.kind === 'out' && <span className="lnamt out">{dMoney(ln.amt)}</span>}</td>
+            <td className="cell" /><td className="cell" /><td className="cell" />
+          </tr>
+        )
+      }
     })
   }
   return <>{rows}</>
@@ -279,6 +294,11 @@ function Style() {
 .fin tr.day{background:var(--elev);}.fin tr.day .rowlab{background:var(--elev);font-weight:500;color:var(--muted);padding:5px 14px 5px 30px;font-size:12px;border-top:1px solid var(--line2);}
 .fin tr.day td.cell{padding:5px 14px;border-top:1px solid var(--line2);}.fin .dv{font-size:12px;font-weight:500;color:var(--muted);}.fin .dv.pos{color:var(--pos);}.fin .dv.neg{color:var(--neg);}.fin .dv.big{font-weight:700;}.fin .dv.z{color:var(--faint);}.fin .dv.bal{font-weight:650;color:var(--ink);}
 .fin tr.day.neg .rowlab, .fin tr.day.neg .dv.bal{color:var(--neg);}
+    .fin tr.line td{border-top:none;background:var(--elev);padding:1px 14px;}
+    .fin tr.line .rowlab{background:var(--elev);border-top:none;padding:1px 14px 1px 44px;font-weight:400;font-size:11.5px;color:var(--muted);}
+    .fin tr.line:last-child td{padding-bottom:7px;}
+    .fin .lnnote{text-align:left;font-size:11px;color:var(--faint);white-space:nowrap;}
+    .fin .lnamt{font-size:11.5px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums;}
 .fin tfoot td{border-top:2px solid var(--line);background:var(--elev);}.fin tfoot .rowlab{background:var(--elev);padding:11px 14px;font-weight:700;}.fin tfoot .cell{padding:11px 14px;}
 .fin .fundbody{padding:6px 16px 14px;}.fin .allgood{color:var(--good);font-weight:600;padding:8px 0;}
 .fin table.fund{min-width:0;}.fin table.fund thead th{position:static;text-transform:none;letter-spacing:0;font-size:11px;}.fin table.fund .rowlab{min-width:0;position:static;border-right:none;padding:8px 14px 8px 0;display:flex;align-items:center;gap:7px;}.fin table.fund .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}.fin table.fund td.cell{padding:8px 0;border-top:1px solid var(--line2);}

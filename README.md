@@ -4,8 +4,9 @@ Operating dashboard for three Smoothie King franchise stores — **Pines (1392)*
 **Miramar (1892)**, **Margate (2384)**. One Next.js app, role-gated: managers get the
 operating surfaces, owners additionally get the financial ones.
 
-It reads from a shared Azure SQL database that six external pipelines feed
-(POS, timekeeping, food vendors, inventory, accounting, banking). This app is the
+It reads from a shared Azure SQL database fed by external pipelines covering POS,
+timekeeping, food vendors, inventory, guest feedback, SOPs, reviews, accounting and
+banking (see [Data sources](#data-sources) for the full list). This app is the
 **read/analysis layer** — the extractors that populate the database live in sibling
 repos and are not deployed from here.
 
@@ -26,7 +27,7 @@ database proxy, and every data query will fail.
 | `npm run go` | Flask SQL proxy + `next dev` concurrently — **normal local dev** |
 | `npm run dev` | Web app only (no DB — expect empty/erroring panels) |
 | `npm run build` | `prisma generate && next build` |
-| `npm run refresh` | Rebuilds the cached JSON in `data/` from Sigma + SQL |
+| `npm run refresh` | Rebuilds the cached JSON in `data/` from Azure SQL |
 | `npm run ship` | `refresh` then commit+push `data/` |
 | `npm run lint` | ESLint |
 
@@ -69,7 +70,7 @@ whole point is that two surfaces can never disagree about the same number.
 | `labor.ts` | Employee pay-rate resolution (most-recent rate, store-average fallback) |
 | `laborBurden.ts` | Employer burden — FICA/FUTA/FL-SUI on first $7k per employee + WC; tip payout share |
 | `forecast.ts` | 4-week same-weekday sales forecast |
-| `employee.ts`, `dates.ts` | Employee identity helpers; ET-safe date math |
+| `dates.ts` | ET-safe date math |
 
 > `src/lib/config.ts` holds Overview-only targets and **re-exports** `laborPct`/`cogsPct`
 > from `core/targets.ts`. Do not restate a target there — that's exactly the bug that let
@@ -110,7 +111,43 @@ alone, and never rely on hiding nav links.
 
 **When adding a route that touches money:** add its prefix to `OWNER_APIS`/`OWNER_PAGES`
 in `proxy.ts` **and** call the guard in the handler. Verify as a manager with `curl`
-(expect 403) before shipping.
+(expect 403) before shipping. `/api/cost-plan` sits in `OWNER_APIS` with no route behind
+it **on purpose** — pre-gating so the planned route can't ship ungated.
+
+`/api/refresh` is deliberately **not** owner-gated (see Caching) — the Refresh button is
+a manager surface. It's rate-limited instead.
+
+### Google OAuth — the canonical URL matters
+
+There is **one** OAuth client for both this app and sk-bills: Google Cloud project
+**SK wellness** (number `1038153123380`), client still named **"SK Bills"** for historical
+reasons. Console:
+<https://console.cloud.google.com/apis/credentials?project=1038153123380>
+
+Production is **<https://sk-dashboard-delta.vercel.app>** — there is no custom domain.
+`AUTH_URL` is pinned to that origin so NextAuth always sends the same `redirect_uri`.
+
+> ⚠️ **Every origin you sign in from must be registered** as an Authorized redirect URI
+> (`<origin>/api/auth/callback/google`) on that client, or Google returns *"Access
+> blocked: This app's request is invalid"* (`redirect_uri_mismatch`). Registered today:
+> the production origin and `http://localhost:3000`. The
+> `sk-dashboard-<hash>-sk-wellness.vercel.app` links in the Vercel dashboard are
+> **per-build** origins — without `AUTH_URL` pinned they could never authenticate.
+
+**Diagnosing a login failure without clicking through a browser:**
+
+```bash
+B=https://sk-dashboard-delta.vercel.app
+curl -s $B/api/auth/providers                  # the callbackUrl the app advertises
+CSRF=$(curl -s -c /tmp/j $B/api/auth/csrf | python3 -c 'import sys,json;print(json.load(sys.stdin)["csrfToken"])')
+LOC=$(curl -s -b /tmp/j -c /tmp/j -o /dev/null -w '%{redirect_url}' -X POST $B/api/auth/signin/google \
+      -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode "csrfToken=$CSRF")
+curl -s -o /dev/null -D - "$LOC" | grep -i ^location
+```
+
+A redirect to `accounts.google.com/signin/oauth/error?authError=…` means rejected —
+**base64-decode the `authError` value** and Google states the reason plus the offending
+`redirect_uri` verbatim. A redirect to `/v3/signin/identifier` means accepted.
 
 ---
 
@@ -152,14 +189,24 @@ Everything lands in Azure SQL; this app only reads. Extractors live in sibling r
 
 ## Caching
 
-`data/*.json` holds pre-built Sigma/SQL rollups (heatmap, menu mix, EE%, purchasing)
-committed to the repo and read at runtime. `npm run refresh` rebuilds them;
-`npm run ship` rebuilds and pushes. `SK_DATA_DIR` can point the builders at a temp
-directory during a rebuild.
+`data/*.json` holds pre-built rollups (heatmap, menu mix, EE%, purchasing) computed
+from Azure SQL, committed to the repo and read at runtime. `npm run refresh` rebuilds
+them; `npm run ship` rebuilds and pushes. `SK_DATA_DIR` can point the builders at a
+temp directory during a rebuild.
 
-> **Known divergence:** the Overview reads cached Sigma sales while Weekly Ops and
-> Budget query `smoothieking.sales` live. The two can differ slightly. Unifying on the
-> SQL source is open work.
+`POST /api/refresh` rebuilds the cache in-process on Vercel and writes
+`smoothieking.dashboard_cache`. It is reachable by any signed-in user (the Refresh
+button is on the manager Overview, by design) and is throttled by a **5-minute
+cooldown** measured against the persisted `refreshedAt` — the in-memory `isRunning`
+flag can't throttle serverless, where instances don't share memory.
+
+> **Sales and COGS do NOT diverge between surfaces.** Overview, Weekly Ops and Budget
+> all read `smoothieking.sales` live using the identical `NET_SALES` expression, and
+> both Overview and Weekly Ops derive recipe COGS from `netchef_usage_api` with the
+> same `qty_issue * price` formula — they differ only in the window each requests.
+> Sigma is no longer a data source anywhere. Beware the legacy `sigma*` identifiers
+> still aliasing `sql*` functions in `cache-builder.ts`: they are SQL, and the name
+> `data/sigma-daily.json` is likewise historical.
 
 ---
 
@@ -168,19 +215,27 @@ directory during a rebuild.
 | Variable | Purpose |
 |---|---|
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth |
+| `AUTH_SECRET` | NextAuth JWT signing |
+| `AUTH_URL` | pins the OAuth callback to the canonical origin (see Auth) |
 | `ALLOWED_EMAILS` / `ALLOWED_EMAIL_DOMAIN` | who may sign in |
 | `OWNER_EMAILS` | who gets the financial modules |
 | `AZURE_SQL_SERVER` / `_DATABASE` / `_USER` / `_PASSWORD` | direct SQL (production) |
 | `PROXY_URL` | local Flask proxy fallback |
 | `DATABASE_URL` | Prisma → `sk_bills` schema |
 | `QBO_CLIENT_ID` / `_SECRET` / `_ENV` / `_REDIRECT_URI` | QuickBooks OAuth |
-| `SIGMA_CLIENT_ID` / `_SECRET` | Sigma API |
 | `SIMPLEFIN_ACCESS_URL`, `SIMPLEFIN_STALE_HOURS` | bank balances + freshness guard |
 | `CRON_SECRET` | authenticates the `/api/sync` cron |
-| `REFRESH_SECRET` | `x-refresh-key` header for `/api/ingest-refresh` |
+| `REFRESH_SECRET` | `x-refresh-key` for `/api/ingest-refresh`; **currently unset**, so it falls back to `AZURE_SQL_PASSWORD` |
 | `SK_DATA_DIR` | override for the `data/` cache location |
 
+`SIGMA_CLIENT_ID` / `SIGMA_CLIENT_SECRET` are **no longer used** — the Sigma client was
+deleted. They are not set in any Vercel environment; remove any local leftovers.
+
 Secrets live in `.env.local` (gitignored) and Vercel project settings — never in the repo.
+
+> **Reading env values back:** `vercel env add` creates variables as **Sensitive**, which
+> are write-only — `vercel env pull` returns `VAR=""` for them. An empty value on pull
+> does **not** mean the variable is unset. Confirm with `vercel env ls` instead.
 
 ---
 
@@ -193,9 +248,11 @@ balances. `/api/ingest-refresh` is POSTed by the external 6am cloud routine and 
 authenticated by the `x-refresh-key` header, not a session.
 
 > Both cron routes are **excluded from the session gate** in `proxy.ts` (they have no
-> user session), so their secret *is* their only protection — and `/api/sync` checks
-> it as `if (secret && ...)`, i.e. it **fails open if `CRON_SECRET` is unset**. Keep
-> `CRON_SECRET` and `REFRESH_SECRET` populated in Vercel.
+> user session), so their secret *is* their only protection. Both now **fail closed** —
+> a missing secret rejects the request rather than skipping the check. Keep
+> `CRON_SECRET` populated in Vercel; `/api/ingest-refresh` works today only because it
+> falls back to `AZURE_SQL_PASSWORD` when `REFRESH_SECRET` is unset, which is protected
+> but poor hygiene — set a dedicated `REFRESH_SECRET`.
 
 ### Working alongside other sessions
 

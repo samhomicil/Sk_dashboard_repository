@@ -34,6 +34,22 @@ data gotchas that have caused real bugs. The rules below are the ones most often
    sessions with uncommitted work. Ship from a `git worktree` off `origin/main` (see
    README) rather than committing into someone else's branch.
 
+6. **Trace a data source before describing it.** Legacy `sigma*` identifiers in
+   `cache-builder.ts` alias `sql*` functions, and `data/sigma-daily.json` is a
+   historical filename — reading those names and inferring "this comes from Sigma"
+   produces a confidently wrong answer. Sigma is not a data source anywhere; sales and
+   recipe COGS are Azure SQL on every surface. Follow the query, not the variable name.
+
+## Login / OAuth
+
+Production is **<https://sk-dashboard-delta.vercel.app>** (no custom domain) and
+`AUTH_URL` is pinned to it. Any origin used for sign-in must have
+`<origin>/api/auth/callback/google` registered on the Google client (project
+**SK wellness**, `1038153123380`, client still named *"SK Bills"*), or Google returns
+"Access blocked: This app's request is invalid". Per-build
+`sk-dashboard-<hash>-sk-wellness.vercel.app` URLs are *not* registered. The README has a
+curl recipe for diagnosing this without a browser.
+
 ## Manager vs owner framing
 
 Labor **%** shown to managers is *unloaded hourly wages ÷ net sales*, so it reconciles

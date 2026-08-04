@@ -12,7 +12,8 @@
     "refresh": "npx tsx src/scripts/refresh.ts",
     "go": "concurrently -n proxy,dashboard -c cyan,teal \"python3 /Users/sam/azure-sql-proxy.py\" \"npm run dev\"",
     "deploy": "git add data && (git commit -m 'Refresh data' || true) && git push",
-    "ship": "npm run refresh && npm run deploy"
+    "ship": "npm run refresh && npm run deploy",
+    "check": "npx tsx src/scripts/check.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

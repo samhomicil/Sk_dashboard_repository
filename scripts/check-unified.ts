@@ -2,7 +2,7 @@
 // against the real API, real Bill table, and real Huntington-filtered QB
 // purchases/deposits — the same code path /api/sync and /api/transactions run.
 //
-//   npx tsx scripts/check-unified.ts
+//   npx tsx -r ./scripts/server-only-shim.cjs scripts/check-unified.ts
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

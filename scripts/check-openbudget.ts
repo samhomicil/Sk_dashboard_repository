@@ -2,8 +2,10 @@
 // getValidToken/refresh + the MCP client work against the real API using the
 // real sk_bills.OpenBudgetToken row, independent of any route being deployed.
 //
-//   npx tsx scripts/check-openbudget.ts
+//   npx tsx -r ./scripts/server-only-shim.cjs scripts/check-openbudget.ts
 //
+// (The shim stands in for Next.js's build-time aliasing of the `server-only`
+// guard used throughout src/lib/bills/ — see that file for why.)
 // Exits non-zero on any failure so it can gate a deploy if useful later.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

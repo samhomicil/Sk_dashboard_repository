@@ -29,6 +29,7 @@ const OWNER_PAGES = ['/bills', '/cashflow', '/pnl', '/transactions', '/settings'
 const OWNER_APIS = [
   '/api/bills', '/api/forecast', '/api/cost-plan', '/api/accounts',
   '/api/payments', '/api/reconcile', '/api/qb', '/api/sales',
+  '/api/openbudget', '/api/transactions',
 ]
 
 function isOwnerOnly(pathname: string): boolean {

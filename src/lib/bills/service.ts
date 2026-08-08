@@ -3,12 +3,17 @@ import { iso } from './billsEngine';
 import { loadBills, loadSales, loadManualPayments, dataMode } from './data';
 import { reconcile, ReconciledOccurrence } from './reconcile';
 import { refresh, getTxnsByAccount, isLiveConfigured } from './actualAdapter';
+import { getUnifiedTransactions } from './unifiedTransactions';
+import { suggestMatches, type Suggestion } from './suggestMatch';
 
 export interface DashboardData {
   mode: { data: 'db' | 'seed'; actual: 'live' | 'mock' };
   now: string;
   summary: Record<string, number>;
   occurrences: ReconciledOccurrence[];
+  /** Keyed by `${billId}|${due}` — see suggestMatch.ts. Never auto-applied;
+   *  the owner confirms via the existing mark-paid action. */
+  suggestions: Record<string, Suggestion>;
 }
 
 export async function getDashboardData(now: Date = new Date()): Promise<DashboardData> {
@@ -31,6 +36,18 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
 
   const occurrences = reconcile(bills, sales, txnsByAccount, manualPaid, lookbackISO, horizonISO, now);
 
+  // Suggested matches for still-open occurrences, from the real bank feed
+  // (OpenBudget) — separate from the QB-based auto-match above, and never
+  // auto-applied. Failure here must not break the bills page: no suggestions
+  // is a visible "—" in the UI, not a 500.
+  let suggestions: Record<string, Suggestion> = {};
+  try {
+    const { rows: txns } = await getUnifiedTransactions(lookbackISO, horizonISO);
+    suggestions = Object.fromEntries(suggestMatches(occurrences, txns));
+  } catch (e) {
+    console.error('[service] suggestMatches failed:', e);
+  }
+
   const count = (s: string) => occurrences.filter((o) => o.status === s).length;
   return {
     mode: { data: dataMode(), actual: liveConfigured ? 'live' : 'mock' },
@@ -43,5 +60,6 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       upcoming: count('upcoming'),
     },
     occurrences,
+    suggestions,
   };
 }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { iso } from '@/lib/bills/billsEngine';
 import type { ReconciledOccurrence } from '@/lib/bills/reconcile';
+import type { Suggestion } from '@/lib/bills/suggestMatch';
 import type { ClientBill } from './page';
 
 const STORE_COLORS: Record<string, string> = { margate: '#3B82F6', miramar: '#F59E0B', pines: '#10B981' };
@@ -16,12 +17,13 @@ const dow = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short' });
 type StoreBalances = Record<string, { checking: number; savings: number }>;
 
 export default function BillsOverview({
-  occ, bills, visibleStores, storeBalances, now, onChanged,
+  occ, bills, visibleStores, storeBalances, suggestions, now, onChanged,
 }: {
   occ: ReconciledOccurrence[];
   bills: ClientBill[];
   visibleStores: string[]; // lowercase keys
   storeBalances: StoreBalances;
+  suggestions: Record<string, Suggestion>;
   now: Date;
   onChanged: () => void;
 }) {
@@ -166,6 +168,7 @@ export default function BillsOverview({
                 <th className="border-b border-slate-200 px-[18px] py-2 text-left">Store</th>
                 <th className="border-b border-slate-200 px-[18px] py-2 text-left">Category</th>
                 <th className="border-b border-slate-200 px-[18px] py-2 text-right">Amount</th>
+                <th className="border-b border-slate-200 px-[18px] py-2 text-left">Bank match</th>
                 <th className="border-b border-slate-200 px-[18px] py-2 text-left">Method</th>
                 <th className="border-b border-slate-200 px-[18px] py-2 text-left">Status</th>
                 <th className="border-b border-slate-200 px-[18px] py-2" />
@@ -173,7 +176,7 @@ export default function BillsOverview({
             </thead>
             <tbody className="text-[12.5px]">
               {tableItems.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-7 text-center text-slate-400">No bills in this view.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-7 text-center text-slate-400">No bills in this view.</td></tr>
               ) : tableItems.map(i => {
                 const paid = i.o.status === 'paid';
                 const over = i.o.status === 'overdue' || i.o.status === 'missed';
@@ -181,6 +184,7 @@ export default function BillsOverview({
                 const sk = key(i.o.store);
                 const dueLbl = over ? 'Overdue' : today ? 'Today' : fmtShort(i.due);
                 const rowBusy = busy === i.o.billId + i.o.due;
+                const sug = paid ? undefined : suggestions[i.o.billId + '|' + i.o.due];
                 return (
                   <tr key={i.o.billId + i.o.due} className={`border-b border-slate-100 ${over ? 'bg-[#FEF7F7]' : ''} ${paid ? 'opacity-70' : ''}`}>
                     <td className="px-[18px] py-[11px]">
@@ -191,6 +195,26 @@ export default function BillsOverview({
                     <td className="px-[18px] py-[11px]"><span className="mr-[7px] inline-block h-2 w-2 rounded-full align-middle" style={{ background: STORE_COLORS[sk] }} />{NAME[sk] ?? i.o.store}</td>
                     <td className="px-[18px] py-[11px] text-[10.5px] text-slate-400">{i.cat}</td>
                     <td className="px-[18px] py-[11px] text-right font-mono font-bold tabular-nums text-slate-700">{$f(i.amt)}</td>
+                    <td className="px-[18px] py-[11px]">
+                      {!sug ? <span className="text-slate-300">—</span> : (
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${sug.confidence === 'vendor' ? 'bg-emerald-500' : 'bg-amber-400'}`}
+                            title={sug.confidence === 'vendor' ? 'Matched by vendor' : 'Matched by amount + date only'}
+                          />
+                          <div className="min-w-0 leading-tight">
+                            <div className="whitespace-nowrap font-mono text-[11px] font-bold tabular-nums text-slate-700">
+                              {$f(sug.amount)} · {fmtShort(new Date(sug.date + 'T00:00:00'))}
+                            </div>
+                            <div className="max-w-[130px] truncate text-[10px] text-slate-400" title={sug.name}>{sug.name}</div>
+                          </div>
+                          <button
+                            disabled={rowBusy} onClick={() => toggle(i.o, false)} title="Confirm and mark paid"
+                            className="flex-shrink-0 rounded-full bg-emerald-50 px-[7px] py-[3px] text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          >✓</button>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-[18px] py-[11px]">
                       <span className={`rounded-full px-2 py-0.5 text-[8.5px] font-bold ${i.o.payment === 'auto' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'}`}>{i.o.payment === 'auto' ? 'Auto' : 'Manual'}</span>
                     </td>

@@ -29,6 +29,10 @@ export interface UnifiedTxn {
   source: 'openbudget' | 'quickbooks-huntington';
   /** True when the vendor-alias table resolved this to a specific Bill. */
   matched: boolean;
+  /** The specific Bill this resolved to, when matched — for suggestMatch.ts to
+   *  tie a transaction to an exact occurrence rather than just a vendor name
+   *  (several bills can share a vendor substring across stores). */
+  billId?: string;
 }
 
 const storeByAccount: Record<string, string | null> = Object.fromEntries(
@@ -71,6 +75,7 @@ function fromOpenBudget(t: ObTxn, rules: AliasRule[], billVendorById: Map<string
     cleared: !t.pending,
     source: 'openbudget',
     matched: !!matchedVendor,
+    billId: resolution?.billId,
   };
 }
 

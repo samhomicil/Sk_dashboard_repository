@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/owner-guard'
+import { getLiveBalances } from '@/lib/bills/balances'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -35,15 +36,12 @@ export async function GET() {
   // The Forecast table only carries one combined anchor number (`start`, below,
   // is even reconstructed backward from day-0's balance). The checking/savings
   // split behind "in the bank now" lives only in sk_bills.QbBalance — fetched
-  // separately here rather than persisted per-day, since it's a snapshot of
-  // TODAY, not part of the projection. Genuinely optional: a store can be
-  // mid-forecast with no QbBalance row (feed never synced, wrong store name,
-  // whatever) — callers must not assume this is present.
-  type BalRow = { store: string; checking: number; savings: number }
-  const balRows = await db.$queryRawUnsafe<BalRow[]>(
-    `SELECT store, checking, savings FROM sk_bills.QbBalance`,
-  ).catch(() => [] as BalRow[])
-  const balByStore = new Map(balRows.map((b) => [b.store, b]))
+  // separately here (via the same getLiveBalances() Bills and /api/balances
+  // use) rather than persisted per-day, since it's a snapshot of TODAY, not
+  // part of the projection. Genuinely optional: a store can be mid-forecast
+  // with no QbBalance row (feed never synced, wrong store name, whatever) —
+  // callers must not assume this is present.
+  const balByStore = new Map((await getLiveBalances()).map((b) => [b.store, b]))
 
   const iso = (x: Date) => new Date(x).toISOString().slice(0, 10)
   const byStore = new Map<string, {

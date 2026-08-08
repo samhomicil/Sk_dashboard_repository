@@ -59,14 +59,17 @@ export default function BillsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Cash-on-hand for the Coverage panel (additive read; same route Command Center uses).
+  // Cash-on-hand for the Coverage panel. Same live source Cash Flow reads
+  // (sk_bills.QbBalance via OpenBudget) — this used to hit QuickBooks directly
+  // (/api/qb/stores), which silently falls back to QBO's lagging book balance,
+  // so Bills and Cash Flow could disagree on cash on hand for the same store
+  // with no indication why. One balance endpoint now, used everywhere.
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    fetch(`/api/qb/stores?start=${today}&end=${today}`, { cache: 'no-store' })
+    fetch('/api/balances', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((data: Array<{ key: string; checking: number; savings: number }>) => {
+      .then((data: Array<{ store: string; checking: number; savings: number }>) => {
         const m: Record<string, { checking: number; savings: number }> = {};
-        for (const s of data ?? []) m[s.key] = { checking: s.checking, savings: s.savings };
+        for (const s of data ?? []) m[s.store.toLowerCase()] = { checking: s.checking, savings: s.savings };
         setStoreBalances(m);
       })
       .catch(() => null);

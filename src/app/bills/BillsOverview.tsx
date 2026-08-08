@@ -34,6 +34,7 @@ export default function BillsOverview({
 
   const todayMid = useMemo(() => { const d = new Date(now); d.setHours(0, 0, 0, 0); return d; }, [now]);
   const catOf = useMemo(() => { const m = new Map<string, string>(); bills.forEach(b => m.set(b.id, b.category)); return m; }, [bills]);
+  const vendorOf = useMemo(() => { const m = new Map<string, string>(); bills.forEach(b => m.set(b.id, b.vendor)); return m; }, [bills]);
 
   // Attach an offset (days from today) to each occurrence.
   const items = useMemo(() => occ.map(o => {
@@ -52,6 +53,22 @@ export default function BillsOverview({
   const over = unpaid.filter(i => i.o.status === 'overdue' || i.o.status === 'missed');
   const sum = (a: typeof unpaid) => a.reduce((s, i) => s + i.amt, 0);
 
+  // A lump-sum payment (Neal Realty's rent+CAM, MTC's rent+water) suggests the
+  // SAME transaction on more than one bill's row — confirming any one of them
+  // should confirm all of them together, since it's genuinely one payment.
+  const occByKey = useMemo(() => {
+    const m = new Map<string, ReconciledOccurrence>();
+    for (const o of occ) m.set(o.billId + '|' + o.due, o);
+    return m;
+  }, [occ]);
+  const siblingsByTxnId = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const [k, s] of Object.entries(suggestions)) {
+      (m.get(s.txnId) ?? m.set(s.txnId, []).get(s.txnId)!).push(k);
+    }
+    return m;
+  }, [suggestions]);
+
   async function toggle(o: ReconciledOccurrence, paid: boolean) {
     setBusy(o.billId + o.due);
     try {
@@ -60,6 +77,25 @@ export default function BillsOverview({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ billId: o.billId, dueDate: o.due }),
       });
+      onChanged();
+    } finally { setBusy(null); }
+  }
+
+  async function confirmSuggestion(o: ReconciledOccurrence, txnId: string) {
+    const keys = siblingsByTxnId.get(txnId) ?? [o.billId + '|' + o.due];
+    setBusy(o.billId + o.due);
+    try {
+      await Promise.all(
+        keys.map((k) => {
+          const sibling = occByKey.get(k);
+          if (!sibling || sibling.status === 'paid') return null;
+          return fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ billId: sibling.billId, dueDate: sibling.due }),
+          });
+        }),
+      );
       onChanged();
     } finally { setBusy(null); }
   }
@@ -200,16 +236,22 @@ export default function BillsOverview({
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${sug.confidence === 'vendor' ? 'bg-emerald-500' : 'bg-amber-400'}`}
-                            title={sug.confidence === 'vendor' ? 'Matched by vendor' : 'Matched by amount + date only'}
+                            title={sug.confidence === 'vendor' ? 'Matched by vendor' : 'Matched by amount + date, and vendor-related text'}
                           />
                           <div className="min-w-0 leading-tight">
                             <div className="whitespace-nowrap font-mono text-[11px] font-bold tabular-nums text-slate-700">
                               {$f(sug.amount)} · {fmtShort(new Date(sug.date + 'T00:00:00'))}
                             </div>
-                            <div className="max-w-[130px] truncate text-[10px] text-slate-400" title={sug.name}>{sug.name}</div>
+                            <div className="max-w-[130px] truncate text-[10px] text-slate-400" title={sug.name}>
+                              {sug.name}
+                              {sug.alsoSettles && sug.alsoSettles.length > 0 && ' · +1 more'}
+                            </div>
                           </div>
                           <button
-                            disabled={rowBusy} onClick={() => toggle(i.o, false)} title="Confirm and mark paid"
+                            disabled={rowBusy} onClick={() => confirmSuggestion(i.o, sug.txnId)}
+                            title={sug.alsoSettles?.length
+                              ? `Confirm — one payment, also marks paid: ${sug.alsoSettles.map(id => vendorOf.get(id) ?? id).join(', ')}`
+                              : 'Confirm and mark paid'}
                             className="flex-shrink-0 rounded-full bg-emerald-50 px-[7px] py-[3px] text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                           >✓</button>
                         </div>

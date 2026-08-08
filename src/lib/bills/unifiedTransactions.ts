@@ -33,6 +33,13 @@ export interface UnifiedTxn {
    *  tie a transaction to an exact occurrence rather than just a vendor name
    *  (several bills can share a vendor substring across stores). */
   billId?: string;
+  /** ALL bills this one payment settles, when it's more than just billId —
+   *  e.g. Neal Realty's single Margate draft covers both Base Rent and
+   *  Property Expense (see alsoSettles in vendorAliasSpec.ts). Present only
+   *  when there's more than one; suggestMatch.ts uses this so a lump-sum
+   *  payment can independently satisfy each of its own bills' occurrences,
+   *  matching how it's actually paid rather than an arbitrary single bill. */
+  settledBillIds?: string[];
 }
 
 const storeByAccount: Record<string, string | null> = Object.fromEntries(
@@ -76,6 +83,7 @@ function fromOpenBudget(t: ObTxn, rules: AliasRule[], billVendorById: Map<string
     source: 'openbudget',
     matched: !!matchedVendor,
     billId: resolution?.billId,
+    settledBillIds: resolution && resolution.settles.length > 1 ? resolution.settles : undefined,
   };
 }
 

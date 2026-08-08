@@ -4,6 +4,7 @@ import { loadBills, dataMode } from '@/lib/bills/data';
 import { getAccountsMap } from '@/lib/bills/actualAdapter';
 import { loadAccountMap } from '@/lib/bills/accountMap';
 import { getConnections } from '@/lib/bills/qb';
+import { isConnected as openBudgetConnected } from '@/lib/bills/openbudget';
 import { auth } from '@/auth';
 import SignOutButton from '@/components/SignOutButton';
 
@@ -26,6 +27,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const qbConnected = params.qb_connected;
   const qbDisconnected = params.qb_disconnected;
   const qbError = params.qb_error;
+  const obConnected = await openBudgetConnected();
+  const obJustConnected = params.ob_connected;
+  const obError = params.ob_error;
 
   const needed = new Map<string, { store: string; paidFrom: string; count: number; account?: string }>();
   for (const b of bills) {
@@ -72,11 +76,42 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </div>
       )}
 
+      {(obJustConnected || obError) && (
+        <div className={`mt-4 rounded-lg px-4 py-3 text-sm ${obError ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+          {obJustConnected && 'OpenBudget connected — live transactions and balances now come from the bank feed.'}
+          {obError && `OpenBudget error: ${obError.replace(/_/g, ' ')}.`}
+        </div>
+      )}
+
       <section className="mt-6 grid gap-3 sm:grid-cols-2">
         <Card ok={dataMode() === 'db'} title="Database"
           body={dataMode() === 'db' ? 'Connected. Bills and sales are saved.' : 'Not connected. Set DATABASE_URL, then run db:push and import:bills.'} />
         <Card ok={qbConfigured} title="QuickBooks"
           body={qbConfigured ? `Live bank feed connected for ${qbConnections.length} of ${STORES.length} stores.` : 'Not connected. Connect each store below.'} />
+      </section>
+
+      {/* OpenBudget: one shared connection across all stores, not per-company like QB */}
+      <section className="mt-8">
+        <h2 className="text-sm font-semibold text-ink">OpenBudget (transactions &amp; live balance)</h2>
+        <p className="mt-1 text-[13px] text-slate-500">
+          Raw bank/card feed across all linked accounts, enriched with vendor names via the
+          alias table. Replaces SimpleFIN for live balance and feeds{' '}
+          <code className="rounded bg-slate-100 px-1">/transactions</code>. QuickBooks stays
+          connected above for P&amp;L and other accounting reports — this is a separate,
+          single connection covering every store at once.
+        </p>
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className={`h-2 w-2 rounded-full flex-shrink-0 ${obConnected ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <p className="text-sm font-medium text-ink">{obConnected ? 'Connected' : 'Not connected'}</p>
+          </div>
+          <a
+            href="/api/openbudget/auth"
+            className="rounded-lg bg-slate-900 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-slate-700"
+          >
+            {obConnected ? 'Reconnect' : 'Connect'}
+          </a>
+        </div>
       </section>
 
       {/* QuickBooks connections */}

@@ -7,8 +7,8 @@
 // scripts/out/vendor-aliases.json. Nothing is written to the database.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { resolveVendor, type AliasRule, type AliasTxn } from '../src/lib/bills/vendorAlias';
-import { SPEC, ACCOUNTS } from './vendor-alias-spec';
+import { resolveVendor, expandSpec, type AliasTxn } from '../src/lib/bills/vendorAlias';
+import { SPEC, ACCOUNTS } from '../src/lib/bills/vendorAliasSpec';
 
 interface Bill { id: string; store: string; vendor: string; amountValue: number; amountType: string; paidFrom: string | null }
 
@@ -18,53 +18,10 @@ const bills: Bill[] = JSON.parse(readFileSync(billPath, 'utf8'));
 
 const storeByAccount: Record<string, string | null> =
   Object.fromEntries(ACCOUNTS.map((a) => [a.id, a.store]));
-const STORES = [...new Set(bills.map((b) => b.store))];
 
-// ---- expand spec -> concrete rules -----------------------------------------
-const rules: AliasRule[] = [];
-const unresolved: string[] = [];
-let seq = 0;
-for (const s of SPEC) {
-  const targets = s.store ? [s.store] : STORES;
-  for (const store of targets) {
-    // Prefer an exact vendor match. Substring alone binds "Workstream — Payroll"
-    // to "Workstream — Payroll Module", a $35 subscription, and books $5k of
-    // payroll against it.
-    const inStore = bills.filter((b) => b.store === store);
-    const exact = inStore.filter((b) => b.vendor === s.vendorLike);
-    const hits = exact.length ? exact : inStore.filter((b) => b.vendor.includes(s.vendorLike));
-    if (hits.length === 0) {
-      unresolved.push(`${s.pattern}  ->  no "${s.vendorLike}" bill in ${store}`);
-      continue;
-    }
-    if (hits.length > 1 && s.amountMin == null && s.amountMax == null) {
-      unresolved.push(`${s.pattern}  ->  ${hits.length} "${s.vendorLike}" bills in ${store} (${hits.map((h) => h.vendor).join(' | ')}) — ambiguous, needs an amount range`);
-    }
-    for (const b of hits.slice(0, 1)) {
-      rules.push({
-        id: `va${String(++seq).padStart(3, '0')}`,
-        pattern: s.pattern,
-        matchType: s.matchType ?? 'contains',
-        field: s.field ?? 'name',
-        store,
-        amountMin: s.amountMin ?? null,
-        amountMax: s.amountMax ?? null,
-        billId: b.id,
-        alsoSettles: (s.alsoSettles ?? []).flatMap((v) => {
-          const extra = bills.filter((x) => x.store === store && x.vendor.includes(v));
-          if (!extra.length) unresolved.push(`${s.pattern}  ->  alsoSettles "${v}" not found in ${store}`);
-          return extra.map((x) => x.id);
-        }),
-        variableAmount: s.variableAmount ?? false,
-        weekday: s.weekday ?? [],
-        priority: s.priority ?? 0,
-        confirmed: s.confirmed ?? false,
-        enabled: s.enabled ?? true,
-        note: s.note ?? null,
-      });
-    }
-  }
-}
+// Same expansion the live app runs (openbudget.ts) — this script exists to
+// validate that path against history, so it must not have its own copy of it.
+const { rules, unresolved } = expandSpec(SPEC, bills);
 
 mkdirSync('scripts/out', { recursive: true });
 writeFileSync('scripts/out/vendor-aliases.json', JSON.stringify(rules, null, 1));

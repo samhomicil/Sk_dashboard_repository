@@ -6,7 +6,12 @@
 // raw bank descriptor against an explicit alias table.
 //
 // Pure and side-effect free so it can be exercised against transaction history
-// without a database.
+// without a database. Both the live app (openbudget.ts) and the offline
+// validation script (scripts/validate-vendor-aliases.ts) call expandSpec() so
+// there is exactly one place that turns the hand-written spec into concrete
+// rules — they must never drift into two different matchers.
+
+import type { SpecEntry } from './vendorAliasSpec';
 
 export interface AliasRule {
   id: string;
@@ -141,4 +146,70 @@ export function resolveAll(
     if (r) out.set(t.id, r);
   }
   return out;
+}
+
+export interface SpecBill {
+  id: string;
+  store: string;
+  vendor: string;
+}
+
+/**
+ * Expands the hand-written SPEC (one entry can cover all three stores) against
+ * the live Bill table into concrete, single-store AliasRule[]. Also returns
+ * anything the spec couldn't resolve — a renamed/deleted bill, or an
+ * ambiguous vendor match with no amount range to disambiguate it — so a
+ * caller can log it instead of silently matching nothing or matching wrong.
+ */
+export function expandSpec(
+  spec: SpecEntry[],
+  bills: SpecBill[],
+): { rules: AliasRule[]; unresolved: string[] } {
+  const stores = [...new Set(bills.map((b) => b.store))];
+  const rules: AliasRule[] = [];
+  const unresolved: string[] = [];
+  let seq = 0;
+
+  for (const s of spec) {
+    const targets = s.store ? [s.store] : stores;
+    for (const store of targets) {
+      // Prefer an exact vendor match. Substring alone binds "Workstream —
+      // Payroll" to "Workstream — Payroll Module", a $35 subscription, and
+      // would book $5k of payroll against it.
+      const inStore = bills.filter((b) => b.store === store);
+      const exact = inStore.filter((b) => b.vendor === s.vendorLike);
+      const hits = exact.length ? exact : inStore.filter((b) => b.vendor.includes(s.vendorLike));
+      if (hits.length === 0) {
+        unresolved.push(`${s.pattern}  ->  no "${s.vendorLike}" bill in ${store}`);
+        continue;
+      }
+      if (hits.length > 1 && s.amountMin == null && s.amountMax == null) {
+        unresolved.push(`${s.pattern}  ->  ${hits.length} "${s.vendorLike}" bills in ${store} (${hits.map((h) => h.vendor).join(' | ')}) — ambiguous, needs an amount range`);
+      }
+      for (const b of hits.slice(0, 1)) {
+        rules.push({
+          id: `va${String(++seq).padStart(3, '0')}`,
+          pattern: s.pattern,
+          matchType: s.matchType ?? 'contains',
+          field: s.field ?? 'name',
+          store,
+          amountMin: s.amountMin ?? null,
+          amountMax: s.amountMax ?? null,
+          billId: b.id,
+          alsoSettles: (s.alsoSettles ?? []).flatMap((v) => {
+            const extra = bills.filter((x) => x.store === store && x.vendor.includes(v));
+            if (!extra.length) unresolved.push(`${s.pattern}  ->  alsoSettles "${v}" not found in ${store}`);
+            return extra.map((x) => x.id);
+          }),
+          variableAmount: s.variableAmount ?? false,
+          weekday: s.weekday ?? [],
+          priority: s.priority ?? 0,
+          confirmed: s.confirmed ?? false,
+          enabled: s.enabled ?? true,
+          note: s.note ?? null,
+        });
+      }
+    }
+  }
+  return { rules, unresolved };
 }

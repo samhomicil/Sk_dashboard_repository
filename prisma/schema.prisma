@@ -66,6 +66,27 @@ model QbToken {
   @@schema("sk_bills")
 }
 
+// One row (id=1, enforced by a CHECK constraint — this is a single shared
+// OpenBudget/Plaid connection, not per-store like QbToken). clientId is the
+// app's OWN dynamically-registered OAuth client
+// (iBDYVZjLmwWUsskkBJSxdYGQwuSOuUFy, public/PKCE, no secret) — deliberately
+// NOT the client Claude Code registers for itself, so the app's token
+// lifecycle is independent of any CLI session.
+// Table is created idempotently at runtime (see openbudget.ts), same
+// convention as QbBalance below — this model exists so `prisma db push`
+// recognizes it and does not try to drop it.
+model OpenBudgetToken {
+  id           Int      @id @default(1)
+  clientId     String   @db.NVarChar(64)
+  accessToken  String   @db.NVarChar(Max)
+  refreshToken String   @db.NVarChar(Max)
+  expiresAt    BigInt
+  scope        String?  @db.NVarChar(400)
+  updatedAt    DateTime @default(now())
+
+  @@schema("sk_bills")
+}
+
 // Mirrors the table created at runtime by /api/sync (the daily QB balance cron).
 // Declared here so `prisma db push` recognizes it and does not try to drop it.
 model QbBalance {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSimpleFinBalances } from '@/lib/bills/simplefin';
+import { getOpenBudgetBalances, isConnected } from '@/lib/bills/openbudget';
 import { getPrisma } from '@/lib/bills/db';
 
 export const runtime = 'nodejs';
@@ -7,17 +8,25 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * Syncs each store's live POSTED bank balances from SimpleFIN (the real bank
- * balance — NOT QuickBooks' book balance, which lags reality) into
- * sk_bills.QbBalance, so the dashboard, weekly recap, and cash forecast all read
- * correct cash from Azure SQL. Runs daily via Vercel Cron (see vercel.json).
+ * Syncs each store's live POSTED bank balances into sk_bills.QbBalance, so the
+ * dashboard, weekly recap, and cash forecast all read correct cash from Azure
+ * SQL. Runs daily via Vercel Cron (see vercel.json).
  *
- * Requires SIMPLEFIN_ACCESS_URL. QuickBooks stays connected for P&L/reports;
- * we only swapped the *balance* source here.
+ * OpenBudget is preferred over SimpleFIN: as of 2026-08-08 it sees MORE —
+ * Miramar's Capital One card is invisible to SimpleFIN but present in
+ * OpenBudget — and was the freshest of the two in a same-day comparison.
+ * Falls back to SimpleFIN automatically if OpenBudget isn't connected yet or
+ * its fetch fails, so this keeps working through the cutover.
  *
- * updatedAt is set to each account's balance-date (when the bank data is from),
- * so freshness is honest — a broken feed shows an old timestamp instead of
- * silently looking current.
+ * Neither source sees Huntington (Margate's bank account, Miramar's LOC) —
+ * that stays QBO-book-balance-only until Huntington is linked to a feed.
+ *
+ * QuickBooks stays connected for P&L/reports; we only ever swap the *balance*
+ * source here.
+ *
+ * updatedAt is set to each account's balance-date (when the bank data is
+ * from), so freshness is honest — a broken feed shows an old timestamp
+ * instead of silently looking current.
  */
 export async function GET(req: Request) {
   // Vercel Cron sends `Authorization: Bearer $CRON_SECRET` when set; enforce if present.
@@ -36,14 +45,23 @@ export async function GET(req: Request) {
        cashTotal FLOAT NOT NULL DEFAULT 0, updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME())`,
   );
 
-  let balances;
+  let balances: { store: string; checking: number; savings: number; creditCard: number; cashTotal: number; balanceDate: number; ageHours: number; stale: boolean }[];
+  let source: 'openbudget' | 'simplefin';
   try {
-    balances = await getSimpleFinBalances();
-  } catch (e) {
-    return NextResponse.json(
-      { error: 'simplefin fetch failed', detail: e instanceof Error ? e.message : String(e) },
-      { status: 502 },
-    );
+    if (!(await isConnected())) throw new Error('OpenBudget not connected');
+    balances = await getOpenBudgetBalances();
+    source = 'openbudget';
+  } catch (obErr) {
+    try {
+      balances = await getSimpleFinBalances();
+      source = 'simplefin';
+    } catch (sfErr) {
+      return NextResponse.json({
+        error: 'both balance sources failed',
+        openbudget: obErr instanceof Error ? obErr.message : String(obErr),
+        simplefin: sfErr instanceof Error ? sfErr.message : String(sfErr),
+      }, { status: 502 });
+    }
   }
 
   const synced: unknown[] = [];
@@ -66,5 +84,5 @@ export async function GET(req: Request) {
       stale: b.stale,
     });
   }
-  return NextResponse.json({ ok: true, source: 'simplefin', synced });
+  return NextResponse.json({ ok: true, source, synced });
 }

@@ -64,6 +64,7 @@ export default function TransactionsClient() {
   const [txns, setTxns]       = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
+  const [partial, setPartial] = useState<string | undefined>();
   const [hideTransfers, setHideTransfers] = useState(true);
   const [search, setSearch]   = useState('');
   const [acctFilter, setAcctFilter] = useState<AcctType>('All accounts');
@@ -74,15 +75,21 @@ export default function TransactionsClient() {
     const { start, end } = periodDates(period);
     const sq = store !== 'All' ? `&store=${store.toLowerCase()}` : '';
     try {
+      // Unified feed: OpenBudget (bank truth) enriched with vendor-alias names,
+      // plus Huntington activity from QuickBooks (OpenBudget's one blind spot).
       const r = await fetch(
-        `/api/qb/transactions?start=${start}&end=${end}&limit=1000${sq}`,
+        `/api/transactions?start=${start}&end=${end}&limit=1000${sq}`,
         { cache: 'no-store' },
       );
       if (!r.ok) throw new Error(`${r.status}`);
-      setTxns(await r.json());
+      const data: { transactions: Txn[]; openBudgetOk: boolean; warning?: string } = await r.json();
+      setTxns(data.transactions);
+      // Partial data (e.g. OpenBudget down, Huntington-only rows) is still
+      // useful — surface it as a banner rather than hiding it behind "offline".
+      setPartial(data.openBudgetOk ? undefined : data.warning ?? 'OpenBudget unavailable');
     } catch { setOffline(true); }
     setLoading(false);
-    window.dispatchEvent(new CustomEvent('sk:synced', { detail: { source: 'qb', at: new Date().toISOString() } }));
+    window.dispatchEvent(new CustomEvent('sk:synced', { detail: { source: 'openbudget', at: new Date().toISOString() } }));
   }, [store, period]);
 
   useEffect(() => { load(); }, [load]);
@@ -153,11 +160,17 @@ export default function TransactionsClient() {
         </div>
       </header>
 
+      {partial && !offline && (
+        <div className="mx-5 mt-4 sm:mx-7 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-700">
+          Showing partial data — {partial}
+        </div>
+      )}
+
       <div className="px-5 py-6 sm:px-7">
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {offline ? (
             <div className="px-6 py-8 text-center text-sm text-red-600">
-              Could not load transactions — QuickBooks may be unavailable.{' '}
+              Could not load transactions — the bank feed may be unavailable.{' '}
               <button onClick={load} className="font-medium underline">Retry</button>
             </div>
           ) : (

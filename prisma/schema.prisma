@@ -114,3 +114,69 @@ model CostPlan {
   @@id([store, weekStart, metric])
   @@schema("sk_bills")
 }
+
+// A linked bank/card account from the OpenBudget (Plaid) feed, tied to the store
+// that owns it. Reconciliation needs this because the same merchant (FPL, Comcast,
+// Smoothie King Corporate) bills all three stores — the account is what says which.
+// Cards are store-specific too (confirmed against the QuickBooks chart of accounts),
+// despite the feed naming them identically. `store` is null only when an account
+// is not on any store's books, and such an account can settle no bills.
+model BankAccount {
+  id          String   @id @db.NVarChar(32) // OpenBudget id, e.g. "ACT-000002"
+  institution String   @db.NVarChar(64)
+  name        String   @db.NVarChar(128)
+  subtype     String   @db.NVarChar(32)     // checking | savings | credit card
+  mask        String?  @db.NVarChar(8)
+  store       String?  @db.NVarChar(20)     // Margate | Pines | Miramar | null = unattributed
+  paidFrom    String?  @db.NVarChar(32)     // matches Bill.paidFrom labels (BOA, Chase, ...)
+  storeNumber String?  @db.NVarChar(8)      // SK store #, appears as "ID:1392" in ACH descriptors
+  active      Boolean  @default(true)
+  updatedAt   DateTime @default(now())
+
+  @@index([store])
+  @@schema("sk_bills")
+}
+
+// Maps a bank descriptor to the Bill it pays.
+//
+// Necessary because bills arrive under ACH originator names that share no words
+// with the vendor label — "SKFI OPERATING DES:P4_ROYALTY" is the royalty fee,
+// "MECHANICS&FARMER DES:AUTO TRANS" is M&F Bank. Fuzzy name matching scores ~0
+// on these, so the mapping is stated explicitly rather than guessed.
+//
+// Resolution order: highest priority wins, then longest pattern. The rule's store
+// must equal the paying account's store — each store keeps its own bills and
+// vendors, so cross-store matching is never valid.
+model VendorAlias {
+  id        String   @id @default(cuid())
+  pattern   String   @db.NVarChar(200)     // compared case-insensitively
+  matchType String   @default("contains") @db.NVarChar(16) // contains | prefix | regex
+  field     String   @default("name") @db.NVarChar(16)     // name (raw descriptor) | merchant
+  store     String?  @db.NVarChar(20)      // must equal the paying account's store
+  amountMin Float?                          // absolute dollars, inclusive
+  amountMax Float?
+  billId    String   @db.NVarChar(64)
+  // Some vendors settle several of a store's bills in one charge — Neal Realty
+  // bills Margate base rent and CAM as a single draft, and Lockton bills two
+  // policies together. Comma-separated Bill ids settled alongside billId, so a
+  // consumer can close every occurrence the payment covers instead of just one.
+  alsoSettles String? @db.NVarChar(400)
+  // The bill's amountValue is a placeholder, not an expectation — credit-card
+  // bills are paid at whatever the balance allows. Suppresses over/under-payment
+  // reporting, which would otherwise flag every one of them.
+  variableAmount Boolean @default(false)
+  // Comma-separated day numbers (0=Sun..6=Sat). Some vendors bill a store several
+  // times a week as separate bills — PFG delivers on set days, and the delivery
+  // day is the only thing distinguishing "Mon order" from "Tue order".
+  weekday   String?  @db.NVarChar(20)
+  priority  Int      @default(0)
+  confirmed Boolean  @default(false)        // false = proposed from history, needs review
+  note      String?  @db.NVarChar(400)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@index([billId])
+  @@index([enabled])
+  @@schema("sk_bills")
+}

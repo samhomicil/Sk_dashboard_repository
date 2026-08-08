@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 /**
  * Owner-only. Serves the per-store cash forecast rendered by /cashflow.
  * Reads sk_bills.Forecast (the daily ledger written by the local forecast.py job —
- * SimpleFIN-anchored, DOW+T+2 income, dated payroll/food/corporate/bills).
+ * OpenBudget-anchored, DOW+T+2 income, dated payroll/food/corporate/bills).
  */
 type Row = {
   store: string; d: Date; inflow: number; outflow: number;

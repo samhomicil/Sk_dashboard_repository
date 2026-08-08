@@ -111,7 +111,7 @@ export const SOURCES: SourceContract[] = [
     cadence: 'daily', maxAgeDays: 2, fedBy: 'cash-forecast/forecast.py --write (MANUAL today)',
     consumers: ['Cash Flow'] },
   { table: 'sk_bills.QbBalance', label: 'Bank balances', dateColumn: 'updatedAt',
-    cadence: 'daily', maxAgeDays: 2, fedBy: '/api/sync (SimpleFIN, 06:00 UTC cron)',
+    cadence: 'daily', maxAgeDays: 2, fedBy: '/api/sync (OpenBudget, 06:00 UTC cron)',
     consumers: ['Cash Flow', 'Bills'] },
   { table: 'sk_bills.Sales', label: 'Monthly sales base', dateColumn: 'updatedAt',
     cadence: 'monthly', maxAgeDays: 40, fedBy: 'bills app', consumers: ['Bills', 'Budget'] },

@@ -165,8 +165,8 @@ Everything lands in Azure SQL; this app only reads. Extractors live in sibling r
 | **SMG360** | `guest_feedback`, `guest_daily`, `guest_comments` | guest satisfaction |
 | **Jolt** | `jolt_list_instances`, `jolt_image_quality` | SOP completion |
 | **SOCi** | `soci_reviews`, `soci_daily` | reviews / social |
-| **QuickBooks** | `sk_bills.*` via OAuth | P&L, transactions, actuals |
-| **SimpleFIN** | `sk_bills.QbBalance` | **live bank balances** (anchor for the cash forecast) |
+| **QuickBooks** | `sk_bills.*` via OAuth | P&L and other accrual reporting only |
+| **OpenBudget** | `sk_bills.QbBalance`, `/api/transactions` | **live bank balances** (anchor for the cash forecast) + raw transactions, enriched via the vendor-alias table |
 
 ### Gotchas that have caused real bugs
 
@@ -178,8 +178,10 @@ Everything lands in Azure SQL; this app only reads. Extractors live in sibling r
 - **Net sales is always** `SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales END)`.
   Use `NET_SALES` from `core/sources.ts`.
 - **Bank balance ≠ QuickBooks balance.** QBO only exposes *book* balance and lags badly.
-  SimpleFIN posted balance is the anchor. Use **posted**, not available — available
-  includes in-transit card deposits that the T+2 model already projects (double-count).
+  OpenBudget's posted balance is the anchor (SimpleFIN was retired 2026-08-08 — OpenBudget
+  covered more, e.g. Miramar's Capital One card, and was fresher). Use **posted**, not
+  available — available includes in-transit card deposits that the T+2 model already
+  projects (double-count).
 - **Franchise fees bill on SK fiscal *periods* (5-4-4), not calendar months** — see
   `src/lib/bills/periods.ts`. Sales, however, *are* booked on calendar dates.
 - **QuickBooks' "Merchant Fees" P&L line understates the real cost** — the monthly
@@ -223,7 +225,8 @@ flag can't throttle serverless, where instances don't share memory.
 | `PROXY_URL` | local Flask proxy fallback |
 | `DATABASE_URL` | Prisma → `sk_bills` schema |
 | `QBO_CLIENT_ID` / `_SECRET` / `_ENV` / `_REDIRECT_URI` | QuickBooks OAuth |
-| `SIMPLEFIN_ACCESS_URL`, `SIMPLEFIN_STALE_HOURS` | bank balances + freshness guard |
+| `OPENBUDGET_REDIRECT_URI` (optional; defaults to production) | OpenBudget OAuth callback |
+| `OPENBUDGET_STALE_HOURS` | bank-balance freshness guard |
 | `CRON_SECRET` | authenticates the `/api/sync` cron |
 | `REFRESH_SECRET` | `x-refresh-key` for `/api/ingest-refresh`; **currently unset**, so it falls back to `AZURE_SQL_PASSWORD` |
 | `SK_DATA_DIR` | override for the `data/` cache location |

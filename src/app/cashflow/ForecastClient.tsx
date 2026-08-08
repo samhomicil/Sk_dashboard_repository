@@ -110,7 +110,7 @@ export default function ForecastClient() {
       </header>
 
       {staleStores.length > 0 && (
-        <div className="warn">⚠ Stale bank feed: {staleStores.map(s => s.store).join(', ')} — reconnect in SimpleFIN before trusting these numbers.</div>
+        <div className="warn">⚠ Stale bank feed: {staleStores.map(s => s.store).join(', ')} — check the OpenBudget connection in Settings before trusting these numbers.</div>
       )}
 
       <div className="take">
@@ -193,7 +193,7 @@ export default function ForecastClient() {
       <div className="foot">
         <b>Reading it:</b> expand a week to see its days, and each day lists what its money actually <i>is</i> — with the event that produced it, because almost nothing originates on the day it moves. Each week rolls the days up into one line — <i>opening</i> balance, <i>money in</i>, <i>money out</i>, and the <i>ending balance</i> the account lands at. Click a week to see the day-by-day register; the <b>Low</b> column flags the tightest point, and a red edge marks a week that dips below $0.{' '}
         <b>Money in</b> = card deposits (T+2, daily), cash (same day), and 3rd-party delivery (≈73% net, paid weekly). <b>Money out</b> = payroll on payday, fixed bills on their day of the month (rent → 1st, debt → 4–5th, franchise → ~16th/23rd, sales tax → 16th), and food (PFG net-7, Walmart same-day).{' '}
-        <b>Balances</b> are anchored on the live bank balance (SimpleFIN), not QuickBooks book value.{' '}
+        <b>Balances</b> are anchored on the live bank balance (OpenBudget), not QuickBooks book value.{' '}
         <b>Funding</b> sizes the smallest transfer that keeps each account above $0 — accounts are separate, so a store that dips needs its own cash even if another is flush.
       </div>
     </Shell>

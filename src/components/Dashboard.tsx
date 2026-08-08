@@ -90,7 +90,7 @@ export default function Dashboard() {
       setRefreshMsg('Failed — is the proxy running?')
     }
   }
-  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, promotions, unitsWindow, daily, dailyRange, jolt, joltQuality, loading, refreshedAt } = data
+  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, promotions, unitsWindow, daily, dailyRange, jolt, joltQuality, guestSat, soci, loading, refreshedAt } = data
   const k = kpis as KpiData | null
   const isAll      = state.store === 'all'
   const isCustom   = state.period === 'custom'
@@ -255,7 +255,7 @@ export default function Dashboard() {
             )}
           </div>
           <div className="md:col-span-3">
-            <OpsHealth kpis={k} loading={loading} />
+            <OpsHealth kpis={k} soci={soci} guest={guestSat} loading={loading} />
           </div>
         </div>
 
@@ -299,7 +299,7 @@ export default function Dashboard() {
                 </span>
               )}
             </div>
-            <div className="text-xs text-slate-400 mb-4">Actual vs {pct(TARGETS.cogsPct)} target · theoretical via Sigma</div>
+            <div className="text-xs text-slate-400 mb-4">Actual vs {pct(TARGETS.cogsPct)} target · theoretical recipe usage from NetChef</div>
             {loading ? (
               <div className="skeleton h-32 w-full" />
             ) : k?.cogsActualPct != null ? (

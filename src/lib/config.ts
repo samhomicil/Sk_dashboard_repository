@@ -1,10 +1,29 @@
+import { LABOR_TARGET, COGS_TARGET } from './core/targets'
+
+/**
+ * Overview-dashboard targets.
+ *
+ * Cost-control targets that other surfaces also grade against are RE-EXPORTED from
+ * `core/targets.ts` rather than restated here — that file is the single source of
+ * truth. Previously `laborPct` was a literal 0.25 while core said 0.22, so the same
+ * store could read "on target" on the Overview and "over" on Weekly Ops in the same
+ * week (Miramar, 23.6% trailing-28d, did exactly that). Both surfaces compute labor
+ * identically — SUM(total_pay) from smoothieking.labor, excluding NON_EMP/Support —
+ * so there was never a definitional reason for the two numbers to differ.
+ *
+ * Targets below the re-exports are Overview-only (guest satisfaction, void/discount
+ * hygiene, YoY growth) and have no counterpart in core.
+ */
 export const TARGETS = {
-  laborPct: 0.25,
+  laborPct: LABOR_TARGET,   // 0.22 — canon, matches daily recap / Weekly Ops / Budget
+  cogsPct: COGS_TARGET,     // 0.25 — canon, recipe-COGS basis
   eePct: 0.60,
-  cogsPct: 0.25,        // 25% business COGS target
   voidPct: 0.02,
   discountPct: 0.08,
   salesGrowthYoY: 0.10,
+  // Guest satisfaction (SMG). 90% OSAT is the confirmed target.
+  osatPct: 0.90,
+  surveysPerStoreMonth: 22,
 }
 
 export const STORE_CODES: Record<string, string> = {

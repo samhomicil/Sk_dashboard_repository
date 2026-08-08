@@ -77,6 +77,13 @@ export default function AppSidebar() {
           <span className="sk-lbl">Weekly Ops</span>
         </Link>
 
+        <Link href="/guest-voice" className={item(pathname.startsWith('/guest-voice'))}>
+          <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 4 11.5a8.5 8.5 0 0 1 8.5-8.5 8.4 8.4 0 0 1 8.5 8.5z" />
+          </svg>
+          <span className="sk-lbl">Guest Voice</span>
+        </Link>
+
         {/* Inventory parent */}
         <Link href="/inventory" className={item(onInventory, onInventory ? 'section' : '')}>
           <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

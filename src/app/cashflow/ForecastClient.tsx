@@ -1,220 +1,309 @@
-'use client';
-import { useEffect, useMemo, useState } from 'react';
+'use client'
+import { useEffect, useMemo, useState } from 'react'
 
-// Validated categorical palette (dataviz skill): blue / green / magenta, fixed order.
-const STORES = ['Margate', 'Miramar', 'Pines'] as const;
-type Store = (typeof STORES)[number];
-const VAR: Record<Store, string> = { Margate: 'var(--s1)', Miramar: 'var(--s2)', Pines: 'var(--s3)' };
+// Per-store cash forecast, rendered in the same design language as the budget tab:
+// per-store tabs, a plain-English take, summary tiles, and a weekly table that
+// expands to daily detail (week -> days, mirroring budget's bucket -> items).
+type Store = string
+const COLOR: Record<string, string> = { Margate: '#2a78d6', Miramar: '#00832f', Pines: '#cf5a92' }
+const TINT: Record<string, string> = { Margate: '#eaf2fb', Miramar: '#e4f3e9', Pines: '#fbe9f1' }
 
-interface Day { d: string; inflow: number; outflow: number; balance: number }
+interface Line { label: string; amt: number; kind: 'in' | 'out'; note: string }
+interface Day { d: string; inflow: number; outflow: number; balance: number; lines?: Line[] }
 interface StoreF {
-  store: Store; balSrc: string; stale: boolean;
-  start: number; low: number; lowDate: string; end: number;
-  need: number; needBy: string | null; days: Day[];
+  store: Store; balSrc: string; stale: boolean
+  start: number; low: number; lowDate: string; end: number
+  need: number; needBy: string | null; days: Day[]
 }
 interface Payload { ok: boolean; asOf: string | null; stores: StoreF[] }
 
-const money = (n: number) => (n < 0 ? '-' : '') + '$' + Math.abs(Math.round(n)).toLocaleString();
-const kMoney = (n: number) => {
-  const a = Math.abs(n);
-  return (n < 0 ? '-' : '') + '$' + (a >= 1000 ? (a / 1000).toFixed(a >= 10000 ? 0 : 1) + 'k' : Math.round(a));
-};
-const md = (iso: string) => { const [, m, d] = iso.split('-'); return `${+m}/${+d}`; };
+const MON = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const dMoney = (n: number) => (n < 0 ? '−' : '') + '$' + Math.abs(Math.round(n)).toLocaleString()
+const signMoney = (n: number) => (n >= 0 ? '+' : '−') + '$' + Math.abs(Math.round(n)).toLocaleString()
+const monDay = (iso: string) => { const [, m, d] = iso.split('-'); return MON[+m] + ' ' + +d }
+const dayNum = (iso: string) => +iso.split('-')[2]
+const dowOf = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return DOW[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] }
+
+interface Wk { i: number; label: string; days: Day[]; inflow: number; outflow: number; net: number; open: number; close: number; low: number; lowDate: string }
+function weeksOf(f: StoreF): Wk[] {
+  const out: Wk[] = []
+  for (let i = 0; i < f.days.length; i += 7) {
+    const chunk = f.days.slice(i, i + 7)
+    if (!chunk.length) break
+    const inflow = chunk.reduce((s, d) => s + d.inflow, 0)
+    const outflow = chunk.reduce((s, d) => s + d.outflow, 0)
+    const open = out.length ? out[out.length - 1].close : f.start
+    const close = chunk[chunk.length - 1].balance
+    let low = Infinity, lowDate = ''
+    for (const d of chunk) if (d.balance < low) { low = d.balance; lowDate = d.d }
+    const a = chunk[0].d, b = chunk[chunk.length - 1].d
+    const label = a.slice(5, 7) === b.slice(5, 7) ? `${monDay(a)} – ${dayNum(b)}` : `${monDay(a)} – ${monDay(b)}`
+    out.push({ i: out.length, label, days: chunk, inflow, outflow, net: inflow - outflow, open, close, low, lowDate })
+  }
+  return out
+}
 
 export default function ForecastClient() {
-  const [data, setData] = useState<Payload | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [hover, setHover] = useState<number | null>(null);
+  const [data, setData] = useState<Payload | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [store, setStore] = useState<Store>('Margate')
+  const [openWk, setOpenWk] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     fetch('/api/forecast', { cache: 'no-store' })
-      .then((r) => r.json()).then((d: Payload) => setData(d))
-      .catch(() => setData(null)).finally(() => setLoading(false));
-  }, []);
+      .then(r => r.json())
+      .then((d: Payload) => {
+        setData(d)
+        if (d?.stores?.length && !d.stores.some(s => s.store === 'Margate')) setStore(d.stores[0].store)
+      })
+      .catch(() => setData(null))
+      .finally(() => setLoading(false))
+  }, [])
 
-  const chart = useMemo(() => {
-    if (!data?.stores?.length) return null;
-    const stores = data.stores;
-    const n = stores[0].days.length;
-    const bals = stores.flatMap((s) => s.days.map((x) => x.balance));
-    const yMax = Math.max(0, ...bals) * 1.06;
-    const yMin = Math.min(0, ...bals) * 1.06;
-    const W = 780, H = 340, padL = 52, padR = 66, padT = 14, padB = 26;
-    const X = (i: number) => padL + (i * (W - padL - padR)) / (n - 1);
-    const Y = (v: number) => padT + ((yMax - v) * (H - padT - padB)) / (yMax - yMin || 1);
-    const yticks = [yMax, (yMax + Math.max(0, yMin)) / 2, 0, yMin / 2, yMin]
-      .filter((v, i, a) => a.indexOf(v) === i && v >= yMin && v <= yMax);
-    const xticks = stores[0].days.map((d, i) => ({ i, d: d.d })).filter((_, i) => i % 7 === 0);
-    return { stores, n, W, H, padL, padR, padT, padB, X, Y, yMin, yMax, yticks, xticks };
-  }, [data]);
+  const toggle = (i: number) => setOpenWk(prev => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n })
 
-  if (loading) return <div className="fc"><p className="muted">Loading forecast…</p><Style /></div>;
-  if (!data?.stores?.length)
-    return <div className="fc"><p className="muted">No forecast yet — run <code>python3 forecast.py --write</code>.</p><Style /></div>;
+  const sel = useMemo(() => data?.stores?.find(s => s.store === store) ?? data?.stores?.[0] ?? null, [data, store])
+  const weeks = useMemo(() => (sel ? weeksOf(sel) : []), [sel])
 
-  const { stores } = data;
-  const c = chart!;
-  const totalNeed = stores.reduce((s, x) => s + x.need, 0);
-  const staleStores = stores.filter((s) => s.stale);
-  const funding = stores.filter((s) => s.need > 0)
-    .map((s) => ({ store: s.store, need: s.need, by: s.needBy! }))
-    .sort((a, b) => a.by.localeCompare(b.by) || b.need - a.need);
+  if (loading) return <Shell><p className="muted">Loading cash forecast…</p></Shell>
+  if (!data?.stores?.length || !sel)
+    return <Shell><p className="muted">No forecast yet — run <code>python3 forecast.py --write</code>.</p></Shell>
+
+  const stores = data.stores
+  const totalIn = sel.days.reduce((s, d) => s + d.inflow, 0)
+  const totalOut = sel.days.reduce((s, d) => s + d.outflow, 0)
+  const n = sel.days.length
+  const staleStores = stores.filter(s => s.stale)
+  const funding = stores.filter(s => s.need > 0)
+    .map(s => ({ store: s.store, need: s.need, by: s.needBy! }))
+    .sort((a, b) => a.by.localeCompare(b.by) || b.need - a.need)
+  const totalNeed = funding.reduce((s, f) => s + f.need, 0)
+
+  const take = sel.need > 0
+    ? `${sel.store} has ${dMoney(sel.start)} in the bank today and, on the current pace, dips to ${dMoney(sel.low)} on ${monDay(sel.lowDate)} — move ${dMoney(sel.need)} in before then to stay above zero.`
+    : `${sel.store} has ${dMoney(sel.start)} today and stays positive the whole ${n} days — the tightest it gets is ${dMoney(sel.low)} on ${monDay(sel.lowDate)}. It self-funds.`
+
+  const tiles = [
+    { nm: 'In the bank now', v: dMoney(sel.start), cls: '', sub: sel.stale ? 'bank feed stale' : 'live bank balance' },
+    { nm: 'Lowest point', v: dMoney(sel.low), cls: sel.low < 0 ? 'crit' : 'good', sub: monDay(sel.lowDate) },
+    { nm: `Money in · ${n}d`, v: dMoney(totalIn), cls: '', sub: 'card + cash + delivery' },
+    { nm: `Money out · ${n}d`, v: dMoney(totalOut), cls: '', sub: 'payroll + bills + food' },
+  ]
 
   return (
-    <div className="fc">
-      <Style />
-      <header className="fc-head">
+    <Shell store={sel.store}>
+      <header className="fin-head">
         <div>
-          <h1>Cash forecast</h1>
-          <p className="muted">Per-store daily balance · next {c.n} days · anchored on live bank balances (SimpleFIN)</p>
+          <div className="eyebrow">SK Wellness · cash forecast</div>
+          <h1>Cash Flow</h1>
+          <div className="sub">What each account&apos;s bank balance does over the next {n} days — click a week to see the days.</div>
         </div>
-        <div className="asof">as of {data.asOf ? md(data.asOf) : '—'}</div>
+        <div className="tabs" role="tablist">
+          {stores.map(s => (
+            <button key={s.store} role="tab" aria-selected={s.store === store} className="tab" onClick={() => setStore(s.store)}>
+              <span className="dot" style={{ background: COLOR[s.store] ?? '#888' }} />{s.store}
+              {s.need > 0 ? <span className="tabneed">fund</span> : null}
+            </button>
+          ))}
+        </div>
       </header>
 
       {staleStores.length > 0 && (
-        <div className="warn">
-          ⚠ Stale bank feed: {staleStores.map((s) => s.store).join(', ')} — reconnect in SimpleFIN before trusting these numbers.
-        </div>
+        <div className="warn">⚠ Stale bank feed: {staleStores.map(s => s.store).join(', ')} — reconnect in SimpleFIN before trusting these numbers.</div>
       )}
 
-      {/* KPI tiles (double as the color legend) */}
+      <div className="take">
+        <span className={'pill ' + (sel.need > 0 ? 'crit' : 'good')}>{sel.need > 0 ? 'Needs funding' : 'Self-funds'}</span>
+        <div><span className="big">{take}</span>{data.asOf ? <span className="lede"> As of {monDay(data.asOf)}.</span> : null}</div>
+      </div>
+
       <div className="tiles">
-        {stores.map((s) => (
-          <div className="tile" key={s.store}>
-            <div className="tile-top"><span className="dot" style={{ background: VAR[s.store] }} />{s.store}{s.stale && <span className="pill">stale</span>}</div>
-            <div className="tile-cur">{money(s.start)}<span className="muted"> now</span></div>
-            <div className="tile-low">low {money(s.low)}<span className="muted"> · {md(s.lowDate)}</span></div>
-            <div className={'tile-need' + (s.need > 0 ? ' bad' : ' ok')}>
-              {s.need > 0 ? `fund ${money(s.need)} by ${md(s.needBy!)}` : 'self-funds'}
-            </div>
+        {tiles.map(t => (
+          <div className="tile" key={t.nm}>
+            <div className="tnm">{t.nm}</div>
+            <div className={'tval ' + t.cls}>{t.v}</div>
+            <div className="tsub">{t.sub}</div>
           </div>
         ))}
       </div>
 
-      {/* Balance chart */}
-      <div className="chart">
-        <svg viewBox={`0 0 ${c.W} ${c.H}`} width="100%" role="img" aria-label="Projected daily cash balance per store"
-             onMouseLeave={() => setHover(null)}>
-          {/* danger zone below $0 */}
-          {c.yMin < 0 && <rect x={c.padL} y={c.Y(0)} width={c.W - c.padL - c.padR} height={c.Y(c.yMin) - c.Y(0)} className="danger" />}
-          {/* gridlines + y labels */}
-          {c.yticks.map((v, i) => (
-            <g key={i}>
-              <line x1={c.padL} x2={c.W - c.padR} y1={c.Y(v)} y2={c.Y(v)} className={v === 0 ? 'zero' : 'grid'} />
-              <text x={c.padL - 8} y={c.Y(v) + 3} className="axis" textAnchor="end">{kMoney(v)}</text>
-            </g>
-          ))}
-          {/* x labels */}
-          {c.xticks.map((t) => (
-            <text key={t.i} x={c.X(t.i)} y={c.H - 8} className="axis" textAnchor="middle">{md(t.d)}</text>
-          ))}
-          {/* per-store lines + low marker + end label */}
-          {stores.map((s) => {
-            const pts = s.days.map((d, i) => `${c.X(i)},${c.Y(d.balance)}`).join(' ');
-            const li = s.days.findIndex((d) => d.d === s.lowDate);
-            return (
-              <g key={s.store}>
-                <polyline points={pts} fill="none" stroke={VAR[s.store]} strokeWidth={2}
-                          strokeLinejoin="round" strokeLinecap="round" />
-                {li >= 0 && (
-                  <>
-                    <circle cx={c.X(li)} cy={c.Y(s.low)} r={4} fill={VAR[s.store]} className="ring" />
-                    {s.need > 0 && (
-                      <text x={c.X(li)} y={c.Y(s.low) + 15} className="lowlab" textAnchor="middle" fill={VAR[s.store]}>{kMoney(s.low)}</text>
-                    )}
-                  </>
-                )}
-                <text x={c.X(c.n - 1) + 6} y={c.Y(s.days[c.n - 1].balance) + 3} className="endlab" fill={VAR[s.store]}>{s.store.slice(0, 3)}</text>
-              </g>
-            );
-          })}
-          {/* hover crosshair + dots */}
-          {hover !== null && (
-            <g>
-              <line x1={c.X(hover)} x2={c.X(hover)} y1={c.padT} y2={c.H - c.padB} className="cross" />
-              {stores.map((s) => (
-                <circle key={s.store} cx={c.X(hover)} cy={c.Y(s.days[hover].balance)} r={3.5} fill={VAR[s.store]} className="ring" />
+      <div className="card">
+        <div className="cap">
+          <div className="t">Weekly cash <span className="tag">this account · click a week to expand its days</span></div>
+        </div>
+        <div className="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th className="rowlab">Week</th>
+                <th>Opening</th><th>Money in</th><th>Money out</th><th>Net</th>
+                <th>Ending balance</th><th>Low</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="now">
+                <td className="rowlab">Now <span className="tag">{data.asOf ? monDay(data.asOf) : ''}</span></td>
+                <td /><td /><td /><td />
+                <td className="cell"><span className="bal">{dMoney(sel.start)}</span></td>
+                <td />
+              </tr>
+              {weeks.map(w => (
+                <WeekRows key={w.i} w={w} open={openWk.has(w.i)} dips={w.low < 0} toggle={toggle} />
               ))}
-            </g>
-          )}
-          {/* hover capture */}
-          {c.stores[0].days.map((_, i) => (
-            <rect key={i} x={c.X(i) - (c.W - c.padL - c.padR) / (c.n - 1) / 2} y={c.padT}
-                  width={(c.W - c.padL - c.padR) / (c.n - 1)} height={c.H - c.padT - c.padB}
-                  fill="transparent" onMouseEnter={() => setHover(i)} />
-          ))}
-        </svg>
-        {hover !== null && (
-          <div className="tip">
-            <div className="tip-d">{md(stores[0].days[hover].d)}</div>
-            {stores.map((s) => (
-              <div className="tip-r" key={s.store}>
-                <span className="dot sm" style={{ background: VAR[s.store] }} />{s.store}
-                <b className={s.days[hover].balance < 0 ? 'neg' : ''}>{money(s.days[hover].balance)}</b>
-              </div>
-            ))}
-          </div>
-        )}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td className="rowlab">Over the {n} days</td>
+                <td className="cell"><span className="mv muted">{dMoney(sel.start)}</span></td>
+                <td className="cell"><span className="mv">{dMoney(totalIn)}</span></td>
+                <td className="cell"><span className="mv">{dMoney(totalOut)}</span></td>
+                <td className="cell"><span className={'mv ' + (totalIn - totalOut >= 0 ? 'pos' : 'neg')}>{signMoney(totalIn - totalOut)}</span></td>
+                <td className="cell"><span className={'bal ' + (sel.end < 0 ? 'neg' : '')}>{dMoney(sel.end)}</span></td>
+                <td className="cell"><span className={'mv ' + (sel.low < 0 ? 'neg' : 'muted')}>{dMoney(sel.low)}</span></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
-      {/* Funding schedule */}
-      <div className="fund">
-        <div className="fund-h">Funding needed <span className="muted">— LOC draw / inter-account transfer to stay solvent</span></div>
-        {funding.length === 0 ? (
-          <p className="ok">All accounts self-fund through the horizon.</p>
-        ) : (
-          <>
-            <table>
-              <thead><tr><th>By</th><th>Account</th><th className="r">Amount</th></tr></thead>
+      <div className="card">
+        <div className="cap"><div className="t">Funding needed <span className="tag">LOC draw or inter-account transfer to hold each account above $0</span></div></div>
+        <div className="fundbody">
+          {funding.length === 0 ? (
+            <p className="allgood">✓ All accounts self-fund through the horizon — no transfers needed.</p>
+          ) : (
+            <table className="fund">
+              <thead><tr><th className="rowlab">By</th><th className="rowlab">Account</th><th>Amount</th></tr></thead>
               <tbody>
-                {funding.map((f) => (
-                  <tr key={f.store}><td>{md(f.by)}</td>
-                    <td><span className="dot sm" style={{ background: VAR[f.store] }} />{f.store}</td>
-                    <td className="r bad">{money(f.need)}</td></tr>
+                {funding.map(f => (
+                  <tr key={f.store}>
+                    <td className="rowlab">{monDay(f.by)}</td>
+                    <td className="rowlab"><span className="dot" style={{ background: COLOR[f.store] ?? '#888' }} />{f.store}</td>
+                    <td className="cell"><span className="mv neg">{dMoney(f.need)}</span></td>
+                  </tr>
                 ))}
               </tbody>
-              <tfoot><tr><td /><td>Total</td><td className="r bad">{money(totalNeed)}</td></tr></tfoot>
+              <tfoot><tr><td className="rowlab" /><td className="rowlab">Total to move</td><td className="cell"><span className="mv neg">{dMoney(totalNeed)}</span></td></tr></tfoot>
             </table>
-          </>
-        )}
+          )}
+        </div>
       </div>
+
+      <div className="foot">
+        <b>Reading it:</b> expand a week to see its days, and each day lists what its money actually <i>is</i> — with the event that produced it, because almost nothing originates on the day it moves. Each week rolls the days up into one line — <i>opening</i> balance, <i>money in</i>, <i>money out</i>, and the <i>ending balance</i> the account lands at. Click a week to see the day-by-day register; the <b>Low</b> column flags the tightest point, and a red edge marks a week that dips below $0.{' '}
+        <b>Money in</b> = card deposits (T+2, daily), cash (same day), and 3rd-party delivery (≈73% net, paid weekly). <b>Money out</b> = payroll on payday, fixed bills on their day of the month (rent → 1st, debt → 4–5th, franchise → ~16th/23rd, sales tax → 16th), and food (PFG net-7, Walmart same-day).{' '}
+        <b>Balances</b> are anchored on the live bank balance (SimpleFIN), not QuickBooks book value.{' '}
+        <b>Funding</b> sizes the smallest transfer that keeps each account above $0 — accounts are separate, so a store that dips needs its own cash even if another is flush.
+      </div>
+    </Shell>
+  )
+}
+
+function WeekRows({ w, open, dips, toggle }: { w: Wk; open: boolean; dips: boolean; toggle: (i: number) => void }) {
+  const rows: React.ReactNode[] = []
+  rows.push(
+    <tr key={'w' + w.i} className={'wk' + (open ? ' open' : '') + (dips ? ' dips' : '')} onClick={() => toggle(w.i)}>
+      <td className="rowlab"><span className="wklab"><span className="caret">▸</span>{w.label}</span></td>
+      <td className="cell"><span className="mv muted">{dMoney(w.open)}</span></td>
+      <td className="cell"><span className="mv">{dMoney(w.inflow)}</span></td>
+      <td className="cell"><span className="mv">{dMoney(w.outflow)}</span></td>
+      <td className="cell"><span className={'mv ' + (w.net >= 0 ? 'pos' : 'neg')}>{signMoney(w.net)}</span></td>
+      <td className="cell"><span className={'bal ' + (w.close < 0 ? 'neg' : '')}>{dMoney(w.close)}</span></td>
+      <td className="cell"><span className={'mv ' + (w.low < 0 ? 'neg' : 'muted')}>{dMoney(w.low)}</span></td>
+    </tr>
+  )
+  if (open) {
+    w.days.forEach((d, di) => {
+      const big = d.outflow > 1500
+      rows.push(
+        <tr key={'w' + w.i + 'd' + di} className={'day' + (d.balance < 0 ? ' neg' : '')}>
+          <td className="rowlab"><span className="dlab">{dowOf(d.d)} {monDay(d.d)}</span></td>
+          <td className="cell" />
+          <td className="cell"><span className={'dv' + (d.inflow > 0 ? '' : ' z')}>{d.inflow > 0 ? dMoney(d.inflow) : '—'}</span></td>
+          <td className="cell"><span className={'dv' + (d.outflow > 0 ? '' : ' z') + (big ? ' big' : '')}>{d.outflow > 0 ? dMoney(d.outflow) : '—'}</span></td>
+          <td className="cell" />
+          <td className="cell"><span className={'dv bal' + (d.balance < 0 ? ' neg' : '')}>{dMoney(d.balance)}</span></td>
+          <td className="cell" />
+        </tr>
+      )
+      // What the day's money actually IS. Almost nothing originates on the day it
+      // moves — card money is sales from two days back, food is a week-old invoice,
+      // payroll is a pay period that already closed — so each line names its source.
+      for (const [li, ln] of (d.lines ?? []).entries()) {
+        rows.push(
+          <tr key={'w' + w.i + 'd' + di + 'l' + li} className="line">
+            <td className="rowlab"><span className="lnlab">{ln.label}</span></td>
+            <td className="cell lnnote">{ln.note}</td>
+            <td className="cell">{ln.kind === 'in' && <span className="lnamt in">{dMoney(ln.amt)}</span>}</td>
+            <td className="cell">{ln.kind === 'out' && <span className="lnamt out">{dMoney(ln.amt)}</span>}</td>
+            <td className="cell" /><td className="cell" /><td className="cell" />
+          </tr>
+        )
+      }
+    })
+  }
+  return <>{rows}</>
+}
+
+function Shell({ children, store }: { children: React.ReactNode; store?: string }) {
+  return (
+    <div className="fin" style={store ? { ['--store' as string]: COLOR[store] ?? '#2a78d6', ['--store-tint' as string]: TINT[store] ?? '#eaf2fb' } : undefined}>
+      {children}
+      <Style />
     </div>
-  );
+  )
 }
 
 function Style() {
   return (
     <style>{`
-      .fc{--s1:#2a78d6;--s2:#008300;--s3:#e87ba4;--surface:#fcfcfb;--ink:#0b0b0b;--muted:#52514e;--line:#e7e6e2;--danger:#e34948;
-          max-width:860px;margin:0 auto;padding:20px 16px 48px;color:var(--ink);font:14px/1.4 -apple-system,system-ui,sans-serif;}
-      @media (prefers-color-scheme:dark){.fc{--s1:#3987e5;--s2:#008300;--s3:#d55181;--surface:#1a1a19;--ink:#fff;--muted:#c3c2b7;--line:#33322f;}}
-      .fc h1{font-size:20px;margin:0 0 2px;font-weight:650;}
-      .muted{color:var(--muted);} .neg{color:var(--danger);}
-      .fc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
-      .asof{font-size:12px;color:var(--muted);white-space:nowrap;padding-top:4px;}
-      .warn{background:#fdecea;color:#9a2b2a;border:1px solid #f3c2bf;border-radius:8px;padding:8px 12px;margin:12px 0;font-size:13px;}
-      @media (prefers-color-scheme:dark){.warn{background:#2a1615;color:#f0a6a3;border-color:#5a2321;}}
-      .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0;}
-      .tile{border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--surface);}
-      .tile-top{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;}
-      .dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none;} .dot.sm{width:8px;height:8px;margin-right:5px;}
-      .pill{margin-left:auto;font-size:10px;background:#fdecea;color:#9a2b2a;padding:1px 6px;border-radius:20px;}
-      .tile-cur{font-size:19px;font-weight:650;margin:6px 0 1px;}
-      .tile-low{font-size:12px;color:var(--muted);}
-      .tile-need{margin-top:7px;font-size:12px;font-weight:600;padding:3px 7px;border-radius:6px;display:inline-block;}
-      .tile-need.bad{background:#fdecea;color:#9a2b2a;} .tile-need.ok{background:#e8f4ea;color:#1c6b2c;}
-      @media (prefers-color-scheme:dark){.tile-need.bad{background:#2a1615;color:#f0a6a3;}.tile-need.ok{background:#14261a;color:#7fce93;}}
-      .chart{position:relative;margin:8px 0 4px;}
-      .grid{stroke:var(--line);stroke-width:1;} .zero{stroke:var(--muted);stroke-width:1.25;stroke-dasharray:3 3;}
-      .danger{fill:var(--danger);opacity:.07;}
-      .axis{fill:var(--muted);font-size:10.5px;} .endlab{font-size:11px;font-weight:700;} .lowlab{font-size:10.5px;font-weight:700;}
-      .ring{stroke:var(--surface);stroke-width:1.5;} .cross{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 2;opacity:.6;}
-      .tip{position:absolute;top:6px;left:56px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.1);pointer-events:none;}
-      .tip-d{font-weight:650;margin-bottom:4px;} .tip-r{display:flex;align-items:center;gap:2px;white-space:nowrap;} .tip-r b{margin-left:8px;}
-      .fund{margin-top:18px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface);}
-      .fund-h{font-weight:650;font-size:14px;margin-bottom:8px;} .ok{color:#1c6b2c;font-weight:600;}
-      .fund table{width:100%;border-collapse:collapse;font-size:13px;} .fund th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:3px 4px;border-bottom:1px solid var(--line);}
-      .fund td{padding:6px 4px;border-bottom:1px solid var(--line);} .fund tfoot td{font-weight:650;border-bottom:none;} .r{text-align:right;} .bad{color:var(--danger);font-weight:650;}
+    .fin{--bg:#f3f5f8;--surface:#fff;--elev:#f9fbfe;--ink:#182231;--muted:#586376;--faint:#8a95a6;--line:#e5e9ef;--line2:#eef1f5;
+      --good:#137a4c;--good-bg:#e5f3ea;--crit:#c5352f;--crit-bg:#fbe6e5;--pos:#137a4c;--neg:#c5352f;
+      --store:#2a78d6;--store-tint:#eaf2fb;--shadow:0 1px 2px rgba(24,34,49,.05),0 8px 22px rgba(24,34,49,.06);
+      background:var(--bg);color:var(--ink);min-height:100vh;padding:24px 20px 60px;font:14px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
+.fin *{box-sizing:border-box;}.fin table{font-variant-numeric:tabular-nums;}.fin .mv, .fin .bal, .fin .tval, .fin .dv{font-variant-numeric:tabular-nums;}
+.fin .muted{color:var(--muted);}.fin code{background:var(--elev);padding:1px 5px;border-radius:4px;font-size:12px;}
+.fin .eyebrow{text-transform:uppercase;letter-spacing:.09em;font-size:10.5px;font-weight:700;color:var(--faint);}
+.fin-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px;max-width:1080px;}
+.fin h1{font-size:21px;font-weight:680;margin:2px 0 3px;letter-spacing:-.01em;}.fin .sub{color:var(--muted);font-size:13px;max-width:52ch;}
+.fin .tabs{display:flex;gap:6px;}.fin .tab{border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 13px/1 inherit;padding:9px 14px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+.fin .tab:hover{color:var(--ink);}.fin .tab .dot{width:9px;height:9px;border-radius:50%;}.fin .tab[aria-selected="true"]{color:var(--ink);border-color:var(--store);background:var(--store-tint);box-shadow:inset 0 -2px 0 var(--store);}
+.fin .tabneed{font-size:9px;font-weight:800;color:var(--crit);background:var(--crit-bg);padding:1px 5px;border-radius:9px;letter-spacing:.03em;text-transform:uppercase;}
+.fin .warn{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit);border-radius:9px;padding:9px 13px;margin:0 0 14px;font-size:13px;max-width:1080px;}
+.fin .take{display:flex;align-items:center;gap:12px;margin:0 0 20px;padding:13px 16px;border-radius:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--store);box-shadow:var(--shadow);max-width:1080px;flex-wrap:wrap;}
+.fin .take .big{font-weight:600;}.fin .take .lede{color:var(--muted);}
+.fin .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}.fin .pill.good{background:var(--good-bg);color:var(--good);}.fin .pill.crit{background:var(--crit-bg);color:var(--crit);}
+.fin .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;max-width:1080px;}
+.fin .tile{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px 14px;box-shadow:var(--shadow);}
+.fin .tnm{font-size:11.5px;font-weight:640;color:var(--muted);margin-bottom:5px;}
+.fin .tval{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1;}.fin .tval.pos{color:var(--pos);}.fin .tval.neg{color:var(--neg);}.fin .tval.good{color:var(--good);}.fin .tval.crit{color:var(--crit);}
+.fin .tsub{font-size:11px;color:var(--faint);margin-top:5px;}
+.fin .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:22px;max-width:1080px;padding:0;}
+.fin .cap{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 16px 11px;border-bottom:1px solid var(--line2);flex-wrap:wrap;}.fin .cap .t{font-weight:660;font-size:14px;}.fin .tag{font-size:9.5px;color:var(--faint);font-weight:600;margin-left:6px;text-transform:none;letter-spacing:0;}
+.fin .scroll{overflow-x:auto;}.fin table{border-collapse:collapse;width:100%;min-width:720px;}.fin th, .fin td{text-align:right;padding:0;}
+.fin thead th{position:sticky;top:0;background:var(--surface);z-index:1;padding:9px 14px 8px;border-bottom:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);white-space:nowrap;}
+.fin .rowlab{position:sticky;left:0;background:var(--surface);text-align:left;font-weight:600;white-space:nowrap;border-right:1px solid var(--line);min-width:150px;z-index:2;}
+.fin thead .rowlab{z-index:3;}
+.fin td.cell{padding:9px 14px;border-top:1px solid var(--line2);}.fin .mv{font-weight:600;font-size:13px;}.fin .mv.pos{color:var(--pos);}.fin .mv.neg{color:var(--neg);}.fin .mv.muted{color:var(--muted);font-weight:500;}
+.fin .bal{font-weight:750;font-size:14px;}.fin .bal.neg{color:var(--neg);}
+.fin tr.now .rowlab{padding:9px 14px;border-top:none;}.fin tr.now td.cell{border-top:none;}
+.fin tr.wk{cursor:pointer;}.fin tr.wk:hover .rowlab, .fin tr.wk:hover td{background:var(--elev);}.fin tr.wk .rowlab{padding:11px 14px;border-top:1px solid var(--line);}.fin tr.wk td.cell{border-top:1px solid var(--line);}
+.fin .wklab{display:flex;align-items:center;gap:8px;}.fin .caret{width:12px;color:var(--faint);font-size:10px;display:inline-block;transition:transform .12s;}.fin tr.wk.open .caret{transform:rotate(90deg);}
+.fin tr.wk.dips .rowlab{box-shadow:inset 3px 0 0 var(--crit);}
+.fin tr.day{background:var(--elev);}.fin tr.day .rowlab{background:var(--elev);font-weight:500;color:var(--muted);padding:5px 14px 5px 30px;font-size:12px;border-top:1px solid var(--line2);}
+.fin tr.day td.cell{padding:5px 14px;border-top:1px solid var(--line2);}.fin .dv{font-size:12px;font-weight:500;color:var(--muted);}.fin .dv.pos{color:var(--pos);}.fin .dv.neg{color:var(--neg);}.fin .dv.big{font-weight:700;}.fin .dv.z{color:var(--faint);}.fin .dv.bal{font-weight:650;color:var(--ink);}
+.fin tr.day.neg .rowlab, .fin tr.day.neg .dv.bal{color:var(--neg);}
+    .fin tr.line td{border-top:none;background:var(--elev);padding:1px 14px;}
+    .fin tr.line .rowlab{background:var(--elev);border-top:none;padding:1px 14px 1px 44px;font-weight:400;font-size:11.5px;color:var(--muted);}
+    .fin tr.line:last-child td{padding-bottom:7px;}
+    .fin .lnnote{text-align:left;font-size:11px;color:var(--faint);white-space:nowrap;}
+    .fin .lnamt{font-size:11.5px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums;}
+.fin tfoot td{border-top:2px solid var(--line);background:var(--elev);}.fin tfoot .rowlab{background:var(--elev);padding:11px 14px;font-weight:700;}.fin tfoot .cell{padding:11px 14px;}
+.fin .fundbody{padding:6px 16px 14px;}.fin .allgood{color:var(--good);font-weight:600;padding:8px 0;}
+.fin table.fund{min-width:0;}.fin table.fund thead th{position:static;text-transform:none;letter-spacing:0;font-size:11px;}.fin table.fund .rowlab{min-width:0;position:static;border-right:none;padding:8px 14px 8px 0;display:flex;align-items:center;gap:7px;}.fin table.fund .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}.fin table.fund td.cell{padding:8px 0;border-top:1px solid var(--line2);}
+.fin .foot{color:var(--faint);font-size:11.5px;margin-top:14px;line-height:1.65;max-width:1080px;}.fin .foot b{color:var(--muted);font-weight:640;}
+    @media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr);}}
     `}</style>
-  );
+  )
 }

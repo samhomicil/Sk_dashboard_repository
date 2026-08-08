@@ -45,7 +45,7 @@ export function buildForecast(
       const ym = ymOf(o.due);
       const bucket = map[ym];
       if (!bucket) continue;
-      const r = resolveAmount(bill, sales, ym);
+      const r = resolveAmount(bill, sales, ym, iso(o.due));
       if (bill.amountType === 'percent') {
         if (!r.known || r.val == null) { bucket.needsSales = true; continue; }
         bucket.percent += r.val;

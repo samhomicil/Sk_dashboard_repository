@@ -23,10 +23,12 @@ import { NextResponse } from 'next/server'
 // Owner-only route prefixes (financial / bills modules). Matched as exact path or
 // path + '/'. /api/sync is intentionally absent — it's a cron (CRON_SECRET), not
 // session-authenticated, and is excluded from the matcher below.
+// `/api/cost-plan` has no route yet — it is pre-gated on purpose so the planned
+// route can't ship ungated by accident. Keep entries here ahead of the code.
 const OWNER_PAGES = ['/bills', '/cashflow', '/pnl', '/transactions', '/settings', '/financials']
 const OWNER_APIS = [
   '/api/bills', '/api/forecast', '/api/cost-plan', '/api/accounts',
-  '/api/payments', '/api/reconcile', '/api/qb', '/api/sales', '/api/sigma',
+  '/api/payments', '/api/reconcile', '/api/qb', '/api/sales',
 ]
 
 function isOwnerOnly(pathname: string): boolean {

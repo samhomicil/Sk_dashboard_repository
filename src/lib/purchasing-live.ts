@@ -8,6 +8,7 @@
  */
 
 import { query } from './db'
+import { wmtFood } from './core/sources'
 import type {
   CategorySpend, CategoryByStore, TopProductPriced, VendorBrand, WeekPoint, CategoryWeekPoint, PurchasingLive,
 } from './purchasingUtils'
@@ -35,7 +36,7 @@ export async function buildPurchasingLive(start: string, end: string): Promise<P
   ] = await Promise.all([
     query<{ pfg: number; walmart: number }[]>(`
       SELECT (SELECT SUM(line_total) FROM smoothieking.pfg_compat WHERE ${pfgWin}) AS pfg,
-             (SELECT SUM(item_net_total) FROM smoothieking.walmart_spend WHERE ${wmWin}) AS walmart`),
+             (${wmtFood.total(wmWin)}) AS walmart`),
     query<{ category: string; spend: number; lines: number }[]>(`
       SELECT category, SUM(line_total) AS spend, COUNT(*) AS lines
       FROM smoothieking.pfg_compat
@@ -83,9 +84,7 @@ export async function buildPurchasingLive(start: string, end: string): Promise<P
     query<{ d: string; spend: number }[]>(`
       SELECT CONVERT(char(10), order_date, 23) AS d, SUM(line_total) AS spend
       FROM smoothieking.pfg_compat WHERE ${pfgWin} GROUP BY CONVERT(char(10), order_date, 23)`),
-    query<{ d: string; spend: number }[]>(`
-      SELECT CONVERT(char(10), order_date, 23) AS d, SUM(item_net_total) AS spend
-      FROM smoothieking.walmart_spend WHERE ${wmWin} GROUP BY CONVERT(char(10), order_date, 23)`),
+    query<{ d: string; spend: number }[]>(wmtFood.byDay(wmWin)),
     query<{ d: string; net: number }[]>(`
       SELECT CONVERT(char(10), closed_datetime, 23) AS d,
              SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) AS net

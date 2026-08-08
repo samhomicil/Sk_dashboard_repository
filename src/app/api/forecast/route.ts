@@ -13,7 +13,11 @@ export const dynamic = 'force-dynamic'
 type Row = {
   store: string; d: Date; inflow: number; outflow: number;
   balance: number; as_of: Date; bal_src: string; stale: boolean | number;
+  detail: string | null;
 }
+
+/** A named line behind a day's totals, with the past event that produced it. */
+type Line = { label: string; amt: number; kind: 'in' | 'out'; note: string }
 
 export async function GET() {
   const gate = await requireOwner()
@@ -23,7 +27,7 @@ export async function GET() {
   if (!db) return NextResponse.json({ error: 'db not configured' }, { status: 503 })
 
   const rows = await db.$queryRawUnsafe<Row[]>(
-    `SELECT store, d, inflow, outflow, balance, as_of, bal_src, stale
+    `SELECT store, d, inflow, outflow, balance, as_of, bal_src, stale, detail
        FROM sk_bills.Forecast ORDER BY store, d`,
   )
   if (!rows.length) return NextResponse.json({ ok: true, asOf: null, stores: [] })
@@ -31,7 +35,7 @@ export async function GET() {
   const iso = (x: Date) => new Date(x).toISOString().slice(0, 10)
   const byStore = new Map<string, {
     store: string; balSrc: string; stale: boolean;
-    days: { d: string; inflow: number; outflow: number; balance: number }[];
+    days: { d: string; inflow: number; outflow: number; balance: number; lines: Line[] }[];
   }>()
 
   for (const r of rows) {
@@ -40,7 +44,9 @@ export async function GET() {
       s = { store: r.store, balSrc: r.bal_src, stale: Boolean(r.stale), days: [] }
       byStore.set(r.store, s)
     }
-    s.days.push({ d: iso(r.d), inflow: r.inflow, outflow: r.outflow, balance: r.balance })
+    let lines: Line[] = []
+    try { if (r.detail) lines = JSON.parse(r.detail) as Line[] } catch { lines = [] }
+    s.days.push({ d: iso(r.d), inflow: r.inflow, outflow: r.outflow, balance: r.balance, lines })
   }
 
   const stores = [...byStore.values()].map((s) => {

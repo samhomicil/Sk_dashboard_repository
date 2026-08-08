@@ -1,11 +1,16 @@
 import { query } from './db'
+import { tierOf, type Tier } from './netchefTiers'
 import { holidayName, priorYearHoliday } from './holiday'
 
 // Hybrid, delivery-cycle-aware order guide (predictive-ordering "crawl").
 // Trusted-source hybrid — NetChef for STRUCTURE (physical counts, pack, cost), Brink
 // for DEMAND (NetChef's own sales proven unreliable). Per item per store:
 //   • usage = COUNT-BASED actual = beginning + received (+ Walmart receipts NetChef is
-//             missing) − ending physical  ← smoothieking.netchef_usage + walmart_spend
+//             missing) − ending physical  ← smoothieking.netchef_usage_api + walmart_spend
+//   NOTE: usage now comes from the API-derived table, not the Playwright scrape.
+//   The columns this uses (beginning/received/physical) reproduce the scrape
+//   exactly (353/353, 353/353, 336/353). qty_issue is only a fallback here and
+//   IS our computed estimate — see netchef-extractor/theoretical.py TIERS.
 //   • on-hand + pending + pack unit + cost ← smoothieking.netchef_onhand
 //   • demand run-rate = trailing-4wk Brink driver sales ÷ usage-week driver sales
 // Each order is sized to the SPECIFIC days it covers, delivery-to-delivery (order-up-to
@@ -126,6 +131,12 @@ async function holidayByDate(windowDates: string[]): Promise<Map<string, number>
 
 export type OGStore = 'Pines' | 'Miramar' | 'Margate'
 
+// How far above recipe-driven usage a physical count may run before we stop
+// believing it. 3x is deliberately loose: real usage legitimately exceeds the
+// recipe figure (waste, over-pour, unrecorded transfers), so this only catches
+// counts that cannot be explained by any of that.
+const MISCOUNT_MULTIPLE = 3
+
 export interface OrderGuideRow {
   store: OGStore
   productNumber: string
@@ -135,8 +146,12 @@ export interface OrderGuideRow {
   unit: string | null
   onHand: number
   inTransit: number
-  weeklyUsage: number          // count-based actual (begin+received−physical)
-  usageBasis: 'count' | 'theoretical'
+  weeklyUsage: number          // the figure actually used to forecast
+  usageBasis: 'count' | 'theoretical' | 'theoretical-guard'
+  countUsage: number           // begin + received + walmart − physical, before any guard
+  theoreticalUsage: number     // recipe BOM × menu mix, from netchef_usage_api.qty_issue
+  usageGapPct: number | null   // count vs theoretical, null when theoretical is 0
+  usageTier: Tier              // confidence in theoreticalUsage (netchefTiers)
   forecastFactor: number       // Brink demand run-rate vs usage week
   forecastWeeklyUsage: number
   daysOfSupply: number | null
@@ -182,8 +197,8 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
     query<UsageRow[]>(`
       SELECT store, product_number, qty_beginning, qty_received, qty_physical, qty_issue, qty_variance,
              CONVERT(char(10), period_start, 23) period_start, CONVERT(char(10), period_end, 23) period_end
-      FROM smoothieking.netchef_usage
-      WHERE period_end = (SELECT MAX(period_end) FROM smoothieking.netchef_usage)`),
+      FROM smoothieking.netchef_usage_api
+      WHERE period_end = (SELECT MAX(period_end) FROM smoothieking.netchef_usage_api)`),
   ])
   if (!onHand.length) return null
 
@@ -286,9 +301,32 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
     const u = usageMap.get(`${oh.store}|${oh.product_number}`)
     const wmR = walmartRecv.get(`${oh.store}|${oh.product_number}`) ?? 0
     const countUsage = u ? (Number(u.qty_beginning) || 0) + (Number(u.qty_received) || 0) + wmR - (Number(u.qty_physical) || 0) : 0
+    const theoretical = Math.max(0, Number(u?.qty_issue) || 0)
+    const tier = tierOf(oh.product_number)
+
+    // Count-based usage stays PRIMARY: it is what physically left the shelf, so
+    // it already contains waste, over-pouring and spillage that a recipe never
+    // will. Recipe-driven usage is the cross-check, not the replacement.
     let weeklyUsage = countUsage
-    let usageBasis: 'count' | 'theoretical' = 'count'
-    if (weeklyUsage <= 0) { weeklyUsage = Math.max(0, Number(u?.qty_issue) || 0); usageBasis = 'theoretical' }
+    let usageBasis: 'count' | 'theoretical' | 'theoretical-guard' = 'count'
+    if (weeklyUsage <= 0) {
+      // Nothing usable from the count (often a missed or partial count).
+      weeklyUsage = theoretical
+      usageBasis = 'theoretical'
+    } else if (
+      tier === 'A' && theoretical > 0 &&
+      countUsage > theoretical * MISCOUNT_MULTIPLE
+    ) {
+      // A single fat-fingered count can multiply an order. When the count
+      // claims several times what the recipes can account for — and the recipe
+      // figure is one we trust for this product — treat the count as suspect
+      // and order to the recipe instead. Deliberately one-directional: a count
+      // BELOW theoretical is normal (product still on the shelf), only an
+      // implausibly high one is guarded.
+      weeklyUsage = theoretical
+      usageBasis = 'theoretical-guard'
+    }
+    const usageGapPct = theoretical > 0 ? ((countUsage - theoretical) / theoretical) * 100 : null
 
     const driver = driverOf(oh.sub_category_name)
     const factor = factorFor(oh.store, driver)
@@ -350,6 +388,10 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
       forecastFactor: factor, forecastWeeklyUsage: fcastWeekly, daysOfSupply: dos,
       runOutDate, orderTruck,
       coverDays: horizon.length, suggestedOrder: suggested, estOrderCost, sourcing,
+      countUsage,
+      theoreticalUsage: theoretical,
+      usageGapPct,
+      usageTier: tier,
       varianceQty: Number(u?.qty_variance) || 0,
       unitCost, flag,
     })

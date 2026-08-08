@@ -722,7 +722,7 @@ function BillRow({
   }
   const nextAmt = useMemo(() => {
     if (!next) return null;
-    return resolveAmount(bill as unknown as Bill, sales, ymOf(next.due));
+    return resolveAmount(bill as unknown as Bill, sales, ymOf(next.due), iso(next.due));
   }, [bill, next, sales]);
 
   return (

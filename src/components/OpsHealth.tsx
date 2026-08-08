@@ -1,17 +1,143 @@
 'use client'
 
+import Link from 'next/link'
+
 import type { KpiData } from '@/lib/types'
+import type { SociData } from '@/app/api/soci/route'
+import type { GuestSummary } from '@/app/api/guest-satisfaction/route'
 import { TARGETS } from '@/lib/config'
 
 interface Props {
   kpis:    KpiData | null
+  soci?:   SociData | null
+  guest?:  GuestSummary | null
   loading: boolean
 }
 
 function pct(n: number) { return `${(n * 100).toFixed(1)}%` }
 function dol(n: number) { return n >= 0 ? `+$${Math.abs(Math.round(n))}` : `-$${Math.abs(Math.round(n))}` }
 
-export default function OpsHealth({ kpis, loading }: Props) {
+// Same shape as the Void/Discount/Till metrics above: a sub-header naming the metric and
+// its target, then the dot and value. Detail lives in the tooltip.
+function VTile({ header, target, dot, value, unit, note, tip, tone, emphasis }: {
+  header: string
+  target?: string
+  dot: 'g' | 'y' | 'r'
+  value: string
+  unit?: string
+  note?: string
+  tip: string
+  tone?: 'bad' | 'dim'
+  emphasis?: boolean
+}) {
+  const cls = tone === 'bad' ? 'text-red-600' : tone === 'dim' ? 'text-slate-400' : 'text-slate-700'
+  return (
+    <div title={tip}>
+      <div className="text-xs font-medium text-slate-700 mb-0.5 truncate">
+        {header} {target && <span className="font-normal text-slate-400">{target}</span>}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={`dot-${dot}`} />
+        <span className={`text-lg font-bold ${cls}`}>
+          {value}{unit && <span className="text-xs font-normal text-slate-400"> {unit}</span>}
+        </span>
+        {note && (
+          <span className={`text-xs truncate ${emphasis ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+            {note}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function GuestVoiceRow(
+  { guest, soci }: { guest?: GuestSummary | null; soci?: SociData | null },
+) {
+  const tiles: React.ReactNode[] = []
+  const pct = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(0)}%`)
+
+  if (guest?.connected) {
+    const { osat, osatPrior, responses, goal, pace, worstMetric, cases } = guest
+    const thin = responses > 0 && responses < 10
+    const osatOk = osat != null && osat >= TARGETS.osatPct
+    const delta = osat != null && osatPrior != null ? osat - osatPrior : null
+
+    tiles.push(
+      <VTile key="osat"
+        header="Overall Satisfaction" target={`tgt ${(TARGETS.osatPct * 100).toFixed(0)}%`}
+        dot={osat == null || thin ? 'y' : osatOk ? 'g' : 'r'}
+        value={pct(osat)} tone={thin ? 'dim' : osatOk ? undefined : 'bad'}
+        note={thin ? 'too few' : delta != null ? `${delta >= 0 ? '▲' : '▼'}${Math.abs(delta * 100).toFixed(0)}pts` : undefined}
+        tip={`${guest.scope} · ${responses} responses in range · target ${(TARGETS.osatPct * 100).toFixed(0)}%`
+          + (worstMetric ? ` · weakest: ${worstMetric.metric} ${pct(worstMetric.value)}` : '')
+          + (thin ? ' · below 10 responses, widen the range' : '')} />,
+      <VTile key="surveys"
+        header="Surveys" target={`goal ${TARGETS.surveysPerStoreMonth}/store/mo`}
+        dot={pace == null ? 'y' : pace >= 1 ? 'g' : pace >= 0.8 ? 'y' : 'r'}
+        value={String(responses)} unit={`/ ${goal.toFixed(0)}`}
+        note={pace != null ? `${(pace * 100).toFixed(0)}%` : undefined}
+        tip={`Surveys collected vs a ${TARGETS.surveysPerStoreMonth}/store/month goal, prorated to the selected range`} />,
+    )
+    if (cases) {
+      const owed = cases.pending > 0 || cases.overSla > 0
+      tiles.push(
+        <VTile key="cases"
+          header="Incidents" target={`goal ${cases.goalHours}h`}
+          dot={cases.opened === 0 ? 'g' : owed ? 'r' : 'y'}
+          value={String(cases.opened)} tone={cases.opened ? 'bad' : undefined}
+          note={cases.pending ? `${cases.pending} open` : undefined}
+          tip={(cases.opened
+            ? `Guest-recovery cases opened in range · avg close ${cases.avgHours?.toFixed(0) ?? '—'}h against a ${cases.goalHours}h callback goal · ${cases.overSla} past goal · ${cases.pending} still open`
+            : 'No guest complaints raised in this range')
+            + (guest.casesCombined ? ' · covers Pines and Miramar together — cases cannot be split by store yet' : '')} />,
+      )
+    }
+  }
+
+  if (soci?.connected) {
+    const p = soci.period
+    const count = p?.reviews ?? soci.newReviews
+    // Always show a live rating. A quiet week is not missing data — the store still has a
+    // standing Google score, and blanking it just because nobody reviewed lately hides the
+    // number that actually matters. Fall back to the standing rating and say which it is.
+    const inRange = count > 0 && p?.rating != null
+    const rating = inRange ? p!.rating! : soci.avgRating
+    const newest = p && p.newLast7 > 0 ? `${p.newLast7} new in 7d` : 'none in 7d'
+    // SOCi only covers Margate, so on All this is one store's score, never a blend.
+    const margateOnly = guest?.scope === 'all three stores'
+
+    tiles.push(
+      <VTile key="rating"
+        header="Reviews" target={margateOnly ? 'Margate only' : 'Google + Yelp'}
+        dot={rating == null ? 'y' : rating >= 4.5 ? 'g' : rating >= 4 ? 'y' : 'r'}
+        value={rating == null ? '—' : rating.toFixed(2)} unit={rating == null ? undefined : '★'}
+        note={inRange ? `${count} · ${newest}` : `current · ${newest}`}
+        emphasis={Boolean(p && p.newLast7 > 0)}
+        tip={(inRange
+          ? `Rating from the ${count} review${count === 1 ? '' : 's'} inside the range`
+          : `No reviews inside the range — showing the standing rating as of ${soci.snapshotDate || 'today'}`)
+          + ` · lifetime ${soci.avgRating?.toFixed(2) ?? '—'} over ${soci.reviews.total} reviews`
+          + (p ? ` · ${p.google} Google in range, ${p.yelp} Yelp lifetime · ${p.negative} rated 1–2★` : '')
+          + (margateOnly ? ' · SOCi covers Margate only, so this is not a company figure' : '')} />,
+    )
+  }
+
+  if (tiles.length === 0) return null
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100">
+      <div className="text-xs text-slate-400 mb-2">
+        <Link href="/guest-voice" className="text-slate-500 hover:text-teal-600 font-medium">
+          Guest Voice →
+        </Link>
+        <span className="text-slate-300 ml-1">— {guest?.scope ?? 'Margate'} · SMG survey + SOCi reviews</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{tiles}</div>
+    </div>
+  )
+}
+
+export default function OpsHealth({ kpis, soci, guest, loading }: Props) {
   if (loading) return <div className="card md:col-span-2"><div className="skeleton h-24 w-full" /></div>
   if (!kpis) return null
 
@@ -77,6 +203,7 @@ export default function OpsHealth({ kpis, loading }: Props) {
           : `⚠️ ${metrics.filter(m => !m.ok).map(m => m.label).join(', ')} outside target — review needed`
         }
       </div>
+      <GuestVoiceRow guest={guest} soci={soci} />
     </div>
   )
 }

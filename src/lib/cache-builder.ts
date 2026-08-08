@@ -11,11 +11,19 @@ import {
   subWeeks, addWeeks, subYears, format, differenceInDays,
 } from 'date-fns'
 import { PROXY_URL, TARGETS } from './config'
+import { wmtFood } from './core/sources'
+// Sales/orders/channels: live from smoothieking.sales (Phase 1 of removing Sigma).
+// Reconciled to the dollar vs Sigma for settled periods; aliased to the sigma* names
+// so every call site is unchanged. COGS / EE / heatmap / employees stay on Sigma for now.
 import {
-  sigmaSales, sigmaCogsPct, sigmaMonthSales, sigmaWeeklySales, sigmaDailySales,
-  sigmaOrders, sigmaChannels, sigmaThruDate,
-  sigmaEmployees, sigmaEEDailyPct, sigmaHeatmap, sigmaHeatmapWeekly,
-} from './sigma'
+  loadSalesCache,
+  sqlSales as sigmaSales, sqlMonthSales as sigmaMonthSales, sqlWeeklySales as sigmaWeeklySales,
+  sqlDailySales as sigmaDailySales, sqlOrders as sigmaOrders, sqlChannels as sigmaChannels,
+  sqlThruDate as sigmaThruDate, sqlEEDailyPct as sigmaEEDailyPct,
+  sqlEmployeeShifts,
+} from './salesCache'
+import { loadHeatmapCache, sqlHeatmap as sigmaHeatmap, sqlHeatmapWeekly as sigmaHeatmapWeekly } from './heatmapCache'
+import { loadCogsCache, sqlCogsPct as sigmaCogsPct } from './cogsCache'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
   QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee, Promotion,
@@ -188,10 +196,7 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
       SELECT SUM(ext_price) AS pfs_total FROM smoothieking.pfs_invoices
       WHERE ${pfsFilter} AND ${df(start, end, 'invoice_date')}
     `),
-    dbQuery<{walmart_total:number}[]>(`
-      SELECT SUM(item_subtotal) AS walmart_total FROM smoothieking.walmart_spend
-      WHERE ${walmartFilter} AND ${df(start, end, 'order_date')}
-    `),
+    dbQuery<{v:number}[]>(wmtFood.total(`${walmartFilter} AND ${df(start, end, 'order_date')}`)),
   ])
 
   const [l4wLaborRes, l4wPfsRes, l4wWalmartRes, l4wTillRes] = await Promise.allSettled([
@@ -203,10 +208,7 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
       SELECT SUM(ext_price) AS pfs_total FROM smoothieking.pfs_invoices
       WHERE ${pfsFilter} AND ${df(l4wS, l4wE, 'invoice_date')}
     `),
-    dbQuery<{walmart_total:number}[]>(`
-      SELECT SUM(item_subtotal) AS walmart_total FROM smoothieking.walmart_spend
-      WHERE ${walmartFilter} AND ${df(l4wS, l4wE, 'order_date')}
-    `),
+    dbQuery<{v:number}[]>(wmtFood.total(`${walmartFilter} AND ${df(l4wS, l4wE, 'order_date')}`)),
     dbQuery<{till_variance:number}[]>(`
       SELECT ABS(SUM(over_short)) AS till_variance FROM smoothieking.tillhistory
       WHERE ${filter} AND ${df(l4wS, l4wE, 'till_date')}
@@ -219,10 +221,10 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const lab    = val(laborRes,      { total_pay:0, total_hrs:0 })
   const til    = val(tillRes,       { till_variance:0 })
   const pfs    = val(pfsRes,        { pfs_total:0 })
-  const wm     = val(walmartRes,    { walmart_total:0 })
+  const wm     = val(walmartRes,    { v:0 })
   const l4wLab  = val(l4wLaborRes,  { total_pay:0 })
   const l4wPfs  = val(l4wPfsRes,    { pfs_total:0 })
-  const l4wWm   = val(l4wWalmartRes,{ walmart_total:0 })
+  const l4wWm   = val(l4wWalmartRes,{ v:0 })
   const l4wTill = val(l4wTillRes,   { till_variance:0 })
 
   const sales      = sigSales.net_sales
@@ -230,7 +232,7 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const laborCost  = Number(lab.total_pay) || 0
   const laborHours = Number(lab.total_hrs) || 0
   const pfsTot    = Number(pfs.pfs_total)    || 0
-  const wmTot     = Number(wm.walmart_total) || 0
+  const wmTot     = Number(wm.v) || 0
   const l4wSales  = sigL4w.net_sales
 
   const voidPct        = orders    > 0 ? sigSales.void_orders / orders    : 0
@@ -269,7 +271,7 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
     eeInStorePct:       ee.inStore.sm > 0 ? ee.inStore.ee / ee.inStore.sm : 0,
     eeDigitalPct:       ee.digital.sm > 0 ? ee.digital.ee / ee.digital.sm : 0,
     walmartPct:         sales > 0 ? wmTot / sales : 0,
-    walmartPctL4W:      l4wSales > 0 ? (Number(l4wWm.walmart_total) || 0) / l4wSales : 0,
+    walmartPctL4W:      l4wSales > 0 ? (Number(l4wWm.v) || 0) / l4wSales : 0,
     atv:                orders > 0 ? sales / orders : 0,
     atvL4W:             l4wOrders > 0 ? l4wSales / l4wOrders : 0,
     pfsPct:             sales > 0 ? pfsTot / sales : 0,
@@ -328,7 +330,7 @@ const LOC_CODE_TO_STORE_KEY: Record<string, Store> = {
 }
 
 async function fetchEmployees(store: Store, start: string, end: string): Promise<EmployeeRow[]> {
-  const shifts = sigmaEmployees(store, start, end)
+  const shifts = await sqlEmployeeShifts(store, start, end)
 
   type EmpAgg = {
     firstName: string; lastName: string; name: string; role: string
@@ -816,12 +818,6 @@ async function fetchDailyKpis(store: Store, start: string, end: string): Promise
   const laborMap       = new Map(laborRows.map(r => [String(r.shift_date), Number(r.total_pay)]))
   const laborHoursMap2 = new Map(laborRows.map(r => [String(r.shift_date), Number(r.total_hrs)]))
 
-  const sigmaShifts   = sigmaEmployees(store, start, end)
-  const sigmaLaborMap = new Map<string, number>()
-  for (const s of sigmaShifts) {
-    sigmaLaborMap.set(s.date, (sigmaLaborMap.get(s.date) ?? 0) + s.pay)
-  }
-
   const sigSalesMap = sigmaDailySales(store, start, end)
   const startDate   = new Date(start + 'T00:00:00')
 
@@ -832,7 +828,7 @@ async function fetchDailyKpis(store: Store, start: string, end: string): Promise
     const sales    = sigSalesMap.get(dateStr) ?? 0
     const hasSigma = sigSalesMap.has(dateStr)
     const orders   = sigmaOrders(store, dateStr, dateStr)
-    const labor    = laborMap.get(dateStr) ?? sigmaLaborMap.get(dateStr) ?? 0
+    const labor    = laborMap.get(dateStr) ?? 0
     const hours    = laborHoursMap2.get(dateStr) ?? 0
     return {
       date:        dateStr,
@@ -947,6 +943,7 @@ const STORES: Store[] = ['all', 'pines', 'miramar', 'margate']
 const PERIODS: CachePeriod[] = ['weekly', 'monthly', 'quarterly', 'ytd']
 
 export async function buildCacheData() {
+  await Promise.all([loadSalesCache(), loadHeatmapCache(), loadCogsCache()])  // live sales + heatmap + COGS (precede the sql* accessors)
   const dr = ranges()
 
   const kpisEntries = await Promise.all(

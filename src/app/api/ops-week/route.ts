@@ -151,17 +151,16 @@ export async function GET(req: Request) {
       WHERE invoice_date >= '${histStart}' AND invoice_date < '${monday}'
       GROUP BY RIGHT(store_name, 4)`), []),
     // COGS actual + baseline = recipe (theoretical) usage $ ÷ sales, per store PER WEEK over the
-    // trailing NetChef inventory weeks (currently 1; deepens as netchef_usage accumulates). Latest
-    // week = the "actual" rate; the average of the weeks is the run-rate the derived target uses.
+    // trailing 8 NetChef inventory weeks. Source is netchef_usage_api (30 weeks, with its own
+    // unit price) — not the old netchef_usage (only 1 week), so the derived target is a real
+    // run-rate. Latest week = the "actual" rate; the weeks' average feeds the derived target.
     safe(query<{ store: string; wk: string; cogs: number; sales: number }[]>(`
-      WITH o AS (SELECT store, product_number, inventory_price FROM smoothieking.netchef_onhand WHERE as_of = (SELECT MAX(as_of) FROM smoothieking.netchef_onhand))
       SELECT u.store, CONVERT(char(10), u.period_end, 23) AS wk,
-             SUM(u.qty_issue * o.inventory_price) AS cogs,
+             SUM(u.qty_issue * u.price) AS cogs,
              (SELECT SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) FROM smoothieking.sales s
                 WHERE s.store = u.store AND CAST(s.closed_datetime AS DATE) BETWEEN u.period_start AND u.period_end) AS sales
-      FROM smoothieking.netchef_usage u
-      JOIN o ON o.store = u.store AND o.product_number = u.product_number
-      WHERE u.period_end >= (SELECT DATEADD(week, -8, MAX(period_end)) FROM smoothieking.netchef_usage)
+      FROM smoothieking.netchef_usage_api u
+      WHERE u.period_end >= (SELECT DATEADD(week, -8, MAX(period_end)) FROM smoothieking.netchef_usage_api)
       GROUP BY u.store, u.period_start, u.period_end`), []),
     getWeather(weekDates),
   ])

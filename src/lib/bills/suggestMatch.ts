@@ -37,6 +37,18 @@ const MATCH_TOLERANCE = 0.25; // matches reconcile.ts's own tolerance
 // it were reliable just because the vendor matched.
 const MAX_VENDOR_MATCH_DAYS = 20;
 
+// Local Marketing Fee (1% of sales, all 3 stores) has NO dedicated ACH
+// originator anywhere in the bank feed — verified 2026-08-08: Royalty's real
+// draft is 1.0018x its pure-6%-of-sales expectation (no hidden extra 1%
+// riding along), and a wide search of every Miramar transaction near the due
+// date across three months found nothing sized right. Confirmed a false
+// positive too: Pines' only "match" was the exact same transaction as an
+// AirTech repair call already excluded elsewhere. Amount-only guessing for
+// these three bills produces noise, not signal — Pass 2 skips them until a
+// real bank descriptor for this fee is found (a corporate statement showing
+// where it actually lands), rather than keep surfacing wrong suggestions.
+const NO_AMOUNT_FALLBACK = /Local Marketing/i;
+
 const occKey = (billId: string, due: string) => `${billId}|${due}`;
 const daysBetween = (a: string, b: string) =>
   Math.abs((new Date(a + 'T00:00:00Z').getTime() - new Date(b + 'T00:00:00Z').getTime()) / 86_400_000);
@@ -81,6 +93,7 @@ export function suggestMatches(
   for (const o of open) {
     const k = occKey(o.billId, o.due);
     if (out.has(k) || o.expected == null || o.expected <= 0) continue;
+    if (NO_AMOUNT_FALLBACK.test(o.vendor)) continue;
     const winStart = new Date(o.due + 'T00:00:00Z'); winStart.setUTCDate(winStart.getUTCDate() - MATCH_DAYS_BEFORE);
     const winEnd = new Date(o.due + 'T00:00:00Z'); winEnd.setUTCDate(winEnd.getUTCDate() + MATCH_DAYS_AFTER);
     const winStartISO = winStart.toISOString().slice(0, 10);

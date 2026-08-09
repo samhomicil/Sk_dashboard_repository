@@ -987,8 +987,8 @@ function PnlStatement({ results }: { results: PnlStoreResult[] }) {
               const kind = SPECIAL_STYLE[e.group] ?? 'noi';
               if (kind === 'ni') {
                 return (
-                  <tr key={e.group} className="border-t-2 border-slate-300 bg-white">
-                    <td className="px-[18px] py-3 text-[13px] font-bold text-slate-900">{e.label}</td>
+                  <tr key={e.group} className="border-t-[3px] border-slate-900 bg-slate-100">
+                    <td className="px-[18px] py-3.5 text-[14px] font-bold text-slate-900">{e.label}</td>
                     {cells(per, { signColor: true, bold: true })}
                   </tr>
                 );

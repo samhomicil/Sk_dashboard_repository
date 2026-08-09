@@ -893,25 +893,28 @@ function PnlStatement({ results }: { results: PnlStoreResult[] }) {
   const money = (n: number | null) => n == null ? '—' : (n < 0 ? '(' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US') + (n < 0 ? ')' : '');
   const pctOf = (n: number | null, k: string) => { const t = incomeTotals[k]; return (n == null || !t) ? '' : (n / t * 100).toFixed(1) + '%'; };
 
-  const cells = (per: Record<string, number | null>, opts?: { bold?: boolean; white?: boolean }) => {
+  // signColor forces emerald/red by sign regardless of the neutral slate-700
+  // default line items use — reserved for the Net Income row, the one place
+  // the sign itself is the headline.
+  const cells = (per: Record<string, number | null>, opts?: { bold?: boolean; signColor?: boolean }) => {
     const tds = stores.map(s => {
       const v = per[s.key] ?? null;
       const has = v != null;
-      const col = opts?.white ? (v != null && v < 0 ? 'text-red-400' : 'text-emerald-400') : !has ? 'text-slate-300' : v < 0 ? 'text-red-600' : 'text-slate-700';
+      const col = !has ? 'text-slate-300' : v < 0 ? 'text-red-600' : opts?.signColor ? 'text-emerald-600' : 'text-slate-700';
       return (
         <td key={s.key} className="px-[18px] py-[9px] text-right align-top">
           <div className={`font-mono tabular-nums ${col} ${opts?.bold ? 'font-bold' : ''}`}>{money(v)}</div>
-          {has && <div className={`mt-px font-mono text-[9.5px] tabular-nums ${opts?.white ? 'text-slate-500' : 'text-slate-400'}`}>{pctOf(v, s.key)}</div>}
+          {has && <div className="mt-px font-mono text-[9.5px] tabular-nums text-slate-400">{pctOf(v, s.key)}</div>}
         </td>
       );
     });
     const tv = stores.reduce((a, s) => a + (per[s.key] ?? 0), 0);
     const tinc = stores.reduce((a, s) => a + incomeTotals[s.key], 0);
-    const tcol = opts?.white ? (tv < 0 ? 'text-red-400' : 'text-emerald-400') : tv < 0 ? 'text-red-600' : 'text-slate-800';
+    const tcol = tv < 0 ? 'text-red-600' : opts?.signColor ? 'text-emerald-600' : 'text-slate-800';
     tds.push(
       <td key="total" className="border-l border-slate-100 px-[18px] py-[9px] text-right align-top">
         <div className={`font-mono font-bold tabular-nums ${tcol}`}>{money(tv)}</div>
-        <div className={`mt-px font-mono text-[9.5px] tabular-nums ${opts?.white ? 'text-slate-500' : 'text-slate-400'}`}>{tinc ? (tv / tinc * 100).toFixed(1) + '%' : ''}</div>
+        <div className="mt-px font-mono text-[9.5px] tabular-nums text-slate-400">{tinc ? (tv / tinc * 100).toFixed(1) + '%' : ''}</div>
       </td>,
     );
     return tds;
@@ -984,9 +987,9 @@ function PnlStatement({ results }: { results: PnlStoreResult[] }) {
               const kind = SPECIAL_STYLE[e.group] ?? 'noi';
               if (kind === 'ni') {
                 return (
-                  <tr key={e.group} className="bg-slate-900">
-                    <td className="px-[18px] py-3 text-[13px] font-bold text-white">{e.label}</td>
-                    {cells(per, { white: true, bold: true })}
+                  <tr key={e.group} className="border-t-2 border-slate-300 bg-white">
+                    <td className="px-[18px] py-3 text-[13px] font-bold text-slate-900">{e.label}</td>
+                    {cells(per, { signColor: true, bold: true })}
                   </tr>
                 );
               }

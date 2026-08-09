@@ -424,6 +424,13 @@ function PnlBridge({ steps }: { steps: BridgeStep[] }) {
 // one QB call, no extra fetch per metric).
 function TrendChart({ trendResults, metric }: { trendResults: PnlTrendResult[]; metric: TrendMetric }) {
   const [hovered, setHovered] = useState<{ month: string; x: number; y: number } | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpanded(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [expanded]);
   const { qbKey, label: metricLabel } = TREND_METRIC_META[metric];
   const valueOf = (p: QbPnlMonth) => Number(p[qbKey]) || 0;
 
@@ -512,71 +519,108 @@ function TrendChart({ trendResults, metric }: { trendResults: PnlTrendResult[]; 
   const hoveredMonth = hovered ? allMonths.find(m => m.month === hovered.month) : null;
   const hoveredIdx   = hoveredMonth ? allMonths.findIndex(m => m.month === hoveredMonth.month) : -1;
 
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
-        <div>
-          <span className="text-[13px] font-bold text-slate-800">{metricLabel} — Monthly Trend</span>
-          <span className="ml-2 text-[10px] text-slate-400">rolling 12 months, from QuickBooks</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {stores.map(({ company, name }) => (
-            <span key={company} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: STORE_COLORS[company] }}>
-              <span className="inline-block w-2.5 h-[3px] rounded-full" style={{ background: STORE_COLORS[company] }} />
-              {name}
-            </span>
-          ))}
-        </div>
-      </div>
+  const chartBody = (
+    <div className="relative px-2 pt-2 pb-1" style={{ userSelect: 'none' }}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: '100%', height: 'auto', display: 'block' }}
+        dangerouslySetInnerHTML={{ __html: svgContent }}
+        onMouseMove={e => {
+          const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+          const rawX = ((e.clientX - rect.left) / rect.width) * W;
+          const relX = rawX - PAD.left;
+          const i = Math.round((relX / cW) * (n - 1));
+          if (i >= 0 && i < n) setHovered({ month: allMonths[i].month, x: e.clientX, y: e.clientY });
+          else setHovered(null);
+        }}
+        onMouseLeave={() => setHovered(null)}
+      />
 
-      <div className="relative px-2 pt-2 pb-1" style={{ userSelect: 'none' }}>
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
-          dangerouslySetInnerHTML={{ __html: svgContent }}
-          onMouseMove={e => {
-            const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-            const rawX = ((e.clientX - rect.left) / rect.width) * W;
-            const relX = rawX - PAD.left;
-            const i = Math.round((relX / cW) * (n - 1));
-            if (i >= 0 && i < n) setHovered({ month: allMonths[i].month, x: e.clientX, y: e.clientY });
-            else setHovered(null);
-          }}
-          onMouseLeave={() => setHovered(null)}
-        />
-
-        {/* Tooltip */}
-        {hovered && hoveredIdx >= 0 && (
-          <div
-            className="pointer-events-none fixed z-50 rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
-            style={{ left: Math.min(hovered.x + 14, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 220), top: hovered.y - 10, transform: 'translateY(-100%)', minWidth: 180 }}
-          >
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              {hoveredMonth?.label}
-            </div>
-            {stores.map(({ company, name, trend }) => {
-              const pt = trend[hoveredIdx];
-              if (!pt) return null;
-              const v = valueOf(pt);
-              const pos = v >= 0;
-              return (
-                <div key={company} className="flex items-center justify-between gap-4 mb-1 last:mb-0">
-                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: STORE_COLORS[company] }}>
-                    <span className="inline-block w-2 h-2 rounded-full" style={{ background: STORE_COLORS[company] }} />
-                    {name}
-                  </span>
-                  <span className={`font-mono text-[12px] font-bold ${pos ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {pos ? '' : '('}{Math.abs(v) >= 1000
-                      ? `$${(Math.abs(v) / 1000).toFixed(1)}k`
-                      : `$${Math.round(Math.abs(v))}`}{pos ? '' : ')'}
-                  </span>
-                </div>
-              );
-            })}
+      {/* Tooltip */}
+      {hovered && hoveredIdx >= 0 && (
+        <div
+          className="pointer-events-none fixed z-50 rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
+          style={{ left: Math.min(hovered.x + 14, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 220), top: hovered.y - 10, transform: 'translateY(-100%)', minWidth: 180 }}
+        >
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            {hoveredMonth?.label}
           </div>
-        )}
+          {stores.map(({ company, name, trend }) => {
+            const pt = trend[hoveredIdx];
+            if (!pt) return null;
+            const v = valueOf(pt);
+            const pos = v >= 0;
+            return (
+              <div key={company} className="flex items-center justify-between gap-4 mb-1 last:mb-0">
+                <span className="flex items-center gap-1.5 text-[11px]" style={{ color: STORE_COLORS[company] }}>
+                  <span className="inline-block w-2 h-2 rounded-full" style={{ background: STORE_COLORS[company] }} />
+                  {name}
+                </span>
+                <span className={`font-mono text-[12px] font-bold ${pos ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {pos ? '' : '('}{Math.abs(v) >= 1000
+                    ? `$${(Math.abs(v) / 1000).toFixed(1)}k`
+                    : `$${Math.round(Math.abs(v))}`}{pos ? '' : ')'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const header = (onToggle: () => void, isExpanded: boolean) => (
+    <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+      <div>
+        <span className="text-[13px] font-bold text-slate-800">{metricLabel} — Monthly Trend</span>
+        <span className="ml-2 text-[10px] text-slate-400">rolling 12 months, from QuickBooks</span>
+      </div>
+      <div className="flex items-center gap-4">
+        {stores.map(({ company, name }) => (
+          <span key={company} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: STORE_COLORS[company] }}>
+            <span className="inline-block w-2.5 h-[3px] rounded-full" style={{ background: STORE_COLORS[company] }} />
+            {name}
+          </span>
+        ))}
+        <button
+          onClick={onToggle}
+          title={isExpanded ? 'Collapse' : 'Expand'}
+          className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        >
+          {isExpanded ? (
+            <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 1.5v3h-3M7.5 1.5v3h3M4.5 10.5v-3h-3M7.5 10.5v-3h3" /></svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 1.5h-3v3M7.5 1.5h3v3M4.5 10.5h-3v-3M7.5 10.5h3v-3" /></svg>
+          )}
+        </button>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        {header(() => setExpanded(true), false)}
+        {!expanded ? chartBody : (
+          <div className="flex h-[220px] items-center justify-center text-[12px] text-slate-300">Expanded — click ⤢ to restore</div>
+        )}
+      </div>
+
+      {expanded && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-6 backdrop-blur-sm"
+          onClick={() => setExpanded(false)}
+        >
+          <div
+            className="w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {header(() => setExpanded(false), true)}
+            {chartBody}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

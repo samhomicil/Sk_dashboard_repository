@@ -262,8 +262,21 @@ export default function OrderGuidePage() {
                   <td className="py-2 text-right tabular-nums text-slate-600">
                     {r.onHandBasis === 'unknown' ? <span className="text-slate-400">?</span> : num(r.onHand)}
                   </td>
-                  <td className="py-2 text-right tabular-nums text-slate-600" title={r.usageBasis === 'theoretical' ? 'theoretical (no usable count)' : 'count-based'}>
-                    {num(r.weeklyUsage)}{r.usageBasis === 'theoretical' ? '*' : ''}
+                  {/* Usage always states which basis it used and what the other one said,
+                      so a surprising order can be traced without leaving the row. */}
+                  <td className="py-2 text-right tabular-nums text-slate-600"
+                      title={
+                        r.usageBasis === 'theoretical'
+                          ? `no usable count — using recipe-driven usage (${num(r.theoreticalUsage)}/wk)`
+                          : r.usageBasis === 'theoretical-guard'
+                          ? `count claimed ${num(r.countUsage)} vs ${num(r.theoreticalUsage)} from recipes — count looks wrong, ordering to the recipe figure`
+                          : `count-based; recipes suggest ${num(r.theoreticalUsage)}/wk`
+                      }>
+                    {num(r.weeklyUsage)}
+                    {r.usageBasis === 'theoretical' ? '*' : ''}
+                    {r.usageBasis === 'theoretical-guard' && (
+                      <span className="ml-1 pill pill-yellow">count?</span>
+                    )}
                   </td>
                   <td className="py-2 text-right tabular-nums text-slate-600">{r.daysOfSupply !== null ? r.daysOfSupply.toFixed(1) : '—'}</td>
                   <td className="py-2 text-right tabular-nums font-semibold text-slate-800">{r.suggestedOrder > 0 ? num(Math.ceil(r.suggestedOrder * 10) / 10) : '—'}</td>

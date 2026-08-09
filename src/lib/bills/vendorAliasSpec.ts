@@ -195,20 +195,32 @@ export const SPEC: SpecEntry[] = [
     amountMin: 160, amountMax: 370, priority: 75, confirmed: true,
     note: 'catch-up payment: 2 x $168.77 + $15.20 late fee = $352.74' },
 
-  // ---- Lockton: PARKED at Sam's request (2026-08-08) --------------------------
-  // Left disabled rather than deleted so the findings survive. One charge settles
-  // both of a store's Lockton policies, and neither store's charge matches its
-  // bills, so mapping it would book misleading amounts against the wrong bill.
-  // Re-enable once the combined-premium question is answered.
-  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance', store: 'Margate',
-    amountMin: 230, amountMax: 260, priority: 70, confirmed: false, enabled: false,
-    note: 'PARKED. $243.00 on BOA (May, Jun) then $248.40 on Chase ••5979 (Jul, Aug). Business $213 + Umbrella $37 = $250, so ONE charge covers BOTH bills.' },
-  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance', store: 'Pines',
+  // ---- Lockton ------------------------------------------------------------
+  // Margate RE-ENABLED 2026-08-09: one charge settles both Margate policies —
+  // Business $213 + Umbrella $37 = $250, and the real draft is 97-99% of that
+  // ($243.00 Apr-Jun, stepped up to $248.40 Jul-Aug — a plausible premium
+  // renewal, not a mismatch). Close enough to trust, unlike Pines/Miramar below.
+  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance',
+    alsoSettles: ['Lockton Insurance — Umbrella Policy'], store: 'Margate',
+    amountMin: 230, amountMax: 260, priority: 70, confirmed: true,
+    note: 'one draft settles Business + Umbrella. $243.00 Apr-Jun, $248.40 Jul+ (rate change).' },
+
+  // Pines/Miramar STILL PARKED — left disabled rather than deleted so the
+  // finding survives. Both charge a flat $238.05/mo against $174 combined
+  // Business+Umbrella — a $64.05 gap, IDENTICAL at both stores despite their
+  // Business/Umbrella amounts being swapped between them. A systematic scan
+  // for a third matching bill (2026-08-09) found nothing that closes it
+  // cleanly. Best guess, unconfirmed: Workers Comp — the old bills.json seed
+  // had an "Amtrust Group — Workers Comp" bill for exactly these two stores
+  // that no longer exists in the live table. Re-enable once Sam confirms what
+  // the $64.05 actually is (a missing bill row, most likely) — mapping it now
+  // would silently misattribute that amount to bills it doesn't belong to.
+  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance', store: 'Pines',
     amountMin: 230, amountMax: 245, priority: 70, confirmed: false, enabled: false,
-    note: 'PARKED. $238.05/mo on Chase ••2918 vs Business $36 + Umbrella $138 = $174 — $64 unexplained.' },
-  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance', store: 'Miramar',
+    note: 'PARKED. $238.05/mo vs Business $36 + Umbrella $138 = $174 — $64.05 unexplained, guess: Workers Comp.' },
+  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance', store: 'Miramar',
     amountMin: 230, amountMax: 245, priority: 70, confirmed: false, enabled: false,
-    note: 'PARKED. $238.05/mo on Capital One ••7879 vs Business $138 + Umbrella $36 = $174 — same $64 gap as Pines.' },
+    note: 'PARKED. $238.05/mo vs Business $138 + Umbrella $36 = $174 — same $64.05 gap as Pines.' },
 
   // ---- payroll ----------------------------------------------------------------
   { pattern: 'ADP Tax DES:ADP Tax', vendorLike: 'ADP — Payroll', priority: 72, confirmed: false,

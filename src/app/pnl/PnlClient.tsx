@@ -40,33 +40,144 @@ function $compact(n: number): string {
   return (neg ? '−$' : '$') + s;
 }
 
-function periodDates(key: string): { start: string; end: string } {
-  const n = new Date();
-  const y = n.getFullYear();
-  const m = n.getMonth();
-  const pad = (x: number) => String(x).padStart(2, '0');
-  const lastDay = (yr: number, mo: number) =>
-    new Date(yr, mo + 1, 0).toISOString().slice(0, 10);
+// ── Date period selection ────────────────────────────────────────────
+// Two ways to pick a period, mirroring QuickBooks' own report-period list
+// (minus Custom, which Sam doesn't want): a "Quick" relative preset, or
+// browsing a specific Month / Quarter / Year with a stepper. All local-date
+// math (no toISOString(), which shifts by the viewer's UTC offset near
+// midnight — the original version of this had that bug).
+const pad2 = (x: number) => String(x).padStart(2, '0');
+const ymd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+const startOfWeek = (d: Date) => { const r = new Date(d); r.setDate(r.getDate() - r.getDay()); return r; }; // Sunday start
+const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+const lastDayOfMonth = (y: number, m: number) => `${y}-${pad2(m + 1)}-${pad2(daysInMonth(y, m))}`;
 
-  if (key === 'mtd')   return { start: `${y}-${pad(m + 1)}-01`, end: n.toISOString().slice(0, 10) };
-  if (key === 'last') {
-    const d = new Date(y, m, 0);
-    return { start: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`, end: d.toISOString().slice(0, 10) };
+type RelativeKey =
+  | 'today' | 'yesterday'
+  | 'thisWeek' | 'thisWeekTD' | 'lastWeek' | 'lastWeekTD'
+  | 'thisMonth' | 'thisMonthTD' | 'lastMonth' | 'lastMonthTD'
+  | 'thisQuarter' | 'thisQuarterTD' | 'lastQuarter' | 'lastQuarterTD'
+  | 'thisYear' | 'thisYearTD' | 'lastYear' | 'lastYearTD'
+  | 'last4Weeks' | 'last12Months' | 'allDates';
+
+type PeriodMode = 'relative' | 'month' | 'quarter' | 'year';
+interface PeriodSel { mode: PeriodMode; relKey: RelativeKey; year: number; month: number; quarter: number }
+
+function resolveRelative(key: RelativeKey, now: Date): { start: string; end: string } {
+  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  const today = ymd(now);
+  switch (key) {
+    case 'today': return { start: today, end: today };
+    case 'yesterday': { const t = addDays(now, -1); return { start: ymd(t), end: ymd(t) }; }
+    case 'thisWeek': { const s = startOfWeek(now); return { start: ymd(s), end: ymd(addDays(s, 6)) }; }
+    case 'thisWeekTD': { const s = startOfWeek(now); return { start: ymd(s), end: today }; }
+    case 'lastWeek': { const s = addDays(startOfWeek(now), -7); return { start: ymd(s), end: ymd(addDays(s, 6)) }; }
+    case 'lastWeekTD': { const s = addDays(startOfWeek(now), -7); const into = Math.round((now.getTime() - startOfWeek(now).getTime()) / 864e5); return { start: ymd(s), end: ymd(addDays(s, into)) }; }
+    case 'thisMonth': return { start: `${y}-${pad2(m + 1)}-01`, end: lastDayOfMonth(y, m) };
+    case 'thisMonthTD': return { start: `${y}-${pad2(m + 1)}-01`, end: today };
+    case 'lastMonth': { const pm = m === 0 ? 11 : m - 1, py = m === 0 ? y - 1 : y; return { start: `${py}-${pad2(pm + 1)}-01`, end: lastDayOfMonth(py, pm) }; }
+    case 'lastMonthTD': { const pm = m === 0 ? 11 : m - 1, py = m === 0 ? y - 1 : y; const cap = Math.min(d, daysInMonth(py, pm)); return { start: `${py}-${pad2(pm + 1)}-01`, end: `${py}-${pad2(pm + 1)}-${pad2(cap)}` }; }
+    case 'thisQuarter': { const qs = Math.floor(m / 3) * 3; return { start: `${y}-${pad2(qs + 1)}-01`, end: lastDayOfMonth(y, qs + 2) }; }
+    case 'thisQuarterTD': { const qs = Math.floor(m / 3) * 3; return { start: `${y}-${pad2(qs + 1)}-01`, end: today }; }
+    case 'lastQuarter': { let qs = Math.floor(m / 3) * 3 - 3, qy = y; if (qs < 0) { qs += 12; qy -= 1; } return { start: `${qy}-${pad2(qs + 1)}-01`, end: lastDayOfMonth(qy, qs + 2) }; }
+    case 'lastQuarterTD': {
+      let qs = Math.floor(m / 3) * 3 - 3, qy = y; if (qs < 0) { qs += 12; qy -= 1; }
+      const thisQs = Math.floor(m / 3) * 3;
+      const into = Math.round((new Date(y, m, d).getTime() - new Date(y, thisQs, 1).getTime()) / 864e5);
+      return { start: `${qy}-${pad2(qs + 1)}-01`, end: ymd(addDays(new Date(qy, qs, 1), into)) };
+    }
+    case 'thisYear': return { start: `${y}-01-01`, end: `${y}-12-31` };
+    case 'thisYearTD': return { start: `${y}-01-01`, end: today };
+    case 'lastYear': return { start: `${y - 1}-01-01`, end: `${y - 1}-12-31` };
+    case 'lastYearTD': { const cap = Math.min(d, daysInMonth(y - 1, m)); return { start: `${y - 1}-01-01`, end: `${y - 1}-${pad2(m + 1)}-${pad2(cap)}` }; }
+    case 'last4Weeks': return { start: ymd(addDays(now, -27)), end: today };
+    case 'last12Months': return { start: ymd(new Date(y - 1, m + 1, 1)), end: today };
+    case 'allDates': return { start: '2010-01-01', end: today }; // floor predates any real company start — QB just returns what exists
   }
-  if (key === 'qtd') {
-    const qStart = new Date(y, Math.floor(m / 3) * 3, 1);
-    return { start: qStart.toISOString().slice(0, 10), end: n.toISOString().slice(0, 10) };
-  }
-  if (key === 'lastq') {
-    const qm = Math.floor(m / 3) * 3 - 3;
-    const qy = qm < 0 ? y - 1 : y;
-    const qmo = ((qm % 12) + 12) % 12;
-    return { start: `${qy}-${pad(qmo + 1)}-01`, end: lastDay(qy, qmo + 2) };
-  }
-  if (key === 'ytd')  return { start: `${y}-01-01`, end: n.toISOString().slice(0, 10) };
-  if (key === 'lasty') return { start: `${y - 1}-01-01`, end: `${y - 1}-12-31` };
-  return { start: `${y}-01-01`, end: n.toISOString().slice(0, 10) };
 }
+
+function resolvePeriod(sel: PeriodSel, now: Date): { start: string; end: string } {
+  if (sel.mode === 'relative') return resolveRelative(sel.relKey, now);
+  if (sel.mode === 'month') {
+    const isCurrent = sel.year === now.getFullYear() && sel.month === now.getMonth();
+    return { start: `${sel.year}-${pad2(sel.month + 1)}-01`, end: isCurrent ? ymd(now) : lastDayOfMonth(sel.year, sel.month) };
+  }
+  if (sel.mode === 'quarter') {
+    const qs = (sel.quarter - 1) * 3;
+    const isCurrent = sel.year === now.getFullYear() && Math.floor(now.getMonth() / 3) + 1 === sel.quarter;
+    return { start: `${sel.year}-${pad2(qs + 1)}-01`, end: isCurrent ? ymd(now) : lastDayOfMonth(sel.year, qs + 2) };
+  }
+  const isCurrent = sel.year === now.getFullYear();
+  return { start: `${sel.year}-01-01`, end: isCurrent ? ymd(now) : `${sel.year}-12-31` };
+}
+
+function stepPeriod(sel: PeriodSel, dir: 1 | -1): PeriodSel {
+  if (sel.mode === 'month') {
+    let m = sel.month + dir, y = sel.year;
+    if (m < 0) { m = 11; y -= 1; } else if (m > 11) { m = 0; y += 1; }
+    return { ...sel, month: m, year: y };
+  }
+  if (sel.mode === 'quarter') {
+    let q = sel.quarter + dir, y = sel.year;
+    if (q < 1) { q = 4; y -= 1; } else if (q > 4) { q = 1; y += 1; }
+    return { ...sel, quarter: q, year: y };
+  }
+  return { ...sel, year: sel.year + dir };
+}
+
+function isCurrentPeriod(sel: PeriodSel, now: Date): boolean {
+  if (sel.mode === 'month') return sel.year === now.getFullYear() && sel.month === now.getMonth();
+  if (sel.mode === 'quarter') return sel.year === now.getFullYear() && sel.quarter === Math.floor(now.getMonth() / 3) + 1;
+  return sel.year === now.getFullYear();
+}
+
+function periodLabel(sel: PeriodSel): string {
+  if (sel.mode === 'month') return new Date(sel.year, sel.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if (sel.mode === 'quarter') return `Q${sel.quarter} ${sel.year}`;
+  return String(sel.year);
+}
+
+const PERIOD_MODES: PeriodMode[] = ['relative', 'month', 'quarter', 'year'];
+const MODE_LABEL: Record<PeriodMode, string> = { relative: 'Quick', month: 'Month', quarter: 'Quarter', year: 'Year' };
+
+// Same relative buckets QuickBooks itself offers on a report's period picker
+// (everything except Custom, which Sam explicitly doesn't want).
+const RELATIVE_GROUPS: { label: string; items: { key: RelativeKey; label: string }[] }[] = [
+  { label: 'Today', items: [
+    { key: 'today', label: 'Today' },
+    { key: 'yesterday', label: 'Yesterday' },
+  ] },
+  { label: 'Week', items: [
+    { key: 'thisWeek', label: 'This Week' },
+    { key: 'thisWeekTD', label: 'This Week-to-date' },
+    { key: 'lastWeek', label: 'Last Week' },
+    { key: 'lastWeekTD', label: 'Last Week-to-date' },
+  ] },
+  { label: 'Month', items: [
+    { key: 'thisMonth', label: 'This Month' },
+    { key: 'thisMonthTD', label: 'This Month-to-date' },
+    { key: 'lastMonth', label: 'Last Month' },
+    { key: 'lastMonthTD', label: 'Last Month-to-date' },
+  ] },
+  { label: 'Quarter', items: [
+    { key: 'thisQuarter', label: 'This Quarter' },
+    { key: 'thisQuarterTD', label: 'This Quarter-to-date' },
+    { key: 'lastQuarter', label: 'Last Quarter' },
+    { key: 'lastQuarterTD', label: 'Last Quarter-to-date' },
+  ] },
+  { label: 'Year', items: [
+    { key: 'thisYear', label: 'This Year' },
+    { key: 'thisYearTD', label: 'This Year-to-date' },
+    { key: 'lastYear', label: 'Last Year' },
+    { key: 'lastYearTD', label: 'Last Year-to-date' },
+  ] },
+  { label: 'Rolling', items: [
+    { key: 'last4Weeks', label: 'Last 4 Weeks' },
+    { key: 'last12Months', label: 'Last 12 Months' },
+    { key: 'allDates', label: 'All Dates' },
+  ] },
+];
 
 function fmtRange(start: string, end: string): string {
   const s = new Date(start + 'T12:00:00');
@@ -401,30 +512,21 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
 }
 
 // ── Main ───────────────────────────────────────────────────────────────
-const PERIODS = [
-  { key: 'mtd',   label: 'Month to Date' },
-  { key: 'last',  label: 'Last Month' },
-  { key: 'qtd',   label: 'Quarter to Date' },
-  { key: 'lastq', label: 'Last Quarter' },
-  { key: 'ytd',   label: 'Year to Date' },
-  { key: 'lasty', label: 'Last Year' },
-] as const;
-
 const STORES_UI = ['All', 'Margate', 'Miramar', 'Pines'] as const;
 
 // For trend chart always use last 12 months to give meaningful MoM context
-function trendWindow() {
-  const n = new Date();
-  const start = new Date(n.getFullYear() - 1, n.getMonth() + 1, 1);
-  const pad = (x: number) => String(x).padStart(2, '0');
-  return {
-    start: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-01`,
-    end:   n.toISOString().slice(0, 10),
-  };
+function trendWindow(now: Date) {
+  const start = new Date(now.getFullYear() - 1, now.getMonth() + 1, 1);
+  return { start: `${start.getFullYear()}-${pad2(start.getMonth() + 1)}-01`, end: ymd(now) };
+}
+
+function defaultPeriod(now: Date): PeriodSel {
+  return { mode: 'relative', relKey: 'thisYearTD', year: now.getFullYear(), month: now.getMonth(), quarter: Math.floor(now.getMonth() / 3) + 1 };
 }
 
 export default function PnlClient() {
-  const [period,      setPeriod]      = useState<string>('ytd');
+  const now = useMemo(() => new Date(), []);
+  const [period,      setPeriod]      = useState<PeriodSel>(() => defaultPeriod(now));
   const [store,       setStore]       = useState<string>('All');
   const [basis,       setBasis]       = useState<'Accrual' | 'Cash'>('Accrual');
   const [results,     setResults]     = useState<PnlStoreResult[]>([]);
@@ -435,18 +537,18 @@ export default function PnlClient() {
 
   const loadTrend = useCallback(async () => {
     setTrendLoading(true);
-    const { start, end } = trendWindow();
+    const { start, end } = trendWindow(now);
     const sq = store !== 'All' ? `&store=${store.toLowerCase()}` : '';
     try {
       const r = await fetch(`/api/qb/pnl?by=month&start=${start}&end=${end}&basis=${basis}${sq}`, { cache: 'no-store' });
       setTrendResults(await r.json());
     } catch { setTrendResults([]); }
     setTrendLoading(false);
-  }, [store, basis]);
+  }, [store, basis, now]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { start, end } = periodDates(period);
+    const { start, end } = resolvePeriod(period, now);
     const sq = store !== 'All' ? `&store=${store.toLowerCase()}` : '';
     try {
       const r = await fetch(`/api/qb/pnl?start=${start}&end=${end}&basis=${basis}${sq}`, { cache: 'no-store' });
@@ -457,7 +559,7 @@ export default function PnlClient() {
       setResults([]);
     }
     setLoading(false);
-  }, [period, store, basis]);
+  }, [period, store, basis, now]);
 
   useEffect(() => { load(); },      [load]);
   useEffect(() => { loadTrend(); }, [loadTrend]);
@@ -514,7 +616,7 @@ export default function PnlClient() {
     [consolidated],
   );
 
-  const { start: rangeStart, end: rangeEnd } = periodDates(period);
+  const { start: rangeStart, end: rangeEnd } = resolvePeriod(period, now);
 
   return (
     <div className="min-h-screen">
@@ -543,16 +645,40 @@ export default function PnlClient() {
                 ))}
               </div>
 
-              {/* Period */}
-              <div className="relative">
-                <select
-                  value={period}
-                  onChange={e => setPeriod(e.target.value)}
-                  className="appearance-none rounded-lg border border-slate-200 bg-white py-1 pl-2.5 pr-6 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-100">
-                  {PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-                </select>
-                <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2.5 4.5l3.5 3.5 3.5-3.5" /></svg>
+              {/* Period mode: Quick relative preset, or browse a specific Month/Quarter/Year */}
+              <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+                {PERIOD_MODES.map(md => (
+                  <button key={md} onClick={() => setPeriod(p => ({ ...p, mode: md }))}
+                    className="rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
+                    style={period.mode === md ? { background: '#fff', color: '#0F172A', boxShadow: '0 1px 2px rgba(0,0,0,.06)' } : { color: '#64748b' }}>
+                    {MODE_LABEL[md]}
+                  </button>
+                ))}
               </div>
+
+              {period.mode === 'relative' ? (
+                <div className="relative">
+                  <select
+                    value={period.relKey}
+                    onChange={e => setPeriod(p => ({ ...p, relKey: e.target.value as RelativeKey }))}
+                    className="appearance-none rounded-lg border border-slate-200 bg-white py-1 pl-2.5 pr-6 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-100">
+                    {RELATIVE_GROUPS.map(g => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.items.map(it => <option key={it.key} value={it.key}>{it.label}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2.5 4.5l3.5 3.5 3.5-3.5" /></svg>
+                </div>
+              ) : (
+                <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white px-1 py-[3px]">
+                  <button onClick={() => setPeriod(p => stepPeriod(p, -1))} aria-label="Previous period"
+                    className="rounded px-1.5 py-0.5 text-xs font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-700">‹</button>
+                  <span className="min-w-[90px] text-center text-xs font-semibold text-slate-700">{periodLabel(period)}</span>
+                  <button onClick={() => setPeriod(p => stepPeriod(p, 1))} disabled={isCurrentPeriod(period, now)} aria-label="Next period"
+                    className="rounded px-1.5 py-0.5 text-xs font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent">›</button>
+                </div>
+              )}
 
               <div className="h-5 w-px bg-slate-200" />
 

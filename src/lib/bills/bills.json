@@ -710,13 +710,13 @@
       "day": 3
     },
     "amountType": "fixed",
-    "amountValue": 138.0,
+    "amountValue": 36.0,
     "payment": "auto",
     "paidFrom": "Chase",
     "account": null,
     "anchor": null,
     "end": null,
-    "notes": "",
+    "notes": "LRZ-UM-20000062-02 \u00b7 Ref: Lockton",
     "active": true
   },
   {
@@ -728,13 +728,13 @@
       "day": 3
     },
     "amountType": "fixed",
-    "amountValue": 36.0,
+    "amountValue": 194.0,
     "payment": "auto",
     "paidFrom": "Chase",
     "account": null,
     "anchor": null,
     "end": null,
-    "notes": "",
+    "notes": "LRZ-IB-20000055-01 \u00b7 Ref: Lockton",
     "active": true
   },
   {

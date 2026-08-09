@@ -205,22 +205,33 @@ export const SPEC: SpecEntry[] = [
     amountMin: 230, amountMax: 260, priority: 70, confirmed: true,
     note: 'one draft settles Business + Umbrella. $243.00 Apr-Jun, $248.40 Jul+ (rate change).' },
 
-  // Pines/Miramar STILL PARKED — left disabled rather than deleted so the
-  // finding survives. Both charge a flat $238.05/mo against $174 combined
-  // Business+Umbrella — a $64.05 gap, IDENTICAL at both stores despite their
-  // Business/Umbrella amounts being swapped between them. A systematic scan
-  // for a third matching bill (2026-08-09) found nothing that closes it
-  // cleanly. Best guess, unconfirmed: Workers Comp — the old bills.json seed
-  // had an "Amtrust Group — Workers Comp" bill for exactly these two stores
-  // that no longer exists in the live table. Re-enable once Sam confirms what
-  // the $64.05 actually is (a missing bill row, most likely) — mapping it now
-  // would silently misattribute that amount to bills it doesn't belong to.
-  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance', store: 'Pines',
-    amountMin: 230, amountMax: 245, priority: 70, confirmed: false, enabled: false,
-    note: 'PARKED. $238.05/mo vs Business $36 + Umbrella $138 = $174 — $64.05 unexplained, guess: Workers Comp.' },
+  // Pines RE-ENABLED 2026-08-09: the earlier "$64.05 unexplained gap" was
+  // never a missing third bill — it was wrong bill amounts. Sam supplied the
+  // real Lockton invoice (7483059/7483060, policies LRZ-IB-20000055-01 and
+  // LRZ-UM-20000062-02): Business is actually $194.00, Umbrella $36.00
+  // ($230 combined), not the $36/$138 that had been sitting in the bill
+  // table since seeding — which turns out to be Miramar's numbers with the
+  // Business/Umbrella labels swapped, i.e. a copy-paste error between the
+  // two stores. Corrected both the live DB and bills.json to $194/$36.
+  // $230 vs the real $238.05/mo draft is an $8.05 (3.4%) gap — the same
+  // order of variance already trusted for Margate below, not the old
+  // near-30% mismatch. Miramar's own numbers are unverified — still parked
+  // until Sam supplies its invoice too; don't assume it's the same swap.
+  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance',
+    alsoSettles: ['Lockton Insurance — Umbrella Policy'], store: 'Pines',
+    amountMin: 220, amountMax: 255, priority: 70, confirmed: true,
+    note: 'one draft settles Business + Umbrella. $194.00 + $36.00 = $230, real draft $238.05 (3.4% gap, plausible fee/tax).' },
+
+  // Miramar STILL PARKED — left disabled rather than deleted so the finding
+  // survives. Charges the same $238.05/mo real draft as Pines did, against
+  // Business $138 + Umbrella $36 = $174 currently in the bill table — but
+  // Pines' resolution above shows that $138/$36 pairing was actually a
+  // copy-paste of the WRONG numbers into Pines, so Miramar's own $138/$36
+  // can't be assumed correct just because it's internally consistent.
+  // Re-enable once Sam supplies Miramar's actual Lockton invoice.
   { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance', store: 'Miramar',
     amountMin: 230, amountMax: 245, priority: 70, confirmed: false, enabled: false,
-    note: 'PARKED. $238.05/mo vs Business $138 + Umbrella $36 = $174 — same $64.05 gap as Pines.' },
+    note: 'PARKED. $238.05/mo vs Business $138 + Umbrella $36 = $174 stored — unverified against a real invoice.' },
 
   // ---- payroll ----------------------------------------------------------------
   { pattern: 'ADP Tax DES:ADP Tax', vendorLike: 'ADP — Payroll', priority: 72, confirmed: false,

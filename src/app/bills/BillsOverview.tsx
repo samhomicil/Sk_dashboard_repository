@@ -43,6 +43,7 @@ export default function BillsOverview({
   const [busy, setBusy] = useState<string | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; o: number } | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showLater, setShowLater] = useState(false);
 
   const todayMid = useMemo(() => { const d = new Date(now); d.setHours(0, 0, 0, 0); return d; }, [now]);
   const catOf = useMemo(() => { const m = new Map<string, string>(); bills.forEach(b => m.set(b.id, b.category)); return m; }, [bills]);
@@ -142,10 +143,18 @@ export default function BillsOverview({
   }, [items, billGroups]);
 
   let tableItems = mergedItems;
-  if (statusTab === 'open') tableItems = mergedItems.filter(i => i.status !== 'paid' && i.offset <= 30);
+  if (statusTab === 'open') tableItems = mergedItems.filter(i => i.status !== 'paid');
   else if (statusTab === 'paid') tableItems = mergedItems.filter(i => i.status === 'paid' && i.offset >= -10);
-  else tableItems = mergedItems.filter(i => i.offset >= -14 && i.offset <= 30);
+  else tableItems = mergedItems.filter(i => i.offset >= -14);
   tableItems = [...tableItems].sort((a, b) => statusTab === 'paid' ? b.due.getTime() - a.due.getTime() : a.due.getTime() - b.due.getTime());
+
+  // Bills due more than NEAR_DAYS out are collapsed behind a toggle so the
+  // table stays scannable up close while still surfacing everything further
+  // ahead (the underlying data reaches 120 days forward — see service.ts).
+  const NEAR_DAYS = 28;
+  const nearItems = tableItems.filter(i => i.offset <= NEAR_DAYS);
+  const laterItems = tableItems.filter(i => i.offset > NEAR_DAYS);
+  const visibleItems = showLater ? tableItems : nearItems;
 
   return (
     <div className="flex flex-col gap-4">
@@ -231,7 +240,9 @@ export default function BillsOverview({
             <tbody className="text-[12.5px]">
               {tableItems.length === 0 ? (
                 <tr><td colSpan={9} className="px-4 py-7 text-center text-slate-400">No bills in this view.</td></tr>
-              ) : tableItems.map(i => {
+              ) : visibleItems.length === 0 ? (
+                <tr><td colSpan={9} className="px-4 py-7 text-center text-slate-400">Nothing due in the next {NEAR_DAYS} days.</td></tr>
+              ) : visibleItems.map(i => {
                 const paid = i.status === 'paid';
                 const over = i.status === 'overdue' || i.status === 'missed';
                 const today = i.offset === 0;
@@ -310,6 +321,20 @@ export default function BillsOverview({
                   </Fragment>
                 );
               })}
+              {laterItems.length > 0 && (
+                <tr className="border-b border-slate-100 bg-slate-50/50">
+                  <td colSpan={9} className="px-[18px] py-2.5">
+                    <button
+                      onClick={() => setShowLater((s) => !s)}
+                      className="text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                    >
+                      {showLater
+                        ? `▲ Hide ${laterItems.length} bill${laterItems.length > 1 ? 's' : ''} due after ${NEAR_DAYS} days`
+                        : `▼ ${laterItems.length} more bill${laterItems.length > 1 ? 's' : ''} due after ${NEAR_DAYS} days · ${$f(laterItems.reduce((s, i) => s + i.amt, 0))} — Show`}
+                    </button>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

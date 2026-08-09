@@ -207,18 +207,34 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 // ── KPI hero strip ─────────────────────────────────────────────────────
+// Each tile doubles as a selector for the trend chart below — clicking one
+// swaps which metric the monthly trend plots, so "what does Opex look like
+// over time" is one click instead of a separate control.
+type TrendMetric = 'revenue' | 'grossProfit' | 'opex' | 'netIncome';
+const TREND_METRIC_META: Record<TrendMetric, { qbKey: keyof QbPnlMonth; label: string }> = {
+  revenue: { qbKey: 'totalIncome', label: 'Revenue' },
+  grossProfit: { qbKey: 'grossProfit', label: 'Gross Profit' },
+  opex: { qbKey: 'totalExpenses', label: 'Operating Expenses' },
+  netIncome: { qbKey: 'netIncome', label: 'Net Income' },
+};
+
 function KpiCard({
-  label, value, sub, subTone, spark, sparkColor,
+  label, value, sub, subTone, spark, sparkColor, active, onSelect,
 }: {
   label: string; value: number; sub?: string; subTone?: 'good' | 'bad' | 'neutral';
-  spark?: number[]; sparkColor: string;
+  spark?: number[]; sparkColor: string; active: boolean; onSelect: () => void;
 }) {
   const neg = value < 0;
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+    <button
+      onClick={onSelect}
+      className={`rounded-2xl border bg-white px-5 py-4 text-left shadow-sm transition-shadow ${
+        active ? 'border-violet-300 ring-2 ring-violet-100' : 'border-slate-200 hover:border-slate-300'
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-slate-400">{label}</div>
+          <div className={`text-[10.5px] font-bold uppercase tracking-[0.06em] ${active ? 'text-violet-500' : 'text-slate-400'}`}>{label}</div>
           <div
             className={`mt-1.5 truncate font-mono text-[25px] font-bold tabular-nums ${neg ? 'text-red-600' : 'text-slate-900'}`}
             title={$f(value)}
@@ -233,37 +249,42 @@ function KpiCard({
         </div>
         {spark && spark.length > 1 && <Sparkline data={spark} color={sparkColor} />}
       </div>
-    </div>
+    </button>
   );
 }
 
-function KpiStrip({ c, trend }: {
+function KpiStrip({ c, trend, metric, onMetricChange }: {
   c: { revenue: number; gp: number; opex: number; ni: number };
   trend: { revenue: number[]; grossProfit: number[]; opex: number[]; netIncome: number[] } | null;
+  metric: TrendMetric; onMetricChange: (m: TrendMetric) => void;
 }) {
   const gpMargin = c.revenue ? (c.gp / c.revenue) * 100 : null;
   const niMargin = c.revenue ? (c.ni / c.revenue) * 100 : null;
   const opexRatio = c.revenue ? (c.opex / c.revenue) * 100 : null;
   return (
     <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-      <KpiCard label="Revenue" value={c.revenue} spark={trend?.revenue} sparkColor="#334155" />
+      <KpiCard label="Revenue" value={c.revenue} spark={trend?.revenue} sparkColor="#334155"
+        active={metric === 'revenue'} onSelect={() => onMetricChange('revenue')} />
       <KpiCard
         label="Gross Profit" value={c.gp}
         sub={gpMargin != null ? `${gpMargin.toFixed(1)}% margin` : undefined}
         subTone={gpMargin != null && gpMargin >= 0 ? 'good' : 'bad'}
         spark={trend?.grossProfit} sparkColor="#6366F1"
+        active={metric === 'grossProfit'} onSelect={() => onMetricChange('grossProfit')}
       />
       <KpiCard
         label="Operating Expenses" value={c.opex}
         sub={opexRatio != null ? `${opexRatio.toFixed(1)}% of revenue` : undefined}
         subTone="neutral"
         spark={trend?.opex} sparkColor="#FB7185"
+        active={metric === 'opex'} onSelect={() => onMetricChange('opex')}
       />
       <KpiCard
         label="Net Income" value={c.ni}
         sub={niMargin != null ? `${niMargin.toFixed(1)}% margin` : undefined}
         subTone={niMargin != null && niMargin >= 0 ? 'good' : 'bad'}
         spark={trend?.netIncome} sparkColor={c.ni >= 0 ? '#059669' : '#DC2626'}
+        active={metric === 'netIncome'} onSelect={() => onMetricChange('netIncome')}
       />
     </div>
   );
@@ -355,9 +376,14 @@ function PnlBridge({ steps }: { steps: BridgeStep[] }) {
   );
 }
 
-// ── Net Income Trend Chart ─────────────────────────────────────────────
-function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] }) {
+// ── Monthly Trend Chart ──────────────────────────────────────────────
+// Plots whichever metric is selected via the KPI strip above it — same
+// per-store monthly series (QbPnlMonth already carries all four numbers,
+// one QB call, no extra fetch per metric).
+function TrendChart({ trendResults, metric }: { trendResults: PnlTrendResult[]; metric: TrendMetric }) {
   const [hovered, setHovered] = useState<{ month: string; x: number; y: number } | null>(null);
+  const { qbKey, label: metricLabel } = TREND_METRIC_META[metric];
+  const valueOf = (p: QbPnlMonth) => Number(p[qbKey]) || 0;
 
   const stores = trendResults.filter(r => r.trend.length > 0);
   if (!stores.length) return null;
@@ -373,7 +399,7 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
   const n  = allMonths.length;
 
   // Find global min/max for consistent y-scale
-  const allVals = stores.flatMap(r => r.trend.map(p => p.netIncome));
+  const allVals = stores.flatMap(r => r.trend.map(valueOf));
   const rawMax = Math.max(...allVals, 0);
   const rawMin = Math.min(...allVals, 0);
   const rangePad = (rawMax - rawMin) * 0.18 || 2000;
@@ -407,7 +433,7 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
   let paths = '';
   stores.forEach(({ company, trend }) => {
     const col = STORE_COLORS[company] ?? '#6366F1';
-    const pts = trend.map((p, i) => ({ x: xOf(i), y: yOf(p.netIncome) }));
+    const pts = trend.map((p, i) => ({ x: xOf(i), y: yOf(valueOf(p)) }));
     const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
     const fillPts = [...pts, { x: pts[pts.length - 1].x, y: zeroY }, { x: pts[0].x, y: zeroY }];
     const fillPath = fillPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + 'Z';
@@ -448,7 +474,7 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
         <div>
-          <span className="text-[13px] font-bold text-slate-800">Net Income — Monthly Trend</span>
+          <span className="text-[13px] font-bold text-slate-800">{metricLabel} — Monthly Trend</span>
           <span className="ml-2 text-[10px] text-slate-400">rolling 12 months, from QuickBooks</span>
         </div>
         <div className="flex items-center gap-4">
@@ -489,7 +515,8 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
             {stores.map(({ company, name, trend }) => {
               const pt = trend[hoveredIdx];
               if (!pt) return null;
-              const pos = pt.netIncome >= 0;
+              const v = valueOf(pt);
+              const pos = v >= 0;
               return (
                 <div key={company} className="flex items-center justify-between gap-4 mb-1 last:mb-0">
                   <span className="flex items-center gap-1.5 text-[11px]" style={{ color: STORE_COLORS[company] }}>
@@ -497,9 +524,9 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
                     {name}
                   </span>
                   <span className={`font-mono text-[12px] font-bold ${pos ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {pos ? '' : '('}{Math.abs(pt.netIncome) >= 1000
-                      ? `$${(Math.abs(pt.netIncome) / 1000).toFixed(1)}k`
-                      : `$${Math.round(Math.abs(pt.netIncome))}`}{pos ? '' : ')'}
+                    {pos ? '' : '('}{Math.abs(v) >= 1000
+                      ? `$${(Math.abs(v) / 1000).toFixed(1)}k`
+                      : `$${Math.round(Math.abs(v))}`}{pos ? '' : ')'}
                   </span>
                 </div>
               );
@@ -534,6 +561,7 @@ export default function PnlClient() {
   const [loading,     setLoading]     = useState(true);
   const [trendLoading,setTrendLoading]= useState(true);
   const [updatedAt,   setUpdatedAt]   = useState<Date | null>(null);
+  const [trendMetric, setTrendMetric] = useState<TrendMetric>('netIncome');
 
   const loadTrend = useCallback(async () => {
     setTrendLoading(true);
@@ -719,7 +747,7 @@ export default function PnlClient() {
               {[1, 2, 3, 4].map(i => <div key={i} className="h-[92px] animate-pulse rounded-2xl bg-slate-100" />)}
             </div>
           ) : consolidated ? (
-            <KpiStrip c={consolidated} trend={trendSeries} />
+            <KpiStrip c={consolidated} trend={trendSeries} metric={trendMetric} onMetricChange={setTrendMetric} />
           ) : null}
 
           {/* Bridge + trend, side by side on wide screens */}
@@ -733,7 +761,7 @@ export default function PnlClient() {
             {trendLoading ? (
               <div className="h-[260px] animate-pulse rounded-2xl bg-slate-100" />
             ) : (
-              <NetIncomeTrendChart trendResults={trendResults} />
+              <TrendChart trendResults={trendResults} metric={trendMetric} />
             )}
           </div>
 

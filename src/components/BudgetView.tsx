@@ -45,6 +45,18 @@ export default function BudgetView() {
       .finally(() => setLoading(false))
   }, [])
 
+  // On narrow screens the weekly table opens showing the oldest history weeks;
+  // start it scrolled so the current week sits just right of the sticky labels.
+  // On desktop the container fits every week, so the assignment is a no-op.
+  useEffect(() => {
+    if (!data) return
+    document.querySelectorAll<HTMLElement>('.fin .scroll').forEach(sc => {
+      const cur = sc.querySelector<HTMLElement>('.cur-col')
+      const lab = sc.querySelector<HTMLElement>('.rowlab')
+      if (cur && lab) sc.scrollLeft = Math.max(0, cur.offsetLeft - lab.offsetWidth - 8)
+    })
+  }, [data, store])
+
   const toggle = (k: string) => setOpenBk(prev => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n })
 
   const view = useMemo(() => {
@@ -331,6 +343,17 @@ function Style() {
     .bar .track{width:100%;height:84px;display:flex;flex-direction:column;justify-content:center;} .bar .col{width:70%;margin:0 auto;border-radius:4px;min-height:2px;} .col.pos{background:var(--pos);} .col.neg{background:var(--neg);} .bar .wl{font-size:10px;color:var(--faint);}
     .foot{color:var(--faint);font-size:11.5px;margin-top:14px;line-height:1.65;max-width:1080px;} .foot b{color:var(--muted);font-weight:640;}
     @media (max-width:760px){.dials{grid-template-columns:repeat(2,1fr);}}
+    /* Phones: the sticky label column was 210px of nowrap text + long tag
+       annotations — it filled the whole screen and left no room for the week
+       columns. Wrap the labels in a narrower column, drop the tags, and let
+       the weeks be the content you swipe through. */
+    @media (max-width:767px){
+      .fin .rowlab{min-width:108px;max-width:128px;white-space:normal;line-height:1.3;font-size:12px;}
+      .fin .rowlab .tag{display:none;}
+      .fin tr.item .rowlab{padding-left:18px;}
+      .fin table{min-width:720px;}
+      .fin .wkh{min-width:78px;}
+    }
     `}</style>
   )
 }

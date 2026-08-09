@@ -319,7 +319,7 @@ function Style() {
 .fin .fundbody{padding:6px 16px 14px;}.fin .allgood{color:var(--good);font-weight:600;padding:8px 0;}
 .fin table.fund{min-width:0;}.fin table.fund thead th{position:static;text-transform:none;letter-spacing:0;font-size:11px;}.fin table.fund .rowlab{min-width:0;position:static;border-right:none;padding:8px 14px 8px 0;display:flex;align-items:center;gap:7px;}.fin table.fund .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}.fin table.fund td.cell{padding:8px 0;border-top:1px solid var(--line2);}
 .fin .foot{color:var(--faint);font-size:11.5px;margin-top:14px;line-height:1.65;max-width:1080px;}.fin .foot b{color:var(--muted);font-weight:640;}
-    @media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr);}}
+    @media (max-width:760px){.fin .tiles{grid-template-columns:repeat(2,1fr);}}
     `}</style>
   )
 }

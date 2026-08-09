@@ -119,22 +119,55 @@ body {
 .sk-side.collapsed .sk-fbtn .sk-fl { display: none; }
 .sk-side.collapsed .sk-foot-actions { flex-direction: column; }
 
-/* Icon-only rail on tablet widths — same visual treatment as .collapsed,
-   applied unconditionally so it doesn't fight the manual toggle state. */
-@media (max-width: 767px) {
-  .sk-side { width: 70px; }
-  .sk-side .sk-brand .sk-nm,
-  .sk-side .sk-navlabel,
-  .sk-side .sk-item .sk-lbl,
-  .sk-side .sk-chev,
-  .sk-side .sk-subnav,
-  .sk-side .sk-fbtn .sk-fl,
-  .sk-side .sk-collapse-toggle { display: none; }
-  .sk-side .sk-brand { justify-content: center; padding: 20px 0 18px; }
-  .sk-side .sk-nav { padding: 0 10px; }
-  .sk-side .sk-item { justify-content: center; padding: 11px 0; }
-  .sk-side .sk-foot-actions { flex-direction: column; }
-}
+/* ============================================================
+   Mobile navigation (below 768px): the rail is replaced by a fixed
+   top bar + slide-over drawer. The drawer reuses the sidebar markup
+   with full labels and subnavs — an icon rail with hidden subnavs
+   left Financials pages unreachable on phones.
+   ============================================================ */
+.sk-mobilebar { display: none; }
+.sk-scrim { display: none; }
 
-/* Below that, drop the rail entirely — no room for even the icon strip. */
-@media (max-width: 480px) { .sk-side { display: none; } }
+@media (max-width: 767px) {
+  .sk-mobilebar {
+    display: flex; align-items: center; justify-content: space-between;
+    position: fixed; top: 0; left: 0; right: 0; height: 54px; z-index: 60;
+    background: linear-gradient(180deg, #1E293B 0%, #16202f 100%);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    padding-right: 6px;
+  }
+  .sk-mobilebar .sk-brand { padding: 0 14px; }
+  .sk-burger {
+    background: none; border: none; color: #CBD5E1; cursor: pointer;
+    width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  }
+  .sk-burger svg { width: 24px; height: 24px; stroke: currentColor; }
+
+  /* Content starts below the fixed bar. */
+  body { padding-top: 54px; }
+
+  .sk-scrim {
+    display: block; position: fixed; inset: 0; z-index: 65;
+    background: rgba(15, 23, 42, 0.55);
+  }
+
+  /* Rail hidden; reappears as a drawer when opened. Full labels + subnavs. */
+  .sk-side { display: none; }
+  .sk-side.mobile-open {
+    display: flex; position: fixed; top: 0; bottom: 0; left: 0; z-index: 70;
+    width: min(300px, 85vw);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
+    overflow-y: auto;
+  }
+  /* The manual desktop collapse state never applies inside the drawer. */
+  .sk-side.mobile-open .sk-lbl,
+  .sk-side.mobile-open .sk-brand .sk-nm,
+  .sk-side.mobile-open .sk-navlabel,
+  .sk-side.mobile-open .sk-chev,
+  .sk-side.mobile-open .sk-fbtn .sk-fl { display: initial; }
+  .sk-side.mobile-open .sk-subnav.open { max-height: 260px; }
+  .sk-side.mobile-open .sk-collapse-toggle { display: none; }
+  /* Comfortable touch targets in the drawer. */
+  .sk-side.mobile-open .sk-item { padding: 13px 12px; }
+  .sk-side.mobile-open .sk-subitem { padding: 11px 12px; }
+}

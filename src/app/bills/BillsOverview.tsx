@@ -165,7 +165,7 @@ export default function BillsOverview({
           <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-slate-400">Coverage this week</span>
           <span className="text-[11px] text-slate-400">unpaid bills vs cash on hand</span>
         </div>
-        <div className="grid pb-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, coverage.length)}, 1fr)` }}>
+        <div className="grid pb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
           {coverage.map((c, i) => (
             <div key={c.k} className={`px-5 py-3.5 ${i > 0 ? 'border-l border-slate-100' : ''}`}>
               <div className="mb-2 flex items-center justify-between">

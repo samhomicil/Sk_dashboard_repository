@@ -46,7 +46,10 @@ function OverviewInner() {
       </div>
 
       {/* Trends over time — insights */}
-      <div className="grid lg:grid-cols-2 gap-4">
+      {/* *:min-w-0 lets each card shrink below its chart's 480px min width on
+          phones — the chart then scrolls inside the card instead of stretching
+          the page sideways. */}
+      <div className="grid lg:grid-cols-2 gap-4 *:min-w-0">
         <div className="card">
           <div className="text-sm font-bold text-slate-700 mb-1">Spend Over Time</div>
           <div className="text-xs text-slate-400 mb-3">Weekly PFG + Walmart</div>

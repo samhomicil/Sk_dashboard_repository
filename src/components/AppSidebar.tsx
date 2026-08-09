@@ -28,6 +28,7 @@ export default function AppSidebar() {
   const { data: session } = useSession()
   const [collapsed, setCollapsed]         = useState(false)
   const [inventoryOpen, setInventoryOpen] = useState(pathname.startsWith('/inventory'))
+  const [mobileOpen, setMobileOpen]       = useState(false)
 
   const onInventory = pathname.startsWith('/inventory')
 
@@ -39,13 +40,33 @@ export default function AppSidebar() {
     if (onInventory) setInventoryOpen(true)
   }
 
+  // Navigating closes the mobile drawer (same render-phase pattern).
+  const [prevPath, setPrevPath] = useState(pathname)
+  if (pathname !== prevPath) {
+    setPrevPath(pathname)
+    if (mobileOpen) setMobileOpen(false)
+  }
+
   if (pathname === '/login') return null
 
   const item = (active: boolean, extra = '') =>
     `sk-item${active ? ' active' : ''}${extra ? ' ' + extra : ''}`
 
   return (
-    <aside className={`sk-side${collapsed ? ' collapsed' : ''}`}>
+    <>
+    {/* Phone/small-tablet top bar — the sidebar rail has no room below 768px,
+        so navigation moves into a slide-over drawer opened from here. */}
+    <div className="sk-mobilebar">
+      <Link href="/" className="sk-brand">
+        <span className="sk-mark">SK</span>
+        <span className="sk-nm">SK Wellness</span>
+      </Link>
+      <button className="sk-burger" aria-label="Open menu" onClick={() => setMobileOpen(true)}>
+        <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </button>
+    </div>
+    {mobileOpen && <div className="sk-scrim" onClick={() => setMobileOpen(false)} />}
+    <aside className={`sk-side${collapsed && !mobileOpen ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       <Link href="/" className="sk-brand">
         <span className="sk-mark">SK</span>
         <span className="sk-nm">SK Wellness</span>
@@ -159,5 +180,6 @@ export default function AppSidebar() {
         </div>
       </div>
     </aside>
+    </>
   )
 }

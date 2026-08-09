@@ -306,7 +306,7 @@ export default function GuestVoicePage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
             {RANGES.map(r => (
               <button key={r.key} onClick={() => setDays(r.key)}

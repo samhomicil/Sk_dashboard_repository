@@ -65,7 +65,8 @@ export default function Header({ store, period, dates, onStore, onPeriod, onCust
   }
 
   return (
-    <div className="bg-white shadow-sm sticky top-0 z-50">
+    // Below md the fixed mobile nav bar owns the top 54px, so stick under it.
+    <div className="bg-white shadow-sm sticky top-0 max-md:top-[54px] z-50">
       <div className="max-w-screen-2xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-sm font-bold text-slate-700">Dashboard</h1>

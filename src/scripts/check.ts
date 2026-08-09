@@ -101,9 +101,15 @@ console.log('\nMetric sources')
       ? [...variants.entries()].map(([k, fs]) => `  "${k}"\n     ${[...new Set(fs)].join(', ')}`).join('\n')
         + '\n  -> they must match core/sources.ts NET_SALES exactly'
       : '')
-  check('the old 1-week netchef_usage table is not used', !FILES.some(f =>
-    /smoothieking\.netchef_usage\b(?!_api)/.test(f.src) && !f.rel.includes('scripts/check')),
-    'netchef_usage holds ~1 week; use netchef_usage_api (~30 weeks).')
+  // core/onHand is the one legitimate reader: it needs the most recent FULL physical
+  // inventory to anchor the nightly chain, and netchef_usage carries that a week fresher
+  // than netchef_usage_api (2026-08-03 vs 2026-07-27 as of 2026-08-09). It reads only
+  // qty_physical for the anchor, never usage history.
+  check('the old 1-week netchef_usage table is used only to anchor core/onHand', !FILES.some(f =>
+    /smoothieking\.netchef_usage\b(?!_api)/.test(f.src)
+    && !f.rel.includes('scripts/check') && f.rel !== 'lib/core/onHand.ts'
+    && f.rel !== 'lib/core/freshness.ts'),
+    'netchef_usage holds ~1 week of usage; use netchef_usage_api (~30 weeks) for history.')
 }
 
 // ── 4. Money routes are gated twice ──────────────────────────────────────────
@@ -131,6 +137,61 @@ console.log('\nManager / owner separation')
   check('Weekly Ops carries no tips / manager salary / burden',
     !/TIP_PAYOUT|MGR_WK|empBurden|PAY_BURDEN/.test(ops),
     'Labor shown to managers is unloaded hourly wages only; loaded cost is owner-side.')
+}
+
+// ── 6. Inventory core is the only source of on-hand, usage and sourcing ──────
+// Every rule below guards a contradiction that was live in production on 2026-08-09,
+// when the order guide and the daily sourcing board disagreed on the same items by
+// 548 units vs 55 — including a 169-unit order against a negative on-hand.
+console.log('\nInventory / order-guide core')
+{
+  const guide = src('lib/orderGuide.ts')
+  const consumers = FILES.filter(f =>
+    /netchef_usage_api|netchef_onhand/.test(f.src) && !f.rel.startsWith('lib/core/') && !f.rel.startsWith('scripts/'))
+
+  check('order guide reads on-hand from core/onHand, not netchef_onhand.on_hand_qty',
+    /buildOnHand\(/.test(guide),
+    'netchef_onhand carries blank counts through as negatives; core/onHand blends and floors them.')
+
+  // Dangerous form is `period_end = (SELECT MAX(period_end) ...)` — "give me the latest
+  // period", which now returns a single night. Using MAX only to anchor a window
+  // (`>= DATEADD(week,-8, MAX(period_end))`) is fine and stays allowed.
+  check('no surface treats the LATEST netchef_usage_api period as a week',
+    !consumers.some(f => /period_end\s*=\s*\(\s*SELECT\s+MAX\(period_end\)/i.test(f.src)),
+    'MAX(period_end) now resolves to a ONE-DAY nightly period. Anything calling that '
+    + 'result "weekly" forecasts a week of demand from a single night. Use core/usage.')
+
+  check('COGS windows pair sales to each period, not to the outer span',
+    !/MIN\(period_start\)\s*ps,\s*MAX\(period_end\)\s*pe/.test(src('app/api/budget/route.ts')),
+    'netchef_usage_api has gaps (Jul 28-Aug 2 2026 is absent). Dividing summed COGS by '
+    + 'a MIN..MAX sales span understated food cost % by 10% on the Budget module.')
+
+  check('multi-week COGS averages exclude 1-day nightly periods',
+    /period_start\s*<>\s*u?\.?period_end/.test(src('app/api/ops-week/route.ts')),
+    'Averaging a single night in as if it were a week skews the derived COGS target.')
+
+  check('the demand clamp is not wide enough to hide a broken window',
+    !/Math\.min\(\s*2\s*,/.test(guide),
+    'A [0.5, 2] clamp pinned at 2.00 for every store while the true ratio ran 4.5-7.7, '
+    + 'capping demand at ~2/7ths of real and masking the one-day window bug.')
+
+  check('delivery cadence is declared once, in core/targets',
+    !FILES.some(f => !f.rel.startsWith('lib/core/') &&
+      /(DELIVERY_DAYS|deliveryDays)\s*:?\s*Record<string, number\[\]>\s*=/.test(f.src)),
+    'Pines/Miramar Tue+Fri vs Margate Tue drives every cover calculation; a second copy '
+    + 'is how two surfaces start disagreeing about when a truck arrives.')
+
+  check('transfer eligibility is declared once, in core/sourcing',
+    !FILES.some(f => f.rel !== 'lib/core/sourcing.ts' && /const DRY_MICROS\s*=/.test(f.src)),
+    'Fruit and frozen must never be offered as a transfer.')
+
+  check('order quantities are expressed in purchasable units',
+    /loadCasePacks\(/.test(guide) && /poolOrders\(/.test(guide),
+    'PFG ships whole cases; "order 2.1 LB of Gladiator" is not an action a manager can take.')
+
+  check('the guide collapses to buckets instead of listing every SKU',
+    /bucketOf\(/.test(guide) && /collapsed/.test(guide),
+    'The guide covers ~450 rows; only act/soon are worth a manager\'s morning.')
 }
 
 console.log(`\n${failures === 0 ? '\x1b[32mall ' + checks + ' checks passed\x1b[0m' : `\x1b[31m${failures} of ${checks} checks FAILED\x1b[0m`}\n`)

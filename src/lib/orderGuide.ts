@@ -1,6 +1,14 @@
 import { query } from './db'
 import { tierOf, type Tier } from './netchefTiers'
 import { holidayName, priorYearHoliday } from './holiday'
+import { buildOnHand, type OnHandBasis, type NightSample } from './core/onHand'
+import { buildUsage, USAGE_WINDOW_DAYS } from './core/usage'
+import {
+  ALERT_LEAD_DAYS, ORDER_SAFETY, MIN_CASE_FRACTION, MAX_IDLE_CASE_VALUE,
+  transferEligible, upcomingDeliveries, coverageHorizon, isoAdd, dowOf,
+  loadCasePacks, loadWalmartSubs, bucketOf, poolOrders, matchTransfers, daysBetween,
+  type Bucket, type CasePack, type WalmartSub, type PooledOrder, type TransferMove, type Route,
+} from './core/sourcing'
 
 // Hybrid, delivery-cycle-aware order guide (predictive-ordering "crawl").
 // Trusted-source hybrid — NetChef for STRUCTURE (physical counts, pack, cost), Brink
@@ -20,61 +28,17 @@ import { holidayName, priorYearHoliday } from './holiday'
 // over-bought. Delivery cadence per store below (Pines/Miramar Tue+Fri, Margate Tue).
 
 const WX_LAT = 26.05, WX_LON = -80.28
-const LEAD_DAYS = 4        // PFS confirmed lead time (used for the urgent flag)
-const SAFETY = 1.10        // 10% safety on the order-up-to level
 const STORE_NAMES = ['Pines', 'Miramar', 'Margate'] as const
 
-// PFG delivery weekdays per store (JS getUTCDay: Sun=0..Sat=6). Tue=2, Fri=5.
-const DELIVERY_DAYS: Record<string, number[]> = { Pines: [2, 5], Miramar: [2, 5], Margate: [2] }
+// Delivery cadence, transfer eligibility, lead time, case packs and the order-safety
+// factor now live in core/sourcing so the daily alert and this guide cannot disagree.
+// LEAD_DAYS = 4 used to live here and drove the urgent flag off a fixed number; urgency
+// is now "does a truck actually arrive before this runs out", which is what it meant.
 
-// Margate orders PFG once/wk, so a direct buy must hold ~12 days. But Pines/Miramar order
-// 2×/wk, so for SHELF-STABLE goods Margate can order lean and top up via inter-store
-// TRANSFER on their cadence (no cold chain, no spoilage). Transfer-eligible = dry micros +
-// bottled juices (NOT frozen fruit / fresh / food / ice cream, which need cold chain).
-const DRY_MICROS = new Set(['Powders', 'Cups/Lids/Straws', 'Enhancers', 'Sweeteners'])
-function transferEligible(micro: string | null, unit: string | null): boolean {
-  if (!micro) return false
-  if (DRY_MICROS.has(micro)) return true
-  if (micro === 'Fruits/Juices' && /bottle|floz/i.test(unit || '')) return true   // bottled juices
-  return false
-}
-
-// Walmart local buys aren't entered in NetChef (proven gap), so we fold the real Walmart
-// receipts (walmart_spend) into "received". Map Walmart category → NetChef product + lb per
-// received unit (size is in the item name). Needs walmart_spend kept fresh to take effect.
-const WALMART_TO_NETCHEF: Record<string, { pn: string; lbPerUnit: number }> = {
-  'CORE STRAWBERRIES': { pn: 'P1480', lbPerUnit: 1.0 },    // Fresh Strawberries, 1 lb
-  'BLUEBERRIES':       { pn: 'P1011', lbPerUnit: 1.125 },  // Fresh Blueberries, 18 oz
-}
+// Walmart receipts are folded into count-based usage inside core/usage.
 
 function etToday(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
-}
-function isoAdd(iso: string, n: number): string {
-  const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10)
-}
-function dowOf(iso: string): number { return new Date(iso + 'T12:00:00Z').getUTCDay() }
-
-// Upcoming delivery dates for a store (next n, from tomorrow on).
-function upcomingDeliveries(store: string, today: string, n = 4): string[] {
-  const days = DELIVERY_DAYS[store] ?? [dowOf(today)]
-  const out: string[] = []
-  for (let i = 1; i <= 28 && out.length < n; i++) {
-    const d = isoAdd(today, i)
-    if (days.includes(dowOf(d))) out.push(d)
-  }
-  return out
-}
-
-// Protection interval for the next order: [today, following delivery). The order placed
-// now arrives at the next delivery and must last until the one after — so it covers every
-// day from today up to (not including) the second upcoming delivery.
-function coverageHorizon(store: string, today: string): string[] {
-  const deliveries = upcomingDeliveries(store, today, 2)
-  const following = deliveries[1] ?? isoAdd(today, 8)
-  const horizon: string[] = []
-  for (let d = today; d < following; d = isoAdd(d, 1)) horizon.push(d)
-  return horizon
 }
 
 // Per-day heat multiplier over the forecast window: 0 at ≤85°F → +15% at ≥95°F.
@@ -161,13 +125,46 @@ export interface OrderGuideRow {
   suggestedOrder: number       // in stocking unit
   estOrderCost: number | null  // suggestedOrder × last-known unit cost (NetChef inventory_price)
   sourcing: 'order' | 'transfer'   // Margate shelf-stable → top up via transfer, not a direct PFG buy
+  // --- purchasable form. A guide that says "2.1 LB of Gladiator" is not actionable:
+  // the smallest thing PFG ships is a 25 LB case at $401.47.
+  route: Route
+  casePack: string | null      // e.g. '1/25 Lb'
+  caseUnits: number | null     // inventory units in one case
+  idleValue: number | null     // $ of stock a whole case would leave sitting
+  walmartItem: string | null   // right-sized local substitute, when one is genuinely bought
+  walmartUnits: number | null
+  walmartCost: number | null
+  // --- how much to believe the on-hand behind all of this
+  onHandBasis: OnHandBasis | 'unknown'
+  nights: NightSample[]
+  lastCountDate: string | null
+  lastCountKind: 'nightly' | 'weekly' | null
+  staleNights: number | null
+  bucket: Bucket
   varianceQty: number
   unitCost: number | null
   flag: 'urgent' | 'reorder' | 'ok' | 'data'
 }
 
+export interface CategoryRollup {
+  store: string
+  category: string
+  items: number
+  needing: number
+  /** items with no usable on-hand signal — they need counting, not ordering */
+  needCount: number
+  estCost: number
+}
+
 export interface OrderGuidePayload {
   onHandAsOf: string | null
+  usageWindowDays: number
+  /** pooled, whole-case PFG order for the system */
+  pooled: PooledOrder[]
+  /** dry-goods moves that avoid a case entirely */
+  transfers: TransferMove[]
+  /** everything not in 'act'/'soon', summarised so the list stays short */
+  collapsed: CategoryRollup[]
   usageWeekStart: string | null
   usageWeekEnd: string | null
   weatherLift: number
@@ -188,31 +185,39 @@ const driverOf = (sub: string | null): 'bowls' | 'smoothies' =>
   (sub || '').toLowerCase().includes('bowl') ? 'bowls' : 'smoothies'
 
 export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
-  const [onHand, usage] = await Promise.all([
+  const today = etToday()
+  // Usage is a RATE over a real window now, not whatever MAX(period_end) happens to be.
+  // Once nightly counts started landing, MAX(period_end) resolved to a single night and
+  // every "weekly" figure was one day of demand. See core/usage for the full write-up.
+  const usageStart = isoAdd(today, -USAGE_WINDOW_DAYS)
+  const usageEnd = isoAdd(today, -1)
+
+  const [meta, blended, usageRates] = await Promise.all([
     query<OnHandRow[]>(`
       SELECT store, product_number, product_name, sub_category_name, micro_category_name, inventory_unit,
              on_hand_qty, in_transit_qty, inventory_price, CONVERT(char(10), as_of, 23) as_of
       FROM smoothieking.netchef_onhand
       WHERE as_of = (SELECT MAX(as_of) FROM smoothieking.netchef_onhand)`),
-    query<UsageRow[]>(`
-      SELECT store, product_number, qty_beginning, qty_received, qty_physical, qty_issue, qty_variance,
-             CONVERT(char(10), period_start, 23) period_start, CONVERT(char(10), period_end, 23) period_end
-      FROM smoothieking.netchef_usage_api
-      WHERE period_end = (SELECT MAX(period_end) FROM smoothieking.netchef_usage_api)`),
+    buildOnHand(usageStart, usageEnd),
+    buildUsage(usageStart, usageEnd),
   ])
-  if (!onHand.length) return null
+  if (!meta.length) return null
 
-  const usageEnd = usage[0]?.period_end ? String(usage[0].period_end).slice(0, 10) : null
-  const usageStart = usage[0]?.period_start ? String(usage[0].period_start).slice(0, 10) : null
+  // netchef_onhand still supplies category / unit / cost metadata, but NOT the quantity:
+  // it carries blank counts through as negatives (-11 Pines, -19 Miramar flatbread on
+  // 2026-08-09) which then inflate `orderUpTo - onHand`. Quantity comes from the blend.
+  const ohByKey = new Map(blended.map(b => [`${b.store}|${b.productNumber}`, b]))
+  const rateByKey = new Map(usageRates.map(u => [`${u.store}|${u.productNumber}`, u]))
+  const catOf = new Map(meta.map(m => [`${m.store}|${m.product_number}`, m.micro_category_name]))
 
   // Brink driver sales: usage-week vs trailing-4wk run rate + day-of-week demand shape.
   const [weekDrv, trailDrv, dowRows] = await Promise.all([
-    usageStart && usageEnd ? query<DriverRow[]>(`
+    query<DriverRow[]>(`
       SELECT store, revenue_center rc, SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) net
       FROM smoothieking.sales
       WHERE CAST(closed_datetime AS DATE) BETWEEN '${usageStart}' AND '${usageEnd}'
         AND revenue_center IN ('Smoothies','Smoothie Bowls')
-      GROUP BY store, revenue_center`) : Promise.resolve([] as DriverRow[]),
+      GROUP BY store, revenue_center`),
     query<DriverRow[]>(`
       SELECT store, revenue_center rc, SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) net
       FROM smoothieking.sales
@@ -233,6 +238,8 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
   for (const r of weekDrv) weekNet.set(dkey(r.store, r.rc), Number(r.net) || 0)
   const trailWeekly = new Map<string, number>()
   for (const r of trailDrv) trailWeekly.set(dkey(r.store, r.rc), (Number(r.net) || 0) / 4)
+  // weekNet spans USAGE_WINDOW_DAYS; normalise it to a week so the ratio is dimensionless.
+  for (const [k, v] of weekNet) weekNet.set(k, v * 7 / USAGE_WINDOW_DAYS)
 
   // Day-of-week weights per store (fraction of weekly demand by JS dow), from the day-of-week
   // sales shape. SQL DATEPART weekday: 1=Sun..7=Sat → JS dow = wd-1.
@@ -251,11 +258,13 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
   const factorFor = (store: string, driver: 'bowls' | 'smoothies') => {
     const wk = weekNet.get(`${store}|${driver}`) ?? 0
     const tr = trailWeekly.get(`${store}|${driver}`) ?? 0
-    return wk > 0 && tr > 0 ? Math.max(0.5, Math.min(2, tr / wk)) : 1
+    // Tightened from [0.5, 2] now that both sides span a week. The old clamp existed to
+    // contain a one-day window and silently pinned at 2.00 for every store while the true
+    // ratio ran 4.5-7.7 — capping demand at ~2/7ths of real.
+    return wk > 0 && tr > 0 ? Math.max(0.7, Math.min(1.5, tr / wk)) : 1
   }
 
   // Coverage windows + per-day weather/holiday over the union of all store windows.
-  const today = etToday()
   const horizons = new Map<string, string[]>()
   for (const s of STORE_NAMES) horizons.set(s, coverageHorizon(s, today))
   const allDates = [...new Set([...horizons.values()].flat())].sort()
@@ -273,67 +282,52 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
     nextTruck[s] = { delivery: dels[0], orderBy: isoAdd(dels[0], -1), following: dels[1] ?? null }
   }
 
-  const usageMap = new Map<string, UsageRow>()
-  for (const u of usage) usageMap.set(`${u.store}|${u.product_number}`, u)
-
-  // Fold Walmart receipts (missing from NetChef) into "received" so usage is correct.
-  const walmartRecv = new Map<string, number>()
-  if (usageStart && usageEnd) {
-    const cats = Object.keys(WALMART_TO_NETCHEF).map(c => `'${c}'`).join(',')
-    const wm = await query<{ email: string; cat: string; qty: number }[]>(`
-      SELECT account_user_email email, walmart_category cat, SUM(item_received_qty) qty
-      FROM smoothieking.walmart_spend
-      WHERE order_date BETWEEN '${usageStart}' AND '${usageEnd}'
-        AND walmart_category IN (${cats}) AND item_received_qty > 0
-      GROUP BY account_user_email, walmart_category`).catch(() => [] as { email: string; cat: string; qty: number }[])
-    for (const r of wm) {
-      const store = STORE_NAMES.find(s => (r.email || '').toLowerCase().includes(s.toLowerCase()))
-      const m = WALMART_TO_NETCHEF[r.cat]
-      if (store && m) {
-        const k = `${store}|${m.pn}`
-        walmartRecv.set(k, (walmartRecv.get(k) ?? 0) + (Number(r.qty) || 0) * m.lbPerUnit)
-      }
-    }
-  }
+  const packs = await loadCasePacks(isoAdd(today, -100))
+  const wmSubs = await loadWalmartSubs(isoAdd(today, -120))
 
   const rows: OrderGuideRow[] = []
-  for (const oh of onHand) {
-    const u = usageMap.get(`${oh.store}|${oh.product_number}`)
-    const wmR = walmartRecv.get(`${oh.store}|${oh.product_number}`) ?? 0
-    const countUsage = u ? (Number(u.qty_beginning) || 0) + (Number(u.qty_received) || 0) + wmR - (Number(u.qty_physical) || 0) : 0
-    const theoretical = Math.max(0, Number(u?.qty_issue) || 0)
+  for (const oh of meta) {
+    const key = `${oh.store}|${oh.product_number}`
+    const blend = ohByKey.get(key)
+    const rate = rateByKey.get(key)
     const tier = tierOf(oh.product_number)
 
-    // Count-based usage stays PRIMARY: it is what physically left the shelf, so
-    // it already contains waste, over-pouring and spillage that a recipe never
-    // will. Recipe-driven usage is the cross-check, not the replacement.
-    let weeklyUsage = countUsage
-    let usageBasis: 'count' | 'theoretical' | 'theoretical-guard' = 'count'
-    if (weeklyUsage <= 0) {
-      // Nothing usable from the count (often a missed or partial count).
-      weeklyUsage = theoretical
-      usageBasis = 'theoretical'
-    } else if (
-      tier === 'A' && theoretical > 0 &&
-      countUsage > theoretical * MISCOUNT_MULTIPLE
-    ) {
-      // A single fat-fingered count can multiply an order. When the count
-      // claims several times what the recipes can account for — and the recipe
-      // figure is one we trust for this product — treat the count as suspect
-      // and order to the recipe instead. Deliberately one-directional: a count
-      // BELOW theoretical is normal (product still on the shelf), only an
-      // implausibly high one is guarded.
-      weeklyUsage = theoretical
+    // Usage is now a per-day RATE from core/usage, which excludes blank nights from the
+    // count-based delta. Including them is what read a skipped flatbread line as "72 units
+    // consumed today" and produced a 169-unit order against a negative on-hand.
+    const dailyUsage = rate?.daily ?? 0
+    const weeklyUsage = dailyUsage * 7
+    const theoretical = (rate?.theoreticalDaily ?? 0) * 7
+    const countUsage = (rate?.countDaily ?? 0) * 7
+    let usageBasis: 'count' | 'theoretical' | 'theoretical-guard' =
+      rate?.basis === 'count' ? 'count' : 'theoretical'
+    // A count several times above what the recipes can account for is still guarded, but
+    // only for products whose recipe model we actually trust (tier A).
+    if (usageBasis === 'count' && tier === 'A' && theoretical > 0 && countUsage > theoretical * MISCOUNT_MULTIPLE) {
       usageBasis = 'theoretical-guard'
     }
+    const effectiveWeekly = usageBasis === 'theoretical-guard' ? theoretical : weeklyUsage
     const usageGapPct = theoretical > 0 ? ((countUsage - theoretical) / theoretical) * 100 : null
 
     const driver = driverOf(oh.sub_category_name)
     const factor = factorFor(oh.store, driver)
-    const fcastWeekly = weeklyUsage * factor           // demand-adjusted weekly usage
+    const fcastWeekly = effectiveWeekly * factor       // demand-adjusted weekly usage
     const avgDaily = fcastWeekly / 7
-    const onHandQty = Number(oh.on_hand_qty) || 0
-    const inTransit = Number(oh.in_transit_qty) || 0
+    // The blend is authoritative ONLY for items on the nightly count template. For the
+    // ~290 products that are never nightly-counted, every night is a template zero and
+    // the carried book decays to nothing — reading that as "out of stock" put 160 items
+    // into the urgent bucket. Those fall back to CrunchTime's own perpetual book.
+    const bookQty = Number(oh.on_hand_qty) || 0
+    const onHandQty = blend?.nightlyTracked
+      ? blend.onHand
+      : Math.max(0, bookQty)
+    // CrunchTime's perpetual book runs negative on roughly half the catalogue, so a
+    // non-counted item sitting at <= 0 does not mean the shelf is empty — it means we
+    // have no signal at all. Flooring that to 0 and calling it urgent put 135 items in
+    // the act bucket and would train managers to ignore the list. An unknown is a
+    // request for a COUNT, not an order.
+    const onHandUnknown = !blend?.nightlyTracked && bookQty <= 0
+    const inTransit = Math.max(0, Number(oh.in_transit_qty) || 0)
 
     // Margate leans on Pines/Miramar's 2×/wk cadence for shelf-stable goods (transfer top-up),
     // so those cover the shorter network window instead of Margate's 12-day PFG cycle.
@@ -345,7 +339,7 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
       : (horizons.get(oh.store) ?? coverageHorizon(oh.store, today))
     const w = dowWeight.get(oh.store) ?? Array(7).fill(1 / 7)
     const orderUpTo = horizon.reduce((s, date) =>
-      s + fcastWeekly * (w[dowOf(date)] ?? 1 / 7) * (wxByDate.get(date) ?? 1) * (holByDate.get(`${oh.store}|${date}`) ?? 1), 0) * SAFETY
+      s + fcastWeekly * (w[dowOf(date)] ?? 1 / 7) * (wxByDate.get(date) ?? 1) * (holByDate.get(`${oh.store}|${date}`) ?? 1), 0) * ORDER_SAFETY
     const suggested = Math.max(0, orderUpTo - onHandQty - inTransit)
     const dos = avgDaily > 0 ? onHandQty / avgDaily : null
 
@@ -376,10 +370,41 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
     const unitCost = oh.inventory_price != null ? Number(oh.inventory_price) : null
     const estOrderCost = unitCost != null && suggested > 0 ? Math.round(suggested * unitCost * 100) / 100 : null
 
+    // ---- what you can actually buy, and therefore where this should come from.
+    const pack = packs.get(oh.product_number) ?? null
+    const wm = wmSubs.get(oh.product_number) ?? null
+    const cases = pack && suggested > 0 ? Math.ceil(suggested / pack.unitsPerCase) : 0
+    const idleValue = pack && cases > 0
+      ? round2((cases * pack.unitsPerCase - suggested) * (pack.price / pack.unitsPerCase)) : null
+    const truckInTime = !!(dels[0] && runOutDate && dels[0] <= runOutDate)
+    const tooSmallForCase = !!(pack && suggested > 0 && suggested < pack.unitsPerCase * MIN_CASE_FRACTION && truckInTime)
+    const caseTooBig = !!(idleValue != null && idleValue > MAX_IDLE_CASE_VALUE)
+    const movable = transferEligible(oh.micro_category_name, oh.inventory_unit)
+    const wmUnits = wm && suggested > 0 ? Math.ceil(suggested * wm.perInventoryUnit) : 0
+    const wmCost = wm && wmUnits > 0 ? round2(wmUnits * wm.price) : null
+
+    let route: Route = 'ok'
+    if (onHandUnknown) route = 'ok'                         // needs a count before it can be sized
+    else if (suggested <= 0) route = 'ok'
+    else if (tooSmallForCase) route = 'next-order'          // safety-margin noise; roll it forward
+    else if (wm && (!truckInTime || caseTooBig)) route = 'walmart'
+    else if (movable && caseTooBig) route = 'transfer'      // a $401 case for 2 LB is not an order
+    // No case mapping just means we don't know PFG's pack for this SKU yet — it still
+    // goes on the truck, ordered in the stocking unit, exactly as before. 'decide' is
+    // reserved for a real dead end: nothing small enough, no local buy, nothing movable.
+    else if (!caseTooBig) route = 'pfg'
+    else if (movable) route = 'transfer'
+    else route = 'decide'
+
+    // Urgency is whether a truck can actually reach it, not a fixed day count.
+    const bucket: Bucket = onHandUnknown
+      ? 'watch'
+      : bucketOf({ onHand: onHandQty, daily: avgDaily, suggested, runOutDate, truck: dels[0] ?? null, today })
     let flag: OrderGuideRow['flag'] = 'ok'
-    if (onHandQty < 0) flag = 'data'
-    else if (avgDaily > 0 && dos !== null && dos < LEAD_DAYS) flag = 'urgent'
-    else if (suggested > 0) flag = 'reorder'
+    if (onHandUnknown && avgDaily > 0) flag = 'data'
+    else if (blend?.nightlyTracked && blend.basis === 'disputed') flag = 'data'
+    else if (bucket === 'act') flag = 'urgent'
+    else if (bucket === 'soon') flag = 'reorder'
 
     rows.push({
       store: oh.store as OGStore, productNumber: oh.product_number, productName: oh.product_name,
@@ -388,18 +413,71 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
       forecastFactor: factor, forecastWeeklyUsage: fcastWeekly, daysOfSupply: dos,
       runOutDate, orderTruck,
       coverDays: horizon.length, suggestedOrder: suggested, estOrderCost, sourcing,
+      route,
+      casePack: pack?.pack ?? null,
+      caseUnits: pack?.unitsPerCase ?? null,
+      idleValue,
+      walmartItem: wm?.item ?? null,
+      walmartUnits: wmUnits || null,
+      walmartCost: wmCost,
+      onHandBasis: onHandUnknown ? 'unknown' : (blend?.nightlyTracked ? blend.basis : 'estimated'),
+      nights: blend?.nightlyTracked ? blend.nights : [],
+      lastCountDate: blend?.lastCountDate ?? null,
+      lastCountKind: blend?.lastCountKind ?? null,
+      staleNights: blend?.staleNights ?? null,
+      bucket,
       countUsage,
       theoreticalUsage: theoretical,
       usageGapPct,
       usageTier: tier,
-      varianceQty: Number(u?.qty_variance) || 0,
+      varianceQty: blend ? round2(blend.onHand - (blend.nights.at(-1)?.book ?? blend.onHand)) : 0,
       unitCost, flag,
     })
   }
 
+  // Pool per-store need into whole cases for the SYSTEM. Ordering store by store bought
+  // two 25 LB Hulk cases for a 3.8 and a 4.05 LB gap; pooled that is one case.
+  const pooled = poolOrders(
+    rows.filter(r => r.route === 'pfg')
+        .map(r => ({ store: r.store, productNumber: r.productNumber, productName: r.productName, need: r.suggestedOrder })),
+    packs)
+
+  // Dry-goods moves. A donor may only give what it does not need to reach its own next
+  // truck, which is why Margate (Tuesday-only) rarely donates and Miramar usually can.
+  const transfers = matchTransfers(
+    rows.map(r => ({
+      store: r.store, productNumber: r.productNumber, productName: r.productName, unit: r.unit,
+      need: r.route === 'transfer' || r.route === 'decide' ? r.suggestedOrder : 0,
+      spare: Math.max(0, r.onHand - (r.forecastWeeklyUsage / 7) * r.coverDays),
+      basis: r.onHandBasis,
+      transferable: transferEligible(catOf.get(`${r.store}|${r.productNumber}`) ?? null, r.unit),
+    })),
+    packs)
+
+  // Everything quiet is rolled up rather than listed. The guide covers ~130 products per
+  // store; only 'act' and 'soon' are worth a manager's morning.
+  const roll = new Map<string, CategoryRollup>()
+  for (const r of rows) {
+    if (r.bucket === 'act' || r.bucket === 'soon') continue
+    const cat = r.subCategory || 'Other'
+    const k = `${r.store}|${cat}`
+    const cur = roll.get(k) ?? { store: r.store, category: cat, items: 0, needing: 0, needCount: 0, estCost: 0 }
+    cur.items += 1
+    if (r.onHandBasis === 'unknown') cur.needCount += 1
+    if (r.suggestedOrder > 0) { cur.needing += 1; cur.estCost += r.estOrderCost ?? 0 }
+    roll.set(k, cur)
+  }
+  const collapsed = [...roll.values()]
+    .map(c => ({ ...c, estCost: Math.round(c.estCost * 100) / 100 }))
+    .sort((a, b) => a.store.localeCompare(b.store) || b.needing - a.needing || a.category.localeCompare(b.category))
+
   return {
-    onHandAsOf: onHand[0]?.as_of ?? null,
+    onHandAsOf: blended[0]?.nights.at(-1)?.date ?? null,
     usageWeekStart: usageStart, usageWeekEnd: usageEnd,
+    usageWindowDays: USAGE_WINDOW_DAYS,
+    pooled, transfers, collapsed,
     weatherLift: Math.round(weatherLift * 100) / 100, holidays, coverage, nextTruck, rows,
   }
 }
+
+const round2 = (n: number) => Math.round(n * 100) / 100

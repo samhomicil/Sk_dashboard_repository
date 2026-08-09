@@ -74,6 +74,12 @@ export const SOURCES: SourceContract[] = [
   { table: 'smoothieking.netchef_onhand', label: 'On-hand inventory', dateColumn: 'as_of',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'netchef-extractor',
     consumers: ['Inventory', 'Shrink'] },
+  // The full weekly physical inventory. core/onHand anchors the nightly count chain to
+  // it, so if this goes stale every on-hand figure quietly drifts on recipe usage alone
+  // — with no count to re-anchor it, an "estimated" line only gets softer.
+  { table: 'smoothieking.netchef_usage', label: 'Weekly physical inventory (count anchor)',
+    dateColumn: 'period_end', cadence: 'weekly', maxAgeDays: 14, fedBy: 'netchef-extractor',
+    consumers: ['Order Guide', 'Inventory'] },
 
   // ── Guest ──────────────────────────────────────────────────────────────────
   { table: 'smoothieking.guest_daily', label: 'Guest scores (daily)', dateColumn: 'survey_date',

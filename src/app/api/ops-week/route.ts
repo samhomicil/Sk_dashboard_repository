@@ -161,6 +161,12 @@ export async function GET(req: Request) {
                 WHERE s.store = u.store AND CAST(s.closed_datetime AS DATE) BETWEEN u.period_start AND u.period_end) AS sales
       FROM smoothieking.netchef_usage_api u
       WHERE u.period_end >= (SELECT DATEADD(week, -8, MAX(period_end)) FROM smoothieking.netchef_usage_api)
+        -- 7-day inventory periods only. Since nightly HOT LIST counts started landing,
+        -- this table also holds 1-day periods; averaging those in as if each were a
+        -- "week" skews the derived COGS target toward whatever a single night looked
+        -- like. Per row the ratio is sound (sales are paired to the same window), so
+        -- this filter only protects the multi-week average.
+        AND u.period_start <> u.period_end
       GROUP BY u.store, u.period_start, u.period_end`), []),
     getWeather(weekDates),
   ])

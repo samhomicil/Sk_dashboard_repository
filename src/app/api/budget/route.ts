@@ -159,19 +159,26 @@ export async function GET() {
   // basis as Weekly Ops: SUM(qty_issue x price) usage over the trailing 8 NetChef
   // count weeks, divided by the net sales in those same weeks. Drives the food %
   // and the food budget variance (purchases stay as cash context only).
+  // Sales must be summed over exactly the periods the COGS came from, NOT over
+  // MIN(period_start)..MAX(period_end). netchef_usage_api has gaps — Jul 28-Aug 2 2026
+  // is absent entirely — and it now mixes 7-day inventory periods with 1-day nightly
+  // ones. Measured 2026-08-09 the window summed 54 days of COGS against a 60-day sales
+  // span, understating food cost % by 10%. Pairing sales to each period closes the gap
+  // whatever the grain, and stays correct when a week is missing.
   const cogsRows = await query<{ store: string; theo: number; sales: number }[]>(`
     WITH cw AS (
       SELECT LOWER(store) store, period_start, period_end, SUM(qty_issue * price) theo
         FROM smoothieking.netchef_usage_api
        WHERE period_end >= (SELECT DATEADD(week, -8, MAX(period_end)) FROM smoothieking.netchef_usage_api)
        GROUP BY LOWER(store), period_start, period_end),
-    agg AS (
-      SELECT store, SUM(theo) theo, MIN(period_start) ps, MAX(period_end) pe FROM cw GROUP BY store)
-    SELECT a.store, a.theo,
-           (SELECT SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END)
-              FROM smoothieking.sales s
-             WHERE LOWER(s.store) = a.store AND CAST(s.closed_datetime AS DATE) BETWEEN a.ps AND a.pe) sales
-      FROM agg a`).catch(() => [])
+    paired AS (
+      SELECT c.store, c.theo,
+             (SELECT SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END)
+                FROM smoothieking.sales s
+               WHERE LOWER(s.store) = c.store
+                 AND CAST(s.closed_datetime AS DATE) BETWEEN c.period_start AND c.period_end) sales
+        FROM cw c)
+    SELECT store, SUM(theo) theo, SUM(sales) sales FROM paired GROUP BY store`).catch(() => [])
   const NAME_OF: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
   const cogsRate = new Map<string, number>()   // store name -> recipe COGS rate
   for (const r of cogsRows) { const nm = NAME_OF[r.store]; if (nm && num(r.sales) > 0) cogsRate.set(nm, num(r.theo) / num(r.sales)) }

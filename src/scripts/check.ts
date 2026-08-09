@@ -139,6 +139,36 @@ console.log('\nManager / owner separation')
     'Labor shown to managers is unloaded hourly wages only; loaded cost is owner-side.')
 }
 
+// ── 5b. Wide Promise.all must bind by name ───────────────────────────────────
+// ops-week destructured a nine-element Promise.all positionally and had prior-year
+// swapped with the trailing-4-week history. Both were SalesRow[], so the types matched,
+// nothing threw, and the failure surfaced only as "—" in the PY column — while the
+// same-weekday forecast was quietly built from last year's week and PFG order targets
+// were sized off it (Margate's next-week forecast ran 31% low).
+console.log('\nAwait shapes')
+{
+  // The dangerous shape is specifically N positional bindings where two or more entries
+  // share the SAME row type — that is what let prior-year and history trade places with
+  // tsc none the wiser. Distinct types, or self-documenting entries like
+  // sub(getKpis, '/api/kpis'), are legible enough that a swap would be caught on sight.
+  const offenders: string[] = []
+  for (const f of FILES) {
+    if (!f.rel.startsWith('app/api/') && !f.rel.startsWith('lib/')) continue
+    for (const m of f.src.matchAll(/const\s*\[([^\]]*)\]\s*=\s*await\s+Promise\.all\(\[([\s\S]*?)\n\s{0,4}\]\)/g)) {
+      const names = m[1].split(',').filter(x => x.trim()).length
+      if (names < 4) continue
+      const types = [...m[2].matchAll(/\bquery<([^>]+?)>/g)].map(t => t[1].replace(/\s+/g, ''))
+      const dupes = types.filter((t, i) => types.indexOf(t) !== i)
+      if (dupes.length) offenders.push(`${f.rel} — ${names} positional bindings, type ${[...new Set(dupes)][0]} appears ${types.filter(t => t === dupes[0]).length}x`)
+    }
+  }
+  check('no positional Promise.all mixes repeated row types', offenders.length === 0,
+    offenders.join('\n') + (offenders.length
+      ? '\n  -> bind by key (see allKeyed in app/api/ops-week/route.ts); two entries of the '
+        + 'same type can swap silently past tsc'
+      : ''))
+}
+
 // ── 6. Inventory core is the only source of on-hand, usage and sourcing ──────
 // Every rule below guards a contradiction that was live in production on 2026-08-09,
 // when the order guide and the daily sourcing board disagreed on the same items by

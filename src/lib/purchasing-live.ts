@@ -9,6 +9,7 @@
 
 import { query } from './db'
 import { wmtFood } from './core/sources'
+import { allKeyed } from './core/keyed'
 import type {
   CategorySpend, CategoryByStore, TopProductPriced, VendorBrand, WeekPoint, CategoryWeekPoint, PurchasingLive,
 } from './purchasingUtils'
@@ -30,25 +31,27 @@ export async function buildPurchasingLive(start: string, end: string): Promise<P
   const pfgWin = `order_date >= '${s}' AND order_date <= '${e}'`
   const wmWin = `order_date >= '${s}' AND order_date <= '${e}'`
 
-  const [
+  // Bound by NAME, not position — pfgDaily and wmDaily share a row type, which is
+  // exactly how ops-week silently swapped prior-year with history. See core/keyed.
+  const {
     vendorRows, catRows, catStoreRows, topRows, brandRows, wmCatRows,
     pfgDaily, wmDaily, salesDaily, catDaily,
-  ] = await Promise.all([
-    query<{ pfg: number; walmart: number }[]>(`
+  } = await allKeyed({
+    vendorRows: query<{ pfg: number; walmart: number }[]>(`
       SELECT (SELECT SUM(line_total) FROM smoothieking.pfg_compat WHERE ${pfgWin}) AS pfg,
              (${wmtFood.total(wmWin)}) AS walmart`),
-    query<{ category: string; spend: number; lines: number }[]>(`
+    catRows: query<{ category: string; spend: number; lines: number }[]>(`
       SELECT category, SUM(line_total) AS spend, COUNT(*) AS lines
       FROM smoothieking.pfg_compat
       WHERE ${pfgWin} AND category IS NOT NULL AND category <> ''
       GROUP BY category ORDER BY spend DESC`),
-    query<{ category: string; store_number: string; spend: number }[]>(`
+    catStoreRows: query<{ category: string; store_number: string; spend: number }[]>(`
       SELECT category, store_number, SUM(line_total) AS spend
       FROM smoothieking.pfg_compat
       WHERE ${pfgWin} AND category IS NOT NULL AND category <> ''
       GROUP BY category, store_number`),
     // Top products by item_code + last-known unit price (line_total ÷ qty on latest in-window order).
-    query<{
+    topRows: query<{
       item_code: string; description: string; brand: string; category: string; store_number: string
       spend: number; qty: number; last_price: number | null; last_date: string | null
     }[]>(`
@@ -70,33 +73,33 @@ export async function buildPurchasingLive(start: string, end: string): Promise<P
              SUM(r.line_total) AS spend, SUM(r.qty_confirmed) AS qty
       FROM ranked r JOIN latest d ON d.item_code = r.item_code
       GROUP BY r.item_code, d.description, d.brand, d.category, d.last_price, d.last_date, r.store_number`),
-    query<{ brand: string; spend: number }[]>(`
+    brandRows: query<{ brand: string; spend: number }[]>(`
       SELECT brand_manufacturer AS brand, SUM(line_total) AS spend
       FROM smoothieking.pfg_compat
       WHERE ${pfgWin} AND brand_manufacturer IS NOT NULL AND brand_manufacturer <> ''
       GROUP BY brand_manufacturer ORDER BY spend DESC`),
-    query<{ category: string; spend: number }[]>(`
+    wmCatRows: query<{ category: string; spend: number }[]>(`
       SELECT walmart_category AS category, SUM(item_net_total) AS spend
       FROM smoothieking.walmart_spend
       WHERE ${wmWin} AND walmart_category IS NOT NULL AND walmart_category <> ''
       GROUP BY walmart_category ORDER BY spend DESC`),
     // Daily series (bucketed to weeks in TS to avoid DATEFIRST ambiguity).
-    query<{ d: string; spend: number }[]>(`
+    pfgDaily: query<{ d: string; spend: number }[]>(`
       SELECT CONVERT(char(10), order_date, 23) AS d, SUM(line_total) AS spend
       FROM smoothieking.pfg_compat WHERE ${pfgWin} GROUP BY CONVERT(char(10), order_date, 23)`),
-    query<{ d: string; spend: number }[]>(wmtFood.byDay(wmWin)),
-    query<{ d: string; net: number }[]>(`
+    wmDaily: query<{ d: string; spend: number }[]>(wmtFood.byDay(wmWin)),
+    salesDaily: query<{ d: string; net: number }[]>(`
       SELECT CONVERT(char(10), closed_datetime, 23) AS d,
              SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) AS net
       FROM smoothieking.sales
       WHERE CAST(closed_datetime AS DATE) >= '${s}' AND CAST(closed_datetime AS DATE) <= '${e}'
       GROUP BY CONVERT(char(10), closed_datetime, 23)`),
-    query<{ d: string; category: string; spend: number }[]>(`
+    catDaily: query<{ d: string; category: string; spend: number }[]>(`
       SELECT CONVERT(char(10), order_date, 23) AS d, category, SUM(line_total) AS spend
       FROM smoothieking.pfg_compat
       WHERE ${pfgWin} AND category IS NOT NULL AND category <> ''
       GROUP BY CONVERT(char(10), order_date, 23), category`),
-  ])
+  })
 
   // ── vendor split ──
   const pfgTotal = Number(vendorRows[0]?.pfg) || 0

@@ -6,6 +6,7 @@ import {
 import { etToday, isoAdd, dowOf, monthDay } from '@/lib/core/dates'
 import { buildRateFor } from '@/lib/core/labor'
 import { buildForecaster, orderSplit, deriveCogsTarget } from '@/lib/core/forecast'
+import { allKeyed } from '@/lib/core/keyed'
 
 // Mid-week ops report data layer.
 // Emits the {week, stores, ...} contract the /ops-report page renders. All numbers
@@ -99,25 +100,27 @@ export async function GET(req: Request) {
   const pyMonday = isoAdd(monday, -364)
   const pySunday = isoAdd(sunday, -364)
 
-  const [
-    salesWeek, salesHist, salesPY, schedWeek, laborWeek, empRates, pfg, cogsData, weather,
-  ] = await Promise.all([
+  // Bound by NAME, not position — see allKeyed(). A nine-element positional
+  // destructuring here previously swapped prior-year with the trailing history.
+  const {
+    salesWeek, salesPY, salesHist, schedWeek, laborWeek, empRates, pfg, cogsData, weather,
+  } = await allKeyed({
     // Sales actual this week (store name = 'Pines'|'Miramar'|'Margate')
-    safe(query<SalesRow[]>(`
+    salesWeek: safe(query<SalesRow[]>(`
       SELECT store, CONVERT(char(10), closed_datetime, 23) AS d,
              SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) AS net
       FROM smoothieking.sales
       WHERE CAST(closed_datetime AS DATE) >= '${monday}' AND CAST(closed_datetime AS DATE) <= '${sunday}'
       GROUP BY store, CONVERT(char(10), closed_datetime, 23)`), []),
     // Prior-year net by store/day (same weekday, 364d back)
-    safe(query<SalesRow[]>(`
+    salesPY: safe(query<SalesRow[]>(`
       SELECT store, CONVERT(char(10), closed_datetime, 23) AS d,
              SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) AS net
       FROM smoothieking.sales
       WHERE CAST(closed_datetime AS DATE) >= '${pyMonday}' AND CAST(closed_datetime AS DATE) <= '${pySunday}'
       GROUP BY store, CONVERT(char(10), closed_datetime, 23)`), []),
     // Sales history for the same-weekday forecast
-    safe(query<SalesRow[]>(`
+    salesHist: safe(query<SalesRow[]>(`
       SELECT store, CONVERT(char(10), closed_datetime, 23) AS d,
              SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) AS net
       FROM smoothieking.sales
@@ -125,26 +128,26 @@ export async function GET(req: Request) {
       GROUP BY store, CONVERT(char(10), closed_datetime, 23)`), []),
     // Published schedule at employee grain (this week + next week are pulled by the
     // extractor) — kept per-employee so cost uses each person's own rate.
-    safe(query<SchedRow[]>(`
+    schedWeek: safe(query<SchedRow[]>(`
       SELECT store, CONVERT(char(10), work_date, 23) AS d, employee, sched_hours AS h
       FROM smoothieking.labor_schedule
       WHERE work_date >= '${monday}' AND work_date < '${nextMonday}'`), []),
     // Actual worked hours + pay this week (labor cost = actual total_pay)
-    safe(query<LaborRow[]>(`
+    laborWeek: safe(query<LaborRow[]>(`
       SELECT store, CONVERT(char(10), shift_date, 23) AS d, SUM(total_hrs) AS h, SUM(total_pay) AS pay
       FROM smoothieking.labor
       WHERE shift_date >= '${monday}' AND shift_date < '${nextMonday}'
         AND employee_role NOT IN ('NON_EMP', 'Support')
       GROUP BY store, CONVERT(char(10), shift_date, 23)`), []),
     // Rate = each employee's most-recent rate (daily recap rate_lookup)
-    safe(query<EmpRateRow[]>(`
+    empRates: safe(query<EmpRateRow[]>(`
       SELECT store, employee, rate FROM (
         SELECT store, employee, rate,
                ROW_NUMBER() OVER (PARTITION BY store, employee ORDER BY shift_date DESC) rn
         FROM smoothieking.labor WHERE rate > 0) t WHERE rn = 1`), []),
     // OTB base — typical single PFG ORDER per store = spend ÷ distinct order (invoice) dates,
     // from pfs_invoices over the trailing window. One delivery, NOT the weekly total.
-    safe(query<PfgRow[]>(`
+    pfg: safe(query<PfgRow[]>(`
       SELECT RIGHT(store_name, 4) AS store_number,
              SUM(ext_price) / NULLIF(COUNT(DISTINCT invoice_date), 0) AS spend
       FROM smoothieking.pfs_invoices
@@ -154,7 +157,7 @@ export async function GET(req: Request) {
     // trailing 8 NetChef inventory weeks. Source is netchef_usage_api (30 weeks, with its own
     // unit price) — not the old netchef_usage (only 1 week), so the derived target is a real
     // run-rate. Latest week = the "actual" rate; the weeks' average feeds the derived target.
-    safe(query<{ store: string; wk: string; cogs: number; sales: number }[]>(`
+    cogsData: safe(query<{ store: string; wk: string; cogs: number; sales: number }[]>(`
       SELECT u.store, CONVERT(char(10), u.period_end, 23) AS wk,
              SUM(u.qty_issue * u.price) AS cogs,
              (SELECT SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) FROM smoothieking.sales s
@@ -168,8 +171,8 @@ export async function GET(req: Request) {
         -- this filter only protects the multi-week average.
         AND u.period_start <> u.period_end
       GROUP BY u.store, u.period_start, u.period_end`), []),
-    getWeather(weekDates),
-  ])
+    weather: getWeather(weekDates),
+  })
 
   // index helpers
   const salesWeekMap = new Map<string, number>()   // `${store}|${date}` -> net

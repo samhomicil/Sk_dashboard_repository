@@ -188,22 +188,60 @@ function fmtRange(start: string, end: string): string {
   return `${s.toLocaleDateString('en-US', sameYear ? short : full)} – ${e.toLocaleDateString('en-US', full)}`;
 }
 
-// ── Mini inline trend line for KPI cards ──────────────────────────────
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-  if (data.length < 2) return null;
-  const W = 108, H = 32, PAD = 3;
-  const min = Math.min(...data, 0), max = Math.max(...data, 0);
-  const range = max - min || 1;
-  const xOf = (i: number) => PAD + (i / (data.length - 1)) * (W - 2 * PAD);
-  const yOf = (v: number) => PAD + (1 - (v - min) / range) * (H - 2 * PAD);
-  const pts = data.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
-  const lastI = data.length - 1;
-  return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 overflow-visible">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
-      <circle cx={xOf(lastI)} cy={yOf(data[lastI])} r="2.5" fill={color} />
-    </svg>
-  );
+// ── "vs prior period" comparison ───────────────────────────────────────
+// Where the relative key has an obvious counterpart (This Quarter -> Last
+// Quarter), use it — the label is meaningful. Everything else (Today, the
+// "Last X" keys themselves, the rolling windows) falls back to an
+// equal-length window immediately before the current one, honestly labeled
+// "prior period" rather than pretending it's a named QB bucket.
+const RELATIVE_PRIOR_MAP: Partial<Record<RelativeKey, RelativeKey>> = {
+  thisWeek: 'lastWeek', thisWeekTD: 'lastWeekTD',
+  thisMonth: 'lastMonth', thisMonthTD: 'lastMonthTD',
+  thisQuarter: 'lastQuarter', thisQuarterTD: 'lastQuarterTD',
+  thisYear: 'lastYear', thisYearTD: 'lastYearTD',
+};
+const RELATIVE_LABEL: Partial<Record<RelativeKey, string>> = Object.fromEntries(
+  RELATIVE_GROUPS.flatMap(g => g.items).map(it => [it.key, it.label]),
+);
+
+function priorOf(sel: PeriodSel, now: Date): { start: string; end: string; label: string } {
+  if (sel.mode !== 'relative') {
+    const prevSel = stepPeriod(sel, -1);
+    return { ...resolvePeriod(prevSel, now), label: periodLabel(prevSel) };
+  }
+  const mapped = RELATIVE_PRIOR_MAP[sel.relKey];
+  if (mapped) return { ...resolveRelative(mapped, now), label: RELATIVE_LABEL[mapped] ?? 'prior period' };
+  // Generic fallback: same number of days, immediately before the current window.
+  const cur = resolveRelative(sel.relKey, now);
+  const curStart = new Date(cur.start + 'T00:00:00');
+  const curEnd = new Date(cur.end + 'T00:00:00');
+  const lengthDays = Math.round((curEnd.getTime() - curStart.getTime()) / 864e5) + 1;
+  const prevEnd = addDays(curStart, -1);
+  const prevStart = addDays(prevEnd, -(lengthDays - 1));
+  return { start: ymd(prevStart), end: ymd(prevEnd), label: 'prior period' };
+}
+
+// Whether an increase in this metric is the good direction — Opex is the
+// one KPI where "up" is unfavorable.
+const METRIC_INCREASE_IS_GOOD: Record<TrendMetric, boolean> = {
+  revenue: true, grossProfit: true, opex: false, netIncome: true,
+};
+
+interface Delta { text: string; tone: 'good' | 'bad' | 'neutral' }
+function computeDelta(current: number, prior: number | null, metric: TrendMetric): Delta | null {
+  if (prior == null) return null;
+  const diff = current - prior;
+  if (Math.abs(diff) < 0.5) return { text: 'flat', tone: 'neutral' };
+  const up = diff > 0;
+  const arrow = up ? '▲' : '▼';
+  const goodDir = METRIC_INCREASE_IS_GOOD[metric] ? up : !up;
+  const tone: Delta['tone'] = goodDir ? 'good' : 'bad';
+  const crossesZero = (prior < 0 && current >= 0) || (prior > 0 && current <= 0);
+  if (prior === 0 || crossesZero) {
+    return { text: `${arrow} ${diff >= 0 ? '+' : '−'}${$compact(Math.abs(diff))}`, tone };
+  }
+  const pct = Math.abs(diff / prior) * 100;
+  return { text: `${arrow} ${pct.toFixed(1)}%`, tone };
 }
 
 // ── KPI hero strip ─────────────────────────────────────────────────────
@@ -219,10 +257,10 @@ const TREND_METRIC_META: Record<TrendMetric, { qbKey: keyof QbPnlMonth; label: s
 };
 
 function KpiCard({
-  label, value, sub, subTone, spark, sparkColor, active, onSelect,
+  label, value, sub, subTone, delta, priorLabel, active, onSelect,
 }: {
   label: string; value: number; sub?: string; subTone?: 'good' | 'bad' | 'neutral';
-  spark?: number[]; sparkColor: string; active: boolean; onSelect: () => void;
+  delta: Delta | null; priorLabel: string; active: boolean; onSelect: () => void;
 }) {
   const neg = value < 0;
   return (
@@ -232,58 +270,62 @@ function KpiCard({
         active ? 'border-violet-300 ring-2 ring-violet-100' : 'border-slate-200 hover:border-slate-300'
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className={`text-[10.5px] font-bold uppercase tracking-[0.06em] ${active ? 'text-violet-500' : 'text-slate-400'}`}>{label}</div>
-          <div
-            className={`mt-1.5 truncate font-mono text-[25px] font-bold tabular-nums ${neg ? 'text-red-600' : 'text-slate-900'}`}
-            title={$f(value)}
-          >
-            {$compact(value)}
-          </div>
-          {sub && (
-            <div className={`mt-1 text-[11.5px] font-semibold ${
-              subTone === 'good' ? 'text-emerald-600' : subTone === 'bad' ? 'text-red-600' : 'text-slate-400'
-            }`}>{sub}</div>
-          )}
-        </div>
-        {spark && spark.length > 1 && <Sparkline data={spark} color={sparkColor} />}
+      <div className={`text-[10.5px] font-bold uppercase tracking-[0.06em] ${active ? 'text-violet-500' : 'text-slate-400'}`}>{label}</div>
+      <div
+        className={`mt-1.5 truncate font-mono text-[25px] font-bold tabular-nums ${neg ? 'text-red-600' : 'text-slate-900'}`}
+        title={$f(value)}
+      >
+        {$compact(value)}
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        {sub && (
+          <span className={`text-[11.5px] font-semibold ${
+            subTone === 'good' ? 'text-emerald-600' : subTone === 'bad' ? 'text-red-600' : 'text-slate-400'
+          }`}>{sub}</span>
+        )}
+        {delta && (
+          <span className="text-[11px] font-semibold" title={`vs ${priorLabel}`}>
+            <span className={delta.tone === 'good' ? 'text-emerald-600' : delta.tone === 'bad' ? 'text-red-600' : 'text-slate-400'}>{delta.text}</span>
+            <span className="ml-1 font-normal text-slate-400">vs {priorLabel}</span>
+          </span>
+        )}
       </div>
     </button>
   );
 }
 
-function KpiStrip({ c, trend, metric, onMetricChange }: {
+function KpiStrip({ c, prior, metric, onMetricChange, priorLabel }: {
   c: { revenue: number; gp: number; opex: number; ni: number };
-  trend: { revenue: number[]; grossProfit: number[]; opex: number[]; netIncome: number[] } | null;
-  metric: TrendMetric; onMetricChange: (m: TrendMetric) => void;
+  prior: { revenue: number; gp: number; opex: number; ni: number } | null;
+  metric: TrendMetric; onMetricChange: (m: TrendMetric) => void; priorLabel: string;
 }) {
   const gpMargin = c.revenue ? (c.gp / c.revenue) * 100 : null;
   const niMargin = c.revenue ? (c.ni / c.revenue) * 100 : null;
   const opexRatio = c.revenue ? (c.opex / c.revenue) * 100 : null;
   return (
     <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-      <KpiCard label="Revenue" value={c.revenue} spark={trend?.revenue} sparkColor="#334155"
+      <KpiCard label="Revenue" value={c.revenue}
+        delta={computeDelta(c.revenue, prior?.revenue ?? null, 'revenue')} priorLabel={priorLabel}
         active={metric === 'revenue'} onSelect={() => onMetricChange('revenue')} />
       <KpiCard
         label="Gross Profit" value={c.gp}
         sub={gpMargin != null ? `${gpMargin.toFixed(1)}% margin` : undefined}
         subTone={gpMargin != null && gpMargin >= 0 ? 'good' : 'bad'}
-        spark={trend?.grossProfit} sparkColor="#6366F1"
+        delta={computeDelta(c.gp, prior?.gp ?? null, 'grossProfit')} priorLabel={priorLabel}
         active={metric === 'grossProfit'} onSelect={() => onMetricChange('grossProfit')}
       />
       <KpiCard
         label="Operating Expenses" value={c.opex}
         sub={opexRatio != null ? `${opexRatio.toFixed(1)}% of revenue` : undefined}
         subTone="neutral"
-        spark={trend?.opex} sparkColor="#FB7185"
+        delta={computeDelta(c.opex, prior?.opex ?? null, 'opex')} priorLabel={priorLabel}
         active={metric === 'opex'} onSelect={() => onMetricChange('opex')}
       />
       <KpiCard
         label="Net Income" value={c.ni}
         sub={niMargin != null ? `${niMargin.toFixed(1)}% margin` : undefined}
         subTone={niMargin != null && niMargin >= 0 ? 'good' : 'bad'}
-        spark={trend?.netIncome} sparkColor={c.ni >= 0 ? '#059669' : '#DC2626'}
+        delta={computeDelta(c.ni, prior?.ni ?? null, 'netIncome')} priorLabel={priorLabel}
         active={metric === 'netIncome'} onSelect={() => onMetricChange('netIncome')}
       />
     </div>
@@ -557,6 +599,7 @@ export default function PnlClient() {
   const [store,       setStore]       = useState<string>('All');
   const [basis,       setBasis]       = useState<'Accrual' | 'Cash'>('Accrual');
   const [results,     setResults]     = useState<PnlStoreResult[]>([]);
+  const [priorResults,setPriorResults]= useState<PnlStoreResult[]>([]);
   const [trendResults,setTrendResults]= useState<PnlTrendResult[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [trendLoading,setTrendLoading]= useState(true);
@@ -577,14 +620,19 @@ export default function PnlClient() {
   const load = useCallback(async () => {
     setLoading(true);
     const { start, end } = resolvePeriod(period, now);
+    const prior = priorOf(period, now);
     const sq = store !== 'All' ? `&store=${store.toLowerCase()}` : '';
     try {
-      const r = await fetch(`/api/qb/pnl?start=${start}&end=${end}&basis=${basis}${sq}`, { cache: 'no-store' });
-      const data = await r.json();
-      setResults(data);
+      const [cur, prev] = await Promise.all([
+        fetch(`/api/qb/pnl?start=${start}&end=${end}&basis=${basis}${sq}`, { cache: 'no-store' }).then(r => r.json()),
+        fetch(`/api/qb/pnl?start=${prior.start}&end=${prior.end}&basis=${basis}${sq}`, { cache: 'no-store' }).then(r => r.json()),
+      ]);
+      setResults(cur);
+      setPriorResults(prev);
       setUpdatedAt(new Date());
     } catch {
       setResults([]);
+      setPriorResults([]);
     }
     setLoading(false);
   }, [period, store, basis, now]);
@@ -608,36 +656,9 @@ export default function PnlClient() {
   // Consolidated totals across whichever stores are in view — feeds the KPI
   // strip and the bridge chart. Opex is read from the Expenses section total
   // where present, falling back to GrossProfit - NetOperatingIncome.
-  const consolidated = useMemo(() => {
-    let revenue = 0, gp = 0, opex = 0, ni = 0, any = false;
-    for (const r of results) {
-      if (!r.report) continue;
-      any = true;
-      const p = parseStore(r.report.rows);
-      const gpVal = p.specials.get('GrossProfit') ?? 0;
-      const noiVal = p.specials.get('NetOperatingIncome');
-      const opexVal = p.sections.get('Expenses')?.total ?? (noiVal != null ? gpVal - noiVal : 0);
-      revenue += p.incomeTotal ?? 0;
-      gp += gpVal;
-      opex += opexVal ?? 0;
-      ni += p.specials.get('NetIncome') ?? 0;
-    }
-    return any ? { revenue, gp, opex, ni } : null;
-  }, [results]);
-
-  const trendSeries = useMemo(() => {
-    const stores = trendResults.filter(r => r.trend.length > 0);
-    if (!stores.length) return null;
-    const n = Math.min(...stores.map(s => s.trend.length));
-    const sum = (key: keyof QbPnlMonth) =>
-      Array.from({ length: n }, (_, i) => stores.reduce((s, r) => s + (Number(r.trend[i]?.[key]) || 0), 0));
-    return {
-      revenue: sum('totalIncome'),
-      grossProfit: sum('grossProfit'),
-      opex: sum('totalExpenses'),
-      netIncome: sum('netIncome'),
-    };
-  }, [trendResults]);
+  const consolidated = useMemo(() => sumConsolidated(results), [results]);
+  const priorConsolidated = useMemo(() => sumConsolidated(priorResults), [priorResults]);
+  const priorLabel = useMemo(() => priorOf(period, now).label, [period, now]);
 
   const bridgeSteps = useMemo(
     () => consolidated ? buildBridge(consolidated.revenue, consolidated.gp, consolidated.opex, consolidated.ni) : null,
@@ -747,7 +768,7 @@ export default function PnlClient() {
               {[1, 2, 3, 4].map(i => <div key={i} className="h-[92px] animate-pulse rounded-2xl bg-slate-100" />)}
             </div>
           ) : consolidated ? (
-            <KpiStrip c={consolidated} trend={trendSeries} metric={trendMetric} onMetricChange={setTrendMetric} />
+            <KpiStrip c={consolidated} prior={priorConsolidated} priorLabel={priorLabel} metric={trendMetric} onMetricChange={setTrendMetric} />
           ) : null}
 
           {/* Bridge + trend, side by side on wide screens */}
@@ -804,6 +825,27 @@ function parseStore(rows: QbPnlRow[]) {
   let incomeTotal = sections.get('Income')?.total ?? null;
   if (incomeTotal == null) { let t = 0; sections.forEach((v, k) => { if (/income/i.test(k) && !/other/i.test(k)) t += v.total ?? 0; }); incomeTotal = t; }
   return { sections, specials, incomeTotal };
+}
+
+// Sums revenue/GP/opex/net-income across whichever stores are in a result
+// set — used for both the current period and the prior-period comparison,
+// so the two are computed identically. Opex reads the Expenses section
+// total where present, falling back to GrossProfit - NetOperatingIncome.
+function sumConsolidated(results: PnlStoreResult[]): { revenue: number; gp: number; opex: number; ni: number } | null {
+  let revenue = 0, gp = 0, opex = 0, ni = 0, any = false;
+  for (const r of results) {
+    if (!r.report) continue;
+    any = true;
+    const p = parseStore(r.report.rows);
+    const gpVal = p.specials.get('GrossProfit') ?? 0;
+    const noiVal = p.specials.get('NetOperatingIncome');
+    const opexVal = p.sections.get('Expenses')?.total ?? (noiVal != null ? gpVal - noiVal : 0);
+    revenue += p.incomeTotal ?? 0;
+    gp += gpVal;
+    opex += opexVal ?? 0;
+    ni += p.specials.get('NetIncome') ?? 0;
+  }
+  return any ? { revenue, gp, opex, ni } : null;
 }
 
 const SPECIAL_STYLE: Record<string, string> = {

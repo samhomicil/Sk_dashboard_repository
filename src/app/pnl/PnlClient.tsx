@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { QbPnlRow, QbPnlMonth } from '@/lib/bills/qb';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -25,6 +25,19 @@ function $f(n: number | null) {
   const abs = Math.abs(n);
   const fmt = abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return (n < 0 ? '(' : '') + '$' + fmt + (n < 0 ? ')' : '');
+}
+
+// Compact form for the big hero numbers — $482.4K rather than $482,391.17.
+// Precision tapers off as numbers get bigger so it stays readable at a glance.
+function $compact(n: number): string {
+  const neg = n < 0;
+  const abs = Math.abs(n);
+  let s: string;
+  if (abs >= 1_000_000) s = (abs / 1_000_000).toFixed(2) + 'M';
+  else if (abs >= 100_000) s = (abs / 1000).toFixed(0) + 'K';
+  else if (abs >= 1000) s = (abs / 1000).toFixed(1) + 'K';
+  else s = abs.toFixed(0);
+  return (neg ? '−$' : '$') + s;
 }
 
 function periodDates(key: string): { start: string; end: string } {
@@ -55,102 +68,178 @@ function periodDates(key: string): { start: string; end: string } {
   return { start: `${y}-01-01`, end: n.toISOString().slice(0, 10) };
 }
 
-// ── Collapsible row ────────────────────────────────────────────────────
-function PnlRowView({ row, depth }: { row: QbPnlRow; depth: number }) {
-  const [open, setOpen] = useState(depth < 1); // Top sections collapsed by default at depth 0
+function fmtRange(start: string, end: string): string {
+  const s = new Date(start + 'T12:00:00');
+  const e = new Date(end + 'T12:00:00');
+  const sameYear = s.getFullYear() === e.getFullYear();
+  const short: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  const full: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  return `${s.toLocaleDateString('en-US', sameYear ? short : full)} – ${e.toLocaleDateString('en-US', full)}`;
+}
 
-  const isTopSection = row.isSection && depth === 0;
-  const isNestedSection = row.isSection && depth > 0;
-  const isNetIncome = row.group === 'NetIncome';
-  const isGrossProfit = row.group === 'GrossProfit';
-  const isNetOpIncome = row.group === 'NetOperatingIncome' || row.group === 'NetOtherIncome';
-
-  // Special standalone rows (net income, gross profit, net operating income)
-  if (!row.isSection && (isNetIncome || isGrossProfit || isNetOpIncome)) {
-    return (
-      <div className={`flex items-center justify-between px-4 py-2.5 ${
-        isNetIncome ? 'bg-slate-900' :
-        isGrossProfit ? 'bg-emerald-50 border-t-2 border-b-2 border-emerald-100' :
-        'bg-slate-50 border-t border-slate-200'
-      }`}>
-        <span className={`text-[12px] font-bold ${isNetIncome ? 'text-white' : 'text-slate-800'}`}>
-          {row.label}
-        </span>
-        <span className={`font-mono text-[13px] font-bold ${
-          isNetIncome ? (row.amount !== null && row.amount >= 0 ? 'text-emerald-400' : 'text-red-400') :
-          row.amount !== null && row.amount < 0 ? 'text-red-600' : 'text-emerald-700'
-        }`}>
-          {$f(row.amount)}
-        </span>
-      </div>
-    );
-  }
-
-  // Summary rows (section totals)
-  if (row.isSummary) {
-    return (
-      <div className="flex items-center justify-between border-t border-slate-100 py-1.5"
-        style={{ paddingLeft: 16 + depth * 12, paddingRight: 16 }}>
-        <span className="text-[11px] font-bold text-slate-600">{row.label}</span>
-        <span className="font-mono text-[12px] font-bold text-slate-800">{$f(row.amount)}</span>
-      </div>
-    );
-  }
-
-  // Section rows (collapsible)
-  if (row.isSection) {
-    return (
-      <div>
-        <button
-          onClick={() => setOpen(o => !o)}
-          className={`w-full flex items-center justify-between text-left transition-colors ${
-            isTopSection
-              ? 'bg-slate-50 hover:bg-slate-100 border-b border-slate-200 py-2.5'
-              : 'hover:bg-slate-50 py-1.5'
-          }`}
-          style={{ paddingLeft: 16 + depth * 12, paddingRight: 16 }}
-        >
-          <div className="flex items-center gap-2">
-            <svg
-              className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}
-              width="12" height="12" viewBox="0 0 12 12" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-            >
-              <path d="M4 2l4 4-4 4" />
-            </svg>
-            <span className={`${isTopSection ? 'text-[12px] font-bold text-slate-800' : isNestedSection ? 'text-[11.5px] font-semibold text-slate-700' : 'text-[11px] text-slate-600'}`}>
-              {row.label}
-            </span>
-          </div>
-          <span className={`font-mono ${isTopSection ? 'text-[13px] font-bold text-slate-900' : 'text-[12px] font-semibold text-slate-700'}`}>
-            {$f(row.amount)}
-          </span>
-        </button>
-        {open && (
-          <div className={isTopSection ? 'bg-white border-b border-slate-100' : ''}>
-            {row.children.map((child, i) => (
-              <PnlRowView key={i} row={child} depth={depth + 1} />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Regular data rows (line items)
-  const isZero = row.amount === 0 || row.amount === null;
+// ── Mini inline trend line for KPI cards ──────────────────────────────
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return null;
+  const W = 108, H = 32, PAD = 3;
+  const min = Math.min(...data, 0), max = Math.max(...data, 0);
+  const range = max - min || 1;
+  const xOf = (i: number) => PAD + (i / (data.length - 1)) * (W - 2 * PAD);
+  const yOf = (v: number) => PAD + (1 - (v - min) / range) * (H - 2 * PAD);
+  const pts = data.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
+  const lastI = data.length - 1;
   return (
-    <div
-      className="flex items-center justify-between py-1 hover:bg-slate-50"
-      style={{ paddingLeft: 16 + depth * 12, paddingRight: 16 }}
-    >
-      <span className={`text-[11.5px] ${isZero ? 'text-slate-400' : 'text-slate-700'}`}>{row.label}</span>
-      <span className={`font-mono text-[12px] ${
-        isZero ? 'text-slate-300' :
-        row.amount !== null && row.amount < 0 ? 'text-red-600' : 'text-slate-700'
-      }`}>
-        {$f(row.amount)}
-      </span>
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 overflow-visible">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+      <circle cx={xOf(lastI)} cy={yOf(data[lastI])} r="2.5" fill={color} />
+    </svg>
+  );
+}
+
+// ── KPI hero strip ─────────────────────────────────────────────────────
+function KpiCard({
+  label, value, sub, subTone, spark, sparkColor,
+}: {
+  label: string; value: number; sub?: string; subTone?: 'good' | 'bad' | 'neutral';
+  spark?: number[]; sparkColor: string;
+}) {
+  const neg = value < 0;
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-slate-400">{label}</div>
+          <div
+            className={`mt-1.5 truncate font-mono text-[25px] font-bold tabular-nums ${neg ? 'text-red-600' : 'text-slate-900'}`}
+            title={$f(value)}
+          >
+            {$compact(value)}
+          </div>
+          {sub && (
+            <div className={`mt-1 text-[11.5px] font-semibold ${
+              subTone === 'good' ? 'text-emerald-600' : subTone === 'bad' ? 'text-red-600' : 'text-slate-400'
+            }`}>{sub}</div>
+          )}
+        </div>
+        {spark && spark.length > 1 && <Sparkline data={spark} color={sparkColor} />}
+      </div>
+    </div>
+  );
+}
+
+function KpiStrip({ c, trend }: {
+  c: { revenue: number; gp: number; opex: number; ni: number };
+  trend: { revenue: number[]; grossProfit: number[]; opex: number[]; netIncome: number[] } | null;
+}) {
+  const gpMargin = c.revenue ? (c.gp / c.revenue) * 100 : null;
+  const niMargin = c.revenue ? (c.ni / c.revenue) * 100 : null;
+  const opexRatio = c.revenue ? (c.opex / c.revenue) * 100 : null;
+  return (
+    <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+      <KpiCard label="Revenue" value={c.revenue} spark={trend?.revenue} sparkColor="#334155" />
+      <KpiCard
+        label="Gross Profit" value={c.gp}
+        sub={gpMargin != null ? `${gpMargin.toFixed(1)}% margin` : undefined}
+        subTone={gpMargin != null && gpMargin >= 0 ? 'good' : 'bad'}
+        spark={trend?.grossProfit} sparkColor="#6366F1"
+      />
+      <KpiCard
+        label="Operating Expenses" value={c.opex}
+        sub={opexRatio != null ? `${opexRatio.toFixed(1)}% of revenue` : undefined}
+        subTone="neutral"
+        spark={trend?.opex} sparkColor="#FB7185"
+      />
+      <KpiCard
+        label="Net Income" value={c.ni}
+        sub={niMargin != null ? `${niMargin.toFixed(1)}% margin` : undefined}
+        subTone={niMargin != null && niMargin >= 0 ? 'good' : 'bad'}
+        spark={trend?.netIncome} sparkColor={c.ni >= 0 ? '#059669' : '#DC2626'}
+      />
+    </div>
+  );
+}
+
+// ── Revenue → Net Income bridge (waterfall) ────────────────────────────
+type BridgeStep = { key: string; label: string; value: number; kind: 'total' | 'delta' };
+
+function buildBridge(revenue: number, gp: number, opex: number, ni: number): BridgeStep[] {
+  const cogs = gp - revenue;      // negative
+  const opexDelta = -opex;        // negative
+  const noi = gp - opex;
+  const other = ni - noi;         // whatever's left — interest, other income/expense, taxes
+  const steps: BridgeStep[] = [
+    { key: 'revenue', label: 'Revenue', value: revenue, kind: 'total' },
+    { key: 'cogs', label: 'COGS', value: cogs, kind: 'delta' },
+    { key: 'gp', label: 'Gross Profit', value: gp, kind: 'total' },
+    { key: 'opex', label: 'Opex', value: opexDelta, kind: 'delta' },
+  ];
+  if (Math.abs(other) > 1) steps.push({ key: 'other', label: 'Other', value: other, kind: 'delta' });
+  steps.push({ key: 'ni', label: 'Net Income', value: ni, kind: 'total' });
+  return steps;
+}
+
+const BRIDGE_COLOR: Record<string, string> = { revenue: '#334155', cogs: '#FB7185', gp: '#6366F1', opex: '#FB7185', other: '#F59E0B' };
+
+function PnlBridge({ steps }: { steps: BridgeStep[] }) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const W = 900, H = 240;
+  const PAD = { t: 30, r: 20, b: 34, l: 20 };
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
+  const n = steps.length;
+  const gap = 16;
+  const barW = (cW - gap * (n - 1)) / n;
+
+  let running = 0;
+  const bars = steps.map((s) => {
+    let from: number, to: number;
+    if (s.kind === 'total') { from = 0; to = s.value; running = s.value; }
+    else { from = running; to = running + s.value; running = to; }
+    return { ...s, from, to };
+  });
+
+  const allVals = bars.flatMap((b) => [b.from, b.to]);
+  const maxV = Math.max(...allVals, 0);
+  const minV = Math.min(...allVals, 0);
+  const rangePad = (maxV - minV) * 0.22 || 1000;
+  const yMax = maxV + rangePad, yMin = Math.min(0, minV - rangePad);
+  const yRange = yMax - yMin || 1;
+  const yOf = (v: number) => PAD.t + (1 - (v - yMin) / yRange) * cH;
+  const zeroY = yOf(0);
+  const xOf = (i: number) => PAD.l + i * (barW + gap);
+
+  const colorFor = (key: string, value: number) => key === 'ni' ? (value >= 0 ? '#059669' : '#DC2626') : (BRIDGE_COLOR[key] ?? '#94A3B8');
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-3.5">
+        <span className="text-[13px] font-bold text-slate-800">Revenue to Net Income</span>
+        <span className="ml-2 text-[10px] text-slate-400">how the period's revenue breaks down</span>
+      </div>
+      <div className="relative px-3 pb-2 pt-3">
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+          <line x1={PAD.l} y1={zeroY} x2={W - PAD.r} y2={zeroY} stroke="#E2E8F0" strokeWidth={1} />
+          {bars.map((b, i) => i < n - 1 && (
+            <line key={'c' + i}
+              x1={xOf(i) + barW} y1={yOf(b.to)} x2={xOf(i + 1)} y2={yOf(bars[i + 1].from)}
+              stroke="#CBD5E1" strokeWidth={1} strokeDasharray="3 3" />
+          ))}
+          {bars.map((b, i) => {
+            const top = yOf(Math.max(b.from, b.to));
+            const h = Math.max(2, Math.abs(yOf(b.from) - yOf(b.to)));
+            const col = colorFor(b.key, b.value);
+            const valueLabel = b.kind === 'delta' ? (b.value >= 0 ? '+' : '−') + $compact(Math.abs(b.value)) : $compact(b.value);
+            return (
+              <g key={b.key}
+                onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(null)}
+                opacity={hoverIdx === null || hoverIdx === i ? 1 : 0.55} style={{ transition: 'opacity .12s' }}
+              >
+                <rect x={xOf(i)} y={top} width={barW} height={h} rx={4} fill={col} />
+                <text x={xOf(i) + barW / 2} y={top - 8} textAnchor="middle" fontSize="11" fontWeight="700" fontFamily="JetBrains Mono, monospace" fill="#334155">{valueLabel}</text>
+                <text x={xOf(i) + barW / 2} y={H - 12} textAnchor="middle" fontSize="10.5" fontWeight="600" fontFamily="Inter, sans-serif" fill="#94A3B8">{b.label}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -215,8 +304,9 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
     paths += `<defs><linearGradient id="pnl-${colHex}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity=".14"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>`;
     paths += `<path d="${fillPath}" fill="url(#pnl-${colHex})"/>`;
     paths += `<path d="${linePath}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-    pts.forEach(p => {
-      paths += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${col}" stroke="white" stroke-width="2"/>`;
+    pts.forEach((p, i) => {
+      const isLast = i === pts.length - 1;
+      paths += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 5 : 4}" fill="${col}" stroke="white" stroke-width="2"/>`;
     });
   });
 
@@ -244,11 +334,11 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
   const hoveredIdx   = hoveredMonth ? allMonths.findIndex(m => m.month === hoveredMonth.month) : -1;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
         <div>
           <span className="text-[13px] font-bold text-slate-800">Net Income — Monthly Trend</span>
-          <span className="ml-2 text-[10px] text-slate-400">from QuickBooks</span>
+          <span className="ml-2 text-[10px] text-slate-400">rolling 12 months, from QuickBooks</span>
         </div>
         <div className="flex items-center gap-4">
           {stores.map(({ company, name }) => (
@@ -310,74 +400,6 @@ function NetIncomeTrendChart({ trendResults }: { trendResults: PnlTrendResult[] 
   );
 }
 
-// ── Store P&L card ─────────────────────────────────────────────────────
-function StorePnl({ result, expanded, onToggleAll }: {
-  result: PnlStoreResult;
-  expanded: boolean;
-  onToggleAll: () => void;
-}) {
-  const col = STORE_COLORS[result.company] ?? '#6366F1';
-
-  if (result.error || !result.report) {
-    return (
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="h-[3px]" style={{ background: col }} />
-        <div className="px-5 py-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full" style={{ background: col }} />
-            <span className="text-[13px] font-bold text-slate-800">{result.name}</span>
-          </div>
-          <p className="text-[12px] text-slate-400">No data available</p>
-        </div>
-      </div>
-    );
-  }
-
-  const { rows, startPeriod, endPeriod, basis } = result.report;
-  const netRow = rows.find(r => r.group === 'NetIncome');
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div className="h-[3px]" style={{ background: col }} />
-      {/* Store header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ background: col }} />
-          <span className="text-[13px] font-bold text-slate-800">{result.name}</span>
-          <span className="text-[10px] text-slate-400 font-medium">{basis}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {netRow && (
-            <div className="text-right">
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Net Income</div>
-              <div className={`font-mono text-[14px] font-bold ${
-                (netRow.amount ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'
-              }`}>{$f(netRow.amount)}</div>
-            </div>
-          )}
-          <button onClick={onToggleAll} className="text-[10px] font-semibold text-violet-600 hover:underline whitespace-nowrap">
-            {expanded ? 'Collapse all' : 'Expand all'}
-          </button>
-        </div>
-      </div>
-      {/* Period */}
-      <div className="px-5 py-1.5 bg-slate-50 border-b border-slate-100">
-        <span className="text-[10px] text-slate-400">
-          {new Date(startPeriod + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          {' — '}
-          {new Date(endPeriod + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-        </span>
-      </div>
-      {/* P&L rows */}
-      <div>
-        {rows.map((row, i) => (
-          <PnlRowView key={i} row={row} depth={0} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Main ───────────────────────────────────────────────────────────────
 const PERIODS = [
   { key: 'mtd',   label: 'Month to Date' },
@@ -409,7 +431,7 @@ export default function PnlClient() {
   const [trendResults,setTrendResults]= useState<PnlTrendResult[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [trendLoading,setTrendLoading]= useState(true);
-  const [expandMap,   setExpandMap]   = useState<Record<string, boolean>>({});
+  const [updatedAt,   setUpdatedAt]   = useState<Date | null>(null);
 
   const loadTrend = useCallback(async () => {
     setTrendLoading(true);
@@ -430,6 +452,7 @@ export default function PnlClient() {
       const r = await fetch(`/api/qb/pnl?start=${start}&end=${end}&basis=${basis}${sq}`, { cache: 'no-store' });
       const data = await r.json();
       setResults(data);
+      setUpdatedAt(new Date());
     } catch {
       setResults([]);
     }
@@ -452,82 +475,150 @@ export default function PnlClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, loadTrend]);
 
-  function toggleAll(company: string) {
-    setExpandMap(m => ({ ...m, [company]: !m[company] }));
-  }
+  // Consolidated totals across whichever stores are in view — feeds the KPI
+  // strip and the bridge chart. Opex is read from the Expenses section total
+  // where present, falling back to GrossProfit - NetOperatingIncome.
+  const consolidated = useMemo(() => {
+    let revenue = 0, gp = 0, opex = 0, ni = 0, any = false;
+    for (const r of results) {
+      if (!r.report) continue;
+      any = true;
+      const p = parseStore(r.report.rows);
+      const gpVal = p.specials.get('GrossProfit') ?? 0;
+      const noiVal = p.specials.get('NetOperatingIncome');
+      const opexVal = p.sections.get('Expenses')?.total ?? (noiVal != null ? gpVal - noiVal : 0);
+      revenue += p.incomeTotal ?? 0;
+      gp += gpVal;
+      opex += opexVal ?? 0;
+      ni += p.specials.get('NetIncome') ?? 0;
+    }
+    return any ? { revenue, gp, opex, ni } : null;
+  }, [results]);
+
+  const trendSeries = useMemo(() => {
+    const stores = trendResults.filter(r => r.trend.length > 0);
+    if (!stores.length) return null;
+    const n = Math.min(...stores.map(s => s.trend.length));
+    const sum = (key: keyof QbPnlMonth) =>
+      Array.from({ length: n }, (_, i) => stores.reduce((s, r) => s + (Number(r.trend[i]?.[key]) || 0), 0));
+    return {
+      revenue: sum('totalIncome'),
+      grossProfit: sum('grossProfit'),
+      opex: sum('totalExpenses'),
+      netIncome: sum('netIncome'),
+    };
+  }, [trendResults]);
+
+  const bridgeSteps = useMemo(
+    () => consolidated ? buildBridge(consolidated.revenue, consolidated.gp, consolidated.opex, consolidated.ni) : null,
+    [consolidated],
+  );
+
+  const { start: rangeStart, end: rangeEnd } = periodDates(period);
 
   return (
     <div className="min-h-screen">
-      {/* Main */}
       <main className="pb-10">
         {/* Header */}
-        <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur sm:px-7">
-          <h1 className="text-base font-semibold text-slate-900">Profit &amp; Loss</h1>
+        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-5 py-3.5 backdrop-blur sm:px-7">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-[17px] font-bold text-slate-900">Profit &amp; Loss</h1>
+              <p className="mt-0.5 text-[11.5px] text-slate-400">
+                {fmtRange(rangeStart, rangeEnd)} · {basis} basis · {store === 'All' ? 'All stores' : store}
+              </p>
+            </div>
 
-          {/* Store filter */}
-          <div className="ml-auto flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
-            {STORES_UI.map(s => (
-              <button key={s} onClick={() => setStore(s)}
-                className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-                style={store === s
-                  ? { background: s === 'All' ? '#0F172A' : STORE_COLORS[s.toLowerCase()], color: '#fff' }
-                  : { color: '#64748b' }}>
-                {s}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Store filter */}
+              <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+                {STORES_UI.map(s => (
+                  <button key={s} onClick={() => setStore(s)}
+                    className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                    style={store === s
+                      ? { background: s === 'All' ? '#0F172A' : STORE_COLORS[s.toLowerCase()], color: '#fff' }
+                      : { color: '#64748b' }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* Period */}
+              <div className="relative">
+                <select
+                  value={period}
+                  onChange={e => setPeriod(e.target.value)}
+                  className="appearance-none rounded-lg border border-slate-200 bg-white py-1 pl-2.5 pr-6 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-100">
+                  {PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                </select>
+                <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2.5 4.5l3.5 3.5 3.5-3.5" /></svg>
+              </div>
+
+              <div className="h-5 w-px bg-slate-200" />
+
+              {/* Basis — secondary control, de-emphasized */}
+              <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+                {(['Accrual', 'Cash'] as const).map(b => (
+                  <button key={b} onClick={() => setBasis(b)}
+                    className="rounded-md px-2 py-0.5 text-[10.5px] font-medium transition-colors"
+                    style={basis === b ? { background: '#fff', color: '#0F172A', boxShadow: '0 1px 2px rgba(0,0,0,.06)' } : { color: '#94a3b8' }}>
+                    {b}
+                  </button>
+                ))}
+              </div>
+
+              {/* Refresh */}
+              <button onClick={handleRefresh} disabled={loading || trendLoading}
+                className="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+                  style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}>
+                  <path d="M10.5 1.5v3h-3M1.5 10.5v-3h3" />
+                  <path d="M2.04 4.5a4.5 4.5 0 0 1 7.74-1.24M9.96 7.5a4.5 4.5 0 0 1-7.74 1.24" />
+                </svg>
+                Refresh
               </button>
-            ))}
+              {updatedAt && (
+                <span className="text-[10px] text-slate-300">
+                  Updated {updatedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                </span>
+              )}
+            </div>
           </div>
-
-          {/* Period */}
-          <select
-            value={period}
-            onChange={e => setPeriod(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 focus:outline-none">
-            {PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </select>
-
-          {/* Basis */}
-          <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
-            {(['Accrual', 'Cash'] as const).map(b => (
-              <button key={b} onClick={() => setBasis(b)}
-                className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-                style={basis === b ? { background: '#0F172A', color: '#fff' } : { color: '#64748b' }}>
-                {b}
-              </button>
-            ))}
-          </div>
-
-          {/* Refresh */}
-          <button onClick={handleRefresh} disabled={loading || trendLoading}
-            className="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40">
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
-              style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}>
-              <path d="M10.5 1.5v3h-3M1.5 10.5v-3h3" />
-              <path d="M2.04 4.5a4.5 4.5 0 0 1 7.74-1.24M9.96 7.5a4.5 4.5 0 0 1-7.74 1.24" />
-            </svg>
-            Refresh
-          </button>
         </header>
 
         <div className="space-y-5 px-5 py-6 sm:px-7">
-          {/* Trend chart — always shown, uses rolling 12-month window */}
-          {trendLoading ? (
-            <div className="h-[220px] animate-pulse rounded-2xl bg-slate-100" />
-          ) : (
-            <NetIncomeTrendChart trendResults={trendResults} />
-          )}
+          {/* KPI strip */}
+          {loading ? (
+            <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+              {[1, 2, 3, 4].map(i => <div key={i} className="h-[92px] animate-pulse rounded-2xl bg-slate-100" />)}
+            </div>
+          ) : consolidated ? (
+            <KpiStrip c={consolidated} trend={trendSeries} />
+          ) : null}
+
+          {/* Bridge + trend, side by side on wide screens */}
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            {loading ? (
+              <div className="h-[260px] animate-pulse rounded-2xl bg-slate-100" />
+            ) : bridgeSteps ? (
+              <PnlBridge steps={bridgeSteps} />
+            ) : null}
+
+            {trendLoading ? (
+              <div className="h-[260px] animate-pulse rounded-2xl bg-slate-100" />
+            ) : (
+              <NetIncomeTrendChart trendResults={trendResults} />
+            )}
+          </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-[500px] animate-pulse rounded-2xl bg-slate-100" />
-              ))}
-            </div>
+            <div className="h-[500px] animate-pulse rounded-2xl bg-slate-100" />
           ) : results.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center">
+            <div className="rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center">
               <p className="text-sm text-slate-500">No QuickBooks connections found. <a href="/settings" className="text-violet-600 underline">Connect QB →</a></p>
             </div>
           ) : (
-            <PnlComparison results={results} />
+            <PnlStatement results={results} />
           )}
         </div>
       </main>
@@ -537,7 +628,7 @@ export default function PnlClient() {
   );
 }
 
-// ── Consolidated comparison statement (union of accounts across stores) ──
+// ── Consolidated statement (union of accounts across stores) ───────────
 // Client-side merge — the sanctioned §3.5 P&L transform. No fetch/API change.
 function parseStore(rows: QbPnlRow[]) {
   const sections = new Map<string, { total: number | null; lines: Map<string, number | null> }>();
@@ -565,7 +656,19 @@ const SPECIAL_STYLE: Record<string, string> = {
   GrossProfit: 'gp', NetOperatingIncome: 'noi', NetOtherIncome: 'noi', NetIncome: 'ni',
 };
 
-function PnlComparison({ results }: { results: PnlStoreResult[] }) {
+// Section header accent color — a light heuristic over QBO's standard P&L
+// section names (Income / Cost of Goods Sold / Expenses / Other Income / Other
+// Expenses), purely cosmetic so an unrecognized label just falls back to grey.
+function sectionAccent(label: string): string {
+  if (/other income/i.test(label)) return '#10B981';
+  if (/other expense/i.test(label)) return '#F43F5E';
+  if (/cost of goods|cogs/i.test(label)) return '#F59E0B';
+  if (/income/i.test(label)) return '#3B82F6';
+  if (/expense/i.test(label)) return '#64748B';
+  return '#94A3B8';
+}
+
+function PnlStatement({ results }: { results: PnlStoreResult[] }) {
   const stores = results.map(r => ({ key: r.company, name: r.name, color: STORE_COLORS[r.company] ?? '#64748B', rows: r.report?.rows ?? [] }));
   const parsed = Object.fromEntries(stores.map(s => [s.key, parseStore(s.rows)]));
   const incomeTotals: Record<string, number> = Object.fromEntries(stores.map(s => [s.key, parsed[s.key].incomeTotal || 0]));
@@ -583,6 +686,13 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
     const m: Record<string, boolean> = {}; seq.forEach(e => { if (e.type === 'section') m[e.label] = true; }); return m;
   });
+  const anySectionOpen = seq.some(e => e.type === 'section' && !collapsed[e.label]);
+  function toggleAll() {
+    const next = anySectionOpen; // if any open, collapse all; else expand all
+    setCollapsed(() => {
+      const m: Record<string, boolean> = {}; seq.forEach(e => { if (e.type === 'section') m[e.label] = next; }); return m;
+    });
+  }
 
   const money = (n: number | null) => n == null ? '—' : (n < 0 ? '(' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US') + (n < 0 ? ')' : '');
   const pctOf = (n: number | null, k: string) => { const t = incomeTotals[k]; return (n == null || !t) ? '' : (n / t * 100).toFixed(1) + '%'; };
@@ -593,7 +703,7 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
       const has = v != null;
       const col = opts?.white ? (v != null && v < 0 ? 'text-red-400' : 'text-emerald-400') : !has ? 'text-slate-300' : v < 0 ? 'text-red-600' : 'text-slate-700';
       return (
-        <td key={s.key} className="px-[18px] py-[7px] text-right align-top">
+        <td key={s.key} className="px-[18px] py-[9px] text-right align-top">
           <div className={`font-mono tabular-nums ${col} ${opts?.bold ? 'font-bold' : ''}`}>{money(v)}</div>
           {has && <div className={`mt-px font-mono text-[9.5px] tabular-nums ${opts?.white ? 'text-slate-500' : 'text-slate-400'}`}>{pctOf(v, s.key)}</div>}
         </td>
@@ -603,7 +713,7 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
     const tinc = stores.reduce((a, s) => a + incomeTotals[s.key], 0);
     const tcol = opts?.white ? (tv < 0 ? 'text-red-400' : 'text-emerald-400') : tv < 0 ? 'text-red-600' : 'text-slate-800';
     tds.push(
-      <td key="total" className="border-l border-slate-100 px-[18px] py-[7px] text-right align-top">
+      <td key="total" className="border-l border-slate-100 px-[18px] py-[9px] text-right align-top">
         <div className={`font-mono font-bold tabular-nums ${tcol}`}>{money(tv)}</div>
         <div className={`mt-px font-mono text-[9.5px] tabular-nums ${opts?.white ? 'text-slate-500' : 'text-slate-400'}`}>{tinc ? (tv / tinc * 100).toFixed(1) + '%' : ''}</div>
       </td>,
@@ -614,9 +724,15 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
   const colSpan = stores.length + 2;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+        <span className="text-[13px] font-bold text-slate-800">Statement</span>
+        <button onClick={toggleAll} className="text-[10.5px] font-semibold text-violet-600 hover:underline">
+          {anySectionOpen ? 'Collapse all' : 'Expand all'}
+        </button>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse" style={{ minWidth: 640 }}>
+        <table className="w-full border-collapse" style={{ minWidth: 720 }}>
           <thead>
             <tr>
               <th className="border-b border-slate-200 px-[18px] py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400" style={{ width: '30%' }}>Account</th>
@@ -631,7 +747,7 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
               </th>
             </tr>
           </thead>
-          <tbody className="text-[12px]">
+          <tbody className="text-[12.5px]">
             {seq.map(e => {
               if (e.type === 'section') {
                 const label = e.label;
@@ -641,11 +757,12 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
                 const lineLabels: string[] = []; const seen = new Set<string>();
                 stores.forEach(s => { parsed[s.key].sections.get(label)?.lines.forEach((_v, k) => { if (!seen.has(k)) { seen.add(k); lineLabels.push(k); } }); });
                 const isOpen = !collapsed[label];
+                const accent = sectionAccent(label);
                 return (
                   <FragmentRows key={label}>
                     <tr className="cursor-pointer bg-slate-50 hover:bg-slate-100" onClick={() => setCollapsed(c => ({ ...c, [label]: !c[label] }))}>
-                      <td className="border-y border-slate-100 px-[18px] py-[7px]">
-                        <span className="flex items-center gap-2 text-[11.5px] font-bold text-slate-700">
+                      <td className="border-y border-slate-100 px-[15px] py-2.5" style={{ borderLeft: `3px solid ${accent}` }}>
+                        <span className="flex items-center gap-2 text-[12px] font-bold text-slate-700">
                           <svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-slate-400" style={{ transform: isOpen ? 'none' : 'rotate(-90deg)', transition: 'transform .15s' }}><path d="M4 2l4 4-4 4" /></svg>
                           {label}
                         </span>
@@ -657,7 +774,7 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
                       stores.forEach(s => { const v = parsed[s.key].sections.get(label)?.lines.get(ll); per[s.key] = v === undefined ? null : v; });
                       return (
                         <tr key={label + '|' + ll} className="border-b border-slate-50">
-                          <td className="py-[7px] pl-[38px] pr-[18px] text-[12px] text-slate-500">{ll}</td>
+                          <td className="py-[9px] pl-[40px] pr-[18px] text-[12px] text-slate-500">{ll}</td>
                           {cells(per)}
                         </tr>
                       );
@@ -672,7 +789,7 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
               if (kind === 'ni') {
                 return (
                   <tr key={e.group} className="bg-slate-900">
-                    <td className="px-[18px] py-2.5 text-[12.5px] font-bold text-white">{e.label}</td>
+                    <td className="px-[18px] py-3 text-[13px] font-bold text-white">{e.label}</td>
                     {cells(per, { white: true, bold: true })}
                   </tr>
                 );
@@ -680,14 +797,14 @@ function PnlComparison({ results }: { results: PnlStoreResult[] }) {
               if (kind === 'gp') {
                 return (
                   <tr key={e.group} className="border-y border-emerald-100 bg-emerald-50">
-                    <td className="px-[18px] py-2 text-[12px] font-bold text-emerald-800">{e.label}</td>
+                    <td className="px-[18px] py-2.5 text-[12.5px] font-bold text-emerald-800">{e.label}</td>
                     {cells(per, { bold: true })}
                   </tr>
                 );
               }
               return (
                 <tr key={e.group} className="border-t border-slate-200 bg-slate-50">
-                  <td className="px-[18px] py-2 text-[12px] font-bold text-slate-700">{e.label}</td>
+                  <td className="px-[18px] py-2.5 text-[12.5px] font-bold text-slate-700">{e.label}</td>
                   {cells(per, { bold: true })}
                 </tr>
               );

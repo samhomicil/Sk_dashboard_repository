@@ -612,7 +612,7 @@ function TrendChart({ trendResults, metric }: { trendResults: PnlTrendResult[]; 
           onClick={() => setExpanded(false)}
         >
           <div
-            className="w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
+            className="w-[94vw] max-w-[1440px] max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             {header(() => setExpanded(false), true)}

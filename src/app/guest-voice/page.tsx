@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { swrGet, swrSet } from '@/lib/swrCache'
 import type { GuestVoiceDetail, ThemeRow, CommentRow, CompareBlock } from '@/app/api/guest-voice/route'
 
 const STORES = ['all', 'margate', 'pines', 'miramar'] as const
@@ -262,14 +263,27 @@ export default function GuestVoicePage() {
   const [store, setStore] = useState<string>('margate')
   const [days, setDays] = useState<string>('30')
 
+  // Render-phase adjustment on filter change: a store/window combo already viewed
+  // this session renders instantly from swrCache; the effect below revalidates it.
+  const key = `gv:${store}:${days}`
+  const [prevKey, setPrevKey] = useState('')
+  if (prevKey !== key) {
+    setPrevKey(key)
+    const cached = swrGet<GuestVoiceDetail>(key)
+    setData(cached ?? data)
+    setLoading(!cached)
+  }
+
   useEffect(() => {
-    setLoading(true)
     const end = new Date()
     const start = new Date(end.getTime() - (Number(days) - 1) * 86_400_000)
     const iso = (d: Date) => d.toISOString().slice(0, 10)
+    let stale = false
     fetch(`/api/guest-voice?store=${store}&start=${iso(start)}&end=${iso(end)}`, { cache: 'no-store' })
-      .then(r => r.json()).then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(r => r.json()).then(d => { swrSet(key, d); if (!stale) { setData(d); setLoading(false) } })
+      .catch(() => { if (!stale) setLoading(false) })
+    return () => { stale = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, days])
 
   const thin = data?.osat != null && data.osat.n > 0 && data.osat.n < (data.minN ?? 10)

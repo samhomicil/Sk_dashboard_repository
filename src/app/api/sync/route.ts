@@ -82,5 +82,8 @@ export async function GET(req: Request) {
       stale: b.stale,
     });
   }
+  // fresh balances just landed — expire cached SQL reads so pages pick them up
+  const { expireDbCache } = await import('@/lib/db');
+  await expireDbCache();
   return NextResponse.json({ ok: true, source: 'openbudget', synced });
 }

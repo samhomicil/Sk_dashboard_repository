@@ -50,13 +50,15 @@ export async function POST() {
     }
     try {
       const { buildCacheData } = await import('@/lib/cache-builder')
-      const { writeCacheToDb, getAzurePool } = await import('@/lib/azure-cache')
+      const { writeCacheToDb } = await import('@/lib/azure-cache')
       const { invalidateCacheMemory } = await import('@/lib/cache')
+      const { expireDbCache } = await import('@/lib/db')
 
       const cache = await buildCacheData()
       // writeCacheToDb expects Cache type; the shape is identical
       await writeCacheToDb(cache as unknown as Parameters<typeof writeCacheToDb>[0])
       invalidateCacheMemory()
+      await expireDbCache()
 
       return Response.json({
         status:      'refreshed',

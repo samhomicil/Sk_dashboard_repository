@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { resolveDateRange } from '@/lib/dates'
+import { swrGet, swrSet } from '@/lib/swrCache'
 import type { Store, Period, DateRange, KpiData, TrendPoint, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow, QuarterRow, DailyData, DailyRangeData, StaffingData, Promotion } from '@/lib/types'
 import type { SopData } from './SopCard'
 import type { SopQualityData } from './JoltQualityCard'
@@ -57,71 +58,74 @@ export function useDashboard() {
     loading: true, error: null, refreshedAt: null, hasCache: false,
   })
 
-  const fetchAll = useCallback(async (s: DashboardState) => {
-    setData(prev => ({ ...prev, loading: true, error: null }))
+  const seq = useRef(0)
 
+  const dashKey = (store: Store, s: DashboardState) =>
+    'dash:' + JSON.stringify([store, s.period, s.dates.start, s.dates.end])
+
+  // One request for the whole Overview (the server fans out in-process), so a
+  // filter change costs a single round trip instead of 17.
+  const fetchCombo = useCallback(async (store: Store, s: DashboardState): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const p: Record<string, string> = {
-      store:   s.store,
+      store,
       period:  s.period,
       start:   s.dates.start,
       end:     s.dates.end,
       pyStart: s.dates.pyStart,
       pyEnd:   s.dates.pyEnd,
     }
+    const r = await fetch('/api/dashboard' + qs(p)).then(r => r.json())
+    const heatRes = r.heatmap
+    const next: Omit<DashboardData, 'loading' | 'error'> = {
+      kpis:        r.kpis ?? null,
+      trend:       Array.isArray(r.trend)      ? r.trend      : [],
+      stores:      Array.isArray(r.stores)     ? r.stores     : [],
+      employees:   Array.isArray(r.employees)  ? r.employees  : [],
+      products:    Array.isArray(r.products)   ? r.products   : [],
+      categories:  Array.isArray(r.categories) ? r.categories : [],
+      channels:    Array.isArray(r.channels)   ? r.channels   : [],
+      quarters:    Array.isArray(r.quarters)   ? r.quarters   : [],
+      staffing:    heatRes?.pines ? heatRes : null,
+      promotions:  Array.isArray(r.promotions) ? r.promotions : [],
+      unitsWindow: heatRes?.unitsWindowStart && heatRes?.unitsWindowEnd
+        ? { start: heatRes.unitsWindowStart, end: heatRes.unitsWindowEnd }
+        : null,
+      daily:       r.daily?.thisWeek ? r.daily : null,
+      dailyRange:  r.dailyRange?.current ? r.dailyRange : null,
+      jolt:        r.jolt?.locations ? r.jolt : null,
+      joltQuality: r.joltQuality?.locations ? r.joltQuality : null,
+      guestSat:    r.guestSat?.connected ? r.guestSat : null,
+      soci:        r.soci?.connected ? r.soci : null,
+      refreshedAt: r.meta?.refreshedAt ?? null,
+      hasCache:    r.meta?.hasCache ?? false,
+    }
+    swrSet(dashKey(store, s), next)
+    return next
+  }, [])
+
+  const fetchAll = useCallback(async (s: DashboardState) => {
+    const cached = swrGet<Omit<DashboardData, 'loading' | 'error'>>(dashKey(s.store, s))
+    // A combo we've already shown renders instantly; the fetch below revalidates it.
+    if (cached) setData({ ...cached, loading: false, error: null })
+    else setData(prev => ({ ...prev, loading: true, error: null }))
+    const ticket = ++seq.current
 
     try {
-      const isCustom = s.period === 'custom'
-      const [kpisRes, trendRes, storesRes, empRes, prodRes, catRes, chRes, qRes, heatRes, metaRes, dailyRes, dailyRangeRes, promoRes, joltRes, joltQualityRes, guestSatRes, sociRes] = await Promise.all([
-        fetch('/api/kpis'        + qs(p)).then(r => r.json()),
-        fetch('/api/trend'       + qs(p)).then(r => r.json()),
-        fetch('/api/stores'      + qs(p)).then(r => r.json()),
-        fetch('/api/employees'   + qs(p)).then(r => r.json()),
-        fetch('/api/products'    + qs(p)).then(r => r.json()),
-        fetch('/api/categories'  + qs(p)).then(r => r.json()),
-        fetch('/api/channels'    + qs(p)).then(r => r.json()),
-        fetch(`/api/quarters?store=${s.store}&year=${new Date().getFullYear()}`).then(r => r.json()),
-        fetch('/api/heatmap'     + qs(p)).then(r => r.json()),
-        fetch('/api/meta').then(r => r.json()),
-        fetch(`/api/daily?store=${s.store}`).then(r => r.json()),
-        isCustom
-          ? fetch(`/api/daily?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}&pyStart=${s.dates.pyStart}&pyEnd=${s.dates.pyEnd}`).then(r => r.json())
-          : Promise.resolve(null),
-        fetch(`/api/promotions?store=${s.store}`).then(r => r.json()),
-        fetch(`/api/jolt?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
-        fetch(`/api/jolt-quality?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
-        fetch(`/api/guest-satisfaction?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
-        fetch(`/api/soci?store=${s.store}&start=${s.dates.start}&end=${s.dates.end}`).then(r => r.json()),
-      ])
+      const next = await fetchCombo(s.store, s)
+      // A newer filter change may have superseded this request; don't clobber it.
+      if (ticket === seq.current) setData({ ...next, loading: false, error: null })
 
-      setData({
-        kpis:        kpisRes,
-        trend:       Array.isArray(trendRes)  ? trendRes  : [],
-        stores:      Array.isArray(storesRes) ? storesRes : [],
-        employees:   Array.isArray(empRes)    ? empRes    : [],
-        products:    Array.isArray(prodRes)   ? prodRes   : [],
-        categories:  Array.isArray(catRes)    ? catRes    : [],
-        channels:    Array.isArray(chRes)     ? chRes     : [],
-        quarters:    Array.isArray(qRes)      ? qRes      : [],
-        staffing:    heatRes?.pines ? heatRes : null,
-        promotions:  Array.isArray(promoRes) ? promoRes : [],
-        unitsWindow: heatRes?.unitsWindowStart && heatRes?.unitsWindowEnd
-          ? { start: heatRes.unitsWindowStart, end: heatRes.unitsWindowEnd }
-          : null,
-        daily:       dailyRes?.thisWeek ? dailyRes : null,
-        dailyRange:  dailyRangeRes?.current ? dailyRangeRes : null,
-        jolt:        joltRes?.locations ? joltRes : null,
-        joltQuality: joltQualityRes?.locations ? joltQualityRes : null,
-        guestSat:    guestSatRes?.connected ? guestSatRes : null,
-        soci:        sociRes?.connected ? sociRes : null,
-        refreshedAt: metaRes?.refreshedAt ?? null,
-        hasCache:    metaRes?.hasCache ?? false,
-        loading: false,
-        error: null,
-      })
+      // Prewarm the other store tabs for this window in the background so the
+      // first flip to them is instant too (server + client caches both warm up).
+      if (s.period !== 'custom') {
+        const others = (['all', 'pines', 'miramar', 'margate'] as Store[])
+          .filter(st => st !== s.store && !swrGet(dashKey(st, s)))
+        others.forEach(st => { fetchCombo(st, s).catch(() => {}) })
+      }
     } catch (err) {
-      setData(prev => ({ ...prev, loading: false, error: String(err) }))
+      if (ticket === seq.current) setData(prev => ({ ...prev, loading: false, error: String(err) }))
     }
-  }, [])
+  }, [fetchCombo])
 
   useEffect(() => {
     fetchAll(state)

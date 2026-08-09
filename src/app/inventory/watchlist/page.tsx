@@ -163,8 +163,19 @@ export default function OrderGuidePage() {
                   <td className="py-2 font-medium text-slate-700 max-w-[220px] truncate" title={r.productName}>{r.productName}</td>
                   {store === 'All' && <td className="py-2 text-slate-600">{r.store}</td>}
                   <td className="py-2 text-right tabular-nums text-slate-600">{num(r.onHand)}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-600" title={r.usageBasis === 'theoretical' ? 'theoretical (no usable count)' : 'count-based'}>
-                    {num(r.weeklyUsage)}{r.usageBasis === 'theoretical' ? '*' : ''}
+                  <td className="py-2 text-right tabular-nums text-slate-600"
+                      title={
+                        r.usageBasis === 'theoretical'
+                          ? `no usable count — using recipe-driven usage (${num(r.theoreticalUsage)})`
+                          : r.usageBasis === 'theoretical-guard'
+                          ? `count claimed ${num(r.countUsage)} vs ${num(r.theoreticalUsage)} from recipes — count looks wrong, ordering to the recipe figure`
+                          : `count-based; recipes suggest ${num(r.theoreticalUsage)}`
+                      }>
+                    {num(r.weeklyUsage)}
+                    {r.usageBasis === 'theoretical' ? '*' : ''}
+                    {r.usageBasis === 'theoretical-guard' && (
+                      <span className="ml-1 pill pill-yellow">count?</span>
+                    )}
                   </td>
                   <td className={`py-2 text-right tabular-nums ${r.forecastFactor > 1.02 ? 'text-emerald-600' : r.forecastFactor < 0.98 ? 'text-rose-600' : 'text-slate-400'}`}>
                     {r.forecastFactor.toFixed(2)}

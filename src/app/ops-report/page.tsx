@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import { swrGet, swrSet } from '@/lib/swrCache'
 
 /* ---------- contract types ---------- */
 interface WxDay { icon: string; temp: string; condition: string }
@@ -170,11 +171,24 @@ export default function OpsReportPage() {
   const [store, setStore] = useState('all')
   const [week, setWeek] = useState<'this' | 'next'>('this')
 
+  // Render-phase adjustment on week toggle: a week already viewed this session
+  // renders instantly from swrCache; the effect below revalidates it.
+  const key = `ops:${week}`
+  const [prevKey, setPrevKey] = useState('')
+  if (prevKey !== key) {
+    setPrevKey(key)
+    const cached = swrGet<OpsPayload>(key)
+    setData(cached ?? data)
+    setLoading(!cached)
+  }
+
   useEffect(() => {
-    setLoading(true)
+    let stale = false
     // cache:'no-store' — never re-serve a stale JSON body (an older deploy's payload
     // lacked the PY / cogsRate fields, which read as blank cells on a plain refresh).
-    fetch(`/api/ops-week?week=${week}`, { cache: 'no-store' }).then(r => r.json()).then(d => { setData(d); setLoading(false) }).catch(() => setLoading(false))
+    fetch(`/api/ops-week?week=${week}`, { cache: 'no-store' }).then(r => r.json()).then(d => { swrSet(key, d); if (!stale) { setData(d); setLoading(false) } }).catch(() => { if (!stale) setLoading(false) })
+    return () => { stale = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [week])
 
   const isNext = data?.weekMode === 'next'

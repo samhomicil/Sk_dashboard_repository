@@ -68,6 +68,8 @@ export async function POST(req: NextRequest) {
     }
     await writeCacheToDb(cache as unknown as Parameters<typeof writeCacheToDb>[0])
     invalidateCacheMemory()
+    const { expireDbCache } = await import('@/lib/db')
+    await expireDbCache()
 
     return Response.json({
       status:       'refreshed',

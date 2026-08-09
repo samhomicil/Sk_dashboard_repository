@@ -5,6 +5,7 @@ import { reconcile, ReconciledOccurrence } from './reconcile';
 import { refresh, getTxnsByAccount, isLiveConfigured } from './actualAdapter';
 import { getUnifiedTransactions } from './unifiedTransactions';
 import { suggestMatches, type Suggestion } from './suggestMatch';
+import { computeBillGroups } from './billGroups';
 
 export interface DashboardData {
   mode: { data: 'db' | 'seed'; actual: 'live' | 'mock' };
@@ -14,6 +15,10 @@ export interface DashboardData {
   /** Keyed by `${billId}|${due}` — see suggestMatch.ts. Never auto-applied;
    *  the owner confirms via the existing mark-paid action. */
   suggestions: Record<string, Suggestion>;
+  /** billId -> full group of billIds (incl. itself) it's structurally paid
+   *  together with — see billGroups.ts. The Bills table merges these into
+   *  one row; the underlying Bill records stay separate. */
+  billGroups: Record<string, string[]>;
 }
 
 export async function getDashboardData(now: Date = new Date()): Promise<DashboardData> {
@@ -61,5 +66,6 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     },
     occurrences,
     suggestions,
+    billGroups: Object.fromEntries(computeBillGroups(bills)),
   };
 }

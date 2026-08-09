@@ -146,6 +146,7 @@ export default function BillsClient({
               visibleStores={store === 'All' ? ['margate', 'miramar', 'pines'] : [store.toLowerCase()]}
               storeBalances={storeBalances}
               suggestions={dash.suggestions}
+              billGroups={dash.billGroups}
               now={now}
               onChanged={() => router.refresh()}
             />

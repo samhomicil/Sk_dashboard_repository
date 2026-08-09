@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { iso } from '@/lib/bills/billsEngine';
 import type { ReconciledOccurrence } from '@/lib/bills/reconcile';
 import type { Suggestion } from '@/lib/bills/suggestMatch';
@@ -16,14 +16,25 @@ const dow = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short' });
 
 type StoreBalances = Record<string, { checking: number; savings: number }>;
 
+// A merged row (see billGroups.ts) reads as the most urgent of its members —
+// one overdue + one due shows overdue — and "paid" only once every member is.
+const STATUS_URGENCY: ReconciledOccurrence['status'][] = ['overdue', 'missed', 'due', 'upcoming'];
+function worstStatus(statuses: ReconciledOccurrence['status'][]): ReconciledOccurrence['status'] {
+  if (statuses.every((s) => s === 'paid')) return 'paid';
+  return STATUS_URGENCY.find((s) => statuses.includes(s)) ?? statuses[0];
+}
+
 export default function BillsOverview({
-  occ, bills, visibleStores, storeBalances, suggestions, now, onChanged,
+  occ, bills, visibleStores, storeBalances, suggestions, billGroups, now, onChanged,
 }: {
   occ: ReconciledOccurrence[];
   bills: ClientBill[];
   visibleStores: string[]; // lowercase keys
   storeBalances: StoreBalances;
   suggestions: Record<string, Suggestion>;
+  /** billId -> full group (incl. itself) it's structurally paid together
+   *  with — see billGroups.ts. Drives the Bills table's row merging. */
+  billGroups: Record<string, string[]>;
   now: Date;
   onChanged: () => void;
 }) {
@@ -31,10 +42,10 @@ export default function BillsOverview({
   const [statusTab, setStatusTab] = useState<'open' | 'paid' | 'all'>('open');
   const [busy, setBusy] = useState<string | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; o: number } | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const todayMid = useMemo(() => { const d = new Date(now); d.setHours(0, 0, 0, 0); return d; }, [now]);
   const catOf = useMemo(() => { const m = new Map<string, string>(); bills.forEach(b => m.set(b.id, b.category)); return m; }, [bills]);
-  const vendorOf = useMemo(() => { const m = new Map<string, string>(); bills.forEach(b => m.set(b.id, b.vendor)); return m; }, [bills]);
 
   // Attach an offset (days from today) to each occurrence.
   const items = useMemo(() => occ.map(o => {
@@ -53,51 +64,30 @@ export default function BillsOverview({
   const over = unpaid.filter(i => i.o.status === 'overdue' || i.o.status === 'missed');
   const sum = (a: typeof unpaid) => a.reduce((s, i) => s + i.amt, 0);
 
-  // A lump-sum payment (Neal Realty's rent+CAM, MTC's rent+water) suggests the
-  // SAME transaction on more than one bill's row — confirming any one of them
-  // should confirm all of them together, since it's genuinely one payment.
-  const occByKey = useMemo(() => {
-    const m = new Map<string, ReconciledOccurrence>();
-    for (const o of occ) m.set(o.billId + '|' + o.due, o);
-    return m;
-  }, [occ]);
-  const siblingsByTxnId = useMemo(() => {
-    const m = new Map<string, string[]>();
-    for (const [k, s] of Object.entries(suggestions)) {
-      (m.get(s.txnId) ?? m.set(s.txnId, []).get(s.txnId)!).push(k);
-    }
-    return m;
-  }, [suggestions]);
-
-  async function toggle(o: ReconciledOccurrence, paid: boolean) {
-    setBusy(o.billId + o.due);
+  // Mark one or several occurrences paid/unpaid together — a merged row's
+  // members are structurally one payment (see billGroups.ts), so confirming
+  // or undoing any one of them applies to all of them at once.
+  async function markPaid(members: ReconciledOccurrence[], paid: boolean) {
+    if (!members.length) return;
+    setBusy(members[0].billId + members[0].due);
     try {
-      await fetch('/api/payments', {
-        method: paid ? 'DELETE' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ billId: o.billId, dueDate: o.due }),
-      });
+      await Promise.all(members.map((m) =>
+        fetch('/api/payments', {
+          method: paid ? 'DELETE' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ billId: m.billId, dueDate: m.due }),
+        }),
+      ));
       onChanged();
     } finally { setBusy(null); }
   }
 
-  async function confirmSuggestion(o: ReconciledOccurrence, txnId: string) {
-    const keys = siblingsByTxnId.get(txnId) ?? [o.billId + '|' + o.due];
-    setBusy(o.billId + o.due);
-    try {
-      await Promise.all(
-        keys.map((k) => {
-          const sibling = occByKey.get(k);
-          if (!sibling || sibling.status === 'paid') return null;
-          return fetch('/api/payments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ billId: sibling.billId, dueDate: sibling.due }),
-          });
-        }),
-      );
-      onChanged();
-    } finally { setBusy(null); }
+  function toggleExpand(rowKey: string) {
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(rowKey)) n.delete(rowKey); else n.add(rowKey);
+      return n;
+    });
   }
 
   // ── Timeline geometry ──
@@ -122,11 +112,39 @@ export default function BillsOverview({
     return { k, cash, wk, after, ok };
   });
 
-  // ── Bills table ──
-  let tableItems = items;
-  if (statusTab === 'open') tableItems = items.filter(i => i.unpaid && i.offset <= 30);
-  else if (statusTab === 'paid') tableItems = items.filter(i => i.o.status === 'paid' && i.offset >= -10);
-  else tableItems = items.filter(i => i.offset >= -14 && i.offset <= 30);
+  // ── Bills table (merges structurally-linked bills into one row) ──
+  // The underlying Bill records and occurrences stay distinct — this only
+  // changes what one table row represents.
+
+  const mergedItems = useMemo(() => {
+    const byKey = new Map(items.map((i) => [i.o.billId + '|' + i.o.due, i]));
+    const seen = new Set<string>();
+    const out: (typeof items[number] & { status: ReconciledOccurrence['status']; members?: typeof items })[] = [];
+    for (const i of items) {
+      const k = i.o.billId + '|' + i.o.due;
+      if (seen.has(k)) continue;
+      const group = billGroups[i.o.billId];
+      if (group && group[0] !== i.o.billId) continue; // secondary — rendered when we reach the primary below
+      const memberIds = group ?? [i.o.billId];
+      const memberItems = memberIds
+        .map((id) => byKey.get(id + '|' + i.o.due))
+        .filter((x): x is typeof items[number] => !!x);
+      memberItems.forEach((m) => seen.add(m.o.billId + '|' + m.o.due));
+      if (memberItems.length <= 1) { out.push({ ...i, status: i.o.status }); continue; }
+      out.push({
+        ...i,
+        amt: memberItems.reduce((s, m) => s + m.amt, 0),
+        status: worstStatus(memberItems.map((m) => m.o.status)),
+        members: memberItems,
+      });
+    }
+    return out;
+  }, [items, billGroups]);
+
+  let tableItems = mergedItems;
+  if (statusTab === 'open') tableItems = mergedItems.filter(i => i.status !== 'paid' && i.offset <= 30);
+  else if (statusTab === 'paid') tableItems = mergedItems.filter(i => i.status === 'paid' && i.offset >= -10);
+  else tableItems = mergedItems.filter(i => i.offset >= -14 && i.offset <= 30);
   tableItems = [...tableItems].sort((a, b) => statusTab === 'paid' ? b.due.getTime() - a.due.getTime() : a.due.getTime() - b.due.getTime());
 
   return (
@@ -214,59 +232,82 @@ export default function BillsOverview({
               {tableItems.length === 0 ? (
                 <tr><td colSpan={9} className="px-4 py-7 text-center text-slate-400">No bills in this view.</td></tr>
               ) : tableItems.map(i => {
-                const paid = i.o.status === 'paid';
-                const over = i.o.status === 'overdue' || i.o.status === 'missed';
+                const paid = i.status === 'paid';
+                const over = i.status === 'overdue' || i.status === 'missed';
                 const today = i.offset === 0;
                 const sk = key(i.o.store);
                 const dueLbl = over ? 'Overdue' : today ? 'Today' : fmtShort(i.due);
+                const rowKey = i.o.billId + '|' + i.o.due;
                 const rowBusy = busy === i.o.billId + i.o.due;
-                const sug = paid ? undefined : suggestions[i.o.billId + '|' + i.o.due];
+                const sug = paid ? undefined : suggestions[rowKey];
+                const members = i.members?.map((m) => m.o) ?? [i.o];
+                const isOpen = expanded.has(rowKey);
                 return (
-                  <tr key={i.o.billId + i.o.due} className={`border-b border-slate-100 ${over ? 'bg-[#FEF7F7]' : ''} ${paid ? 'opacity-70' : ''}`}>
-                    <td className="px-[18px] py-[11px]">
-                      <span className={`block whitespace-nowrap font-bold ${today || over ? 'text-red-600' : 'text-slate-700'}`}>{dueLbl}</span>
-                      <span className="block text-[10px] font-medium text-slate-400">{dow(i.due)} {fmtShort(i.due)}</span>
-                    </td>
-                    <td className="px-[18px] py-[11px] font-semibold text-slate-800">{i.o.vendor}</td>
-                    <td className="px-[18px] py-[11px]"><span className="mr-[7px] inline-block h-2 w-2 rounded-full align-middle" style={{ background: STORE_COLORS[sk] }} />{NAME[sk] ?? i.o.store}</td>
-                    <td className="px-[18px] py-[11px] text-[10.5px] text-slate-400">{i.cat}</td>
-                    <td className="px-[18px] py-[11px] text-right font-mono font-bold tabular-nums text-slate-700">{$f(i.amt)}</td>
-                    <td className="px-[18px] py-[11px]">
-                      {!sug ? <span className="text-slate-300">—</span> : (
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${sug.confidence === 'vendor' ? 'bg-emerald-500' : 'bg-amber-400'}`}
-                            title={sug.confidence === 'vendor' ? 'Matched by vendor' : 'Matched by amount + date, and vendor-related text'}
-                          />
-                          <div className="min-w-0 leading-tight">
-                            <div className="whitespace-nowrap font-mono text-[11px] font-bold tabular-nums text-slate-700">
-                              {$f(sug.amount)} · {fmtShort(new Date(sug.date + 'T00:00:00'))}
-                            </div>
-                            <div className="max-w-[130px] truncate text-[10px] text-slate-400" title={sug.name}>
-                              {sug.name}
-                              {sug.alsoSettles && sug.alsoSettles.length > 0 && ' · +1 more'}
-                            </div>
-                          </div>
+                  <Fragment key={rowKey}>
+                    <tr key={rowKey} className={`border-b border-slate-100 ${over ? 'bg-[#FEF7F7]' : ''} ${paid ? 'opacity-70' : ''}`}>
+                      <td className="px-[18px] py-[11px]">
+                        <span className={`block whitespace-nowrap font-bold ${today || over ? 'text-red-600' : 'text-slate-700'}`}>{dueLbl}</span>
+                        <span className="block text-[10px] font-medium text-slate-400">{dow(i.due)} {fmtShort(i.due)}</span>
+                      </td>
+                      <td className="px-[18px] py-[11px] font-semibold text-slate-800">
+                        {i.o.vendor}
+                        {i.members && i.members.length > 1 && (
                           <button
-                            disabled={rowBusy} onClick={() => confirmSuggestion(i.o, sug.txnId)}
-                            title={sug.alsoSettles?.length
-                              ? `Confirm — one payment, also marks paid: ${sug.alsoSettles.map(id => vendorOf.get(id) ?? id).join(', ')}`
-                              : 'Confirm and mark paid'}
-                            className="flex-shrink-0 rounded-full bg-emerald-50 px-[7px] py-[3px] text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
-                          >✓</button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-[18px] py-[11px]">
-                      <span className={`rounded-full px-2 py-0.5 text-[8.5px] font-bold ${i.o.payment === 'auto' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'}`}>{i.o.payment === 'auto' ? 'Auto' : 'Manual'}</span>
-                    </td>
-                    <td className="px-[18px] py-[11px]"><StatusPill status={i.o.status} /></td>
-                    <td className="px-[18px] py-[11px] text-right">
-                      {paid
-                        ? <button disabled={rowBusy} onClick={() => toggle(i.o, true)} className="rounded-[7px] border border-slate-200 bg-white px-3 py-1.5 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Undo</button>
-                        : <button disabled={rowBusy} onClick={() => toggle(i.o, false)} className="rounded-[7px] bg-slate-900 px-3 py-1.5 text-[10.5px] font-bold text-white hover:bg-slate-800 disabled:opacity-50">{rowBusy ? '…' : 'Mark paid'}</button>}
-                    </td>
-                  </tr>
+                            onClick={() => toggleExpand(rowKey)}
+                            title={`One payment also covers: ${i.members.slice(1).map((m) => m.o.vendor).join(', ')} — click to ${isOpen ? 'hide' : 'see'} the breakdown`}
+                            className="ml-1.5 inline-flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-slate-100 px-1 align-middle text-[9px] font-bold text-slate-500 hover:bg-slate-200"
+                          >+{i.members.length - 1}</button>
+                        )}
+                      </td>
+                      <td className="px-[18px] py-[11px]"><span className="mr-[7px] inline-block h-2 w-2 rounded-full align-middle" style={{ background: STORE_COLORS[sk] }} />{NAME[sk] ?? i.o.store}</td>
+                      <td className="px-[18px] py-[11px] text-[10.5px] text-slate-400">{i.cat}</td>
+                      <td className="px-[18px] py-[11px] text-right font-mono font-bold tabular-nums text-slate-700">{$f(i.amt)}</td>
+                      <td className="px-[18px] py-[11px]">
+                        {!sug ? <span className="text-slate-300">—</span> : (
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${sug.confidence === 'vendor' ? 'bg-emerald-500' : 'bg-amber-400'}`}
+                              title={sug.confidence === 'vendor' ? 'Matched by vendor' : 'Matched by amount + date, and vendor-related text'}
+                            />
+                            <div className="min-w-0 leading-tight">
+                              <div className="whitespace-nowrap font-mono text-[11px] font-bold tabular-nums text-slate-700">
+                                {$f(sug.amount)} · {fmtShort(new Date(sug.date + 'T00:00:00'))}
+                              </div>
+                              <div className="max-w-[130px] truncate text-[10px] text-slate-400" title={sug.name}>{sug.name}</div>
+                            </div>
+                            <button
+                              disabled={rowBusy} onClick={() => markPaid(members, false)} title="Confirm and mark paid"
+                              className="flex-shrink-0 rounded-full bg-emerald-50 px-[7px] py-[3px] text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                            >✓</button>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-[18px] py-[11px]">
+                        <span className={`rounded-full px-2 py-0.5 text-[8.5px] font-bold ${i.o.payment === 'auto' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'}`}>{i.o.payment === 'auto' ? 'Auto' : 'Manual'}</span>
+                      </td>
+                      <td className="px-[18px] py-[11px]"><StatusPill status={i.status} /></td>
+                      <td className="px-[18px] py-[11px] text-right">
+                        {paid
+                          ? <button disabled={rowBusy} onClick={() => markPaid(members, true)} className="rounded-[7px] border border-slate-200 bg-white px-3 py-1.5 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Undo</button>
+                          : <button disabled={rowBusy} onClick={() => markPaid(members, false)} className="rounded-[7px] bg-slate-900 px-3 py-1.5 text-[10.5px] font-bold text-white hover:bg-slate-800 disabled:opacity-50">{rowBusy ? '…' : 'Mark paid'}</button>}
+                      </td>
+                    </tr>
+                    {i.members && i.members.length > 1 && isOpen && (
+                      <tr key={rowKey + '-detail'} className="border-b border-slate-100 bg-slate-50/70">
+                        <td colSpan={9} className="px-[18px] py-2 pl-[44px]">
+                          <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
+                            {i.members.map((m) => (
+                              <span key={m.o.billId}>
+                                <span className="text-slate-400">{m.o.vendor}:</span>{' '}
+                                <span className="font-mono font-semibold text-slate-600">{$f(m.amt)}</span>
+                              </span>
+                            ))}
+                            <span className="text-slate-300">— one payment, shown as one bill above</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

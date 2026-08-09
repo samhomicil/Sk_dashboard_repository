@@ -81,7 +81,13 @@ body {
   background: none; border: none; width: 100%; font-family: inherit; text-align: left;
 }
 .sk-item svg.sk-ico { width: 19px; height: 19px; flex-shrink: 0; stroke: currentColor; }
-.sk-item:hover { background: rgba(148, 163, 184, 0.10); color: #F1F5F9; }
+/* Hover styles only where a real pointer exists — on touch screens :hover
+   sticks after a tap, leaving buttons looking pressed ("stuck"). Tap feedback
+   comes from :active instead. */
+@media (hover: hover) {
+  .sk-item:hover { background: rgba(148, 163, 184, 0.10); color: #F1F5F9; }
+}
+.sk-item:active { background: rgba(148, 163, 184, 0.18); }
 .sk-item.active { background: rgba(148, 163, 184, 0.14); color: #fff; font-weight: 600; }
 .sk-item.section { color: #F1F5F9; }
 .sk-item.active::before {
@@ -93,7 +99,7 @@ body {
 .sk-side.collapsed .sk-item .sk-lbl, .sk-side.collapsed .sk-chev { display: none; }
 
 .sk-chev { margin-left: auto; width: 16px; height: 16px; stroke: #94A3B8; transition: transform 0.2s; flex-shrink: 0; padding: 2px; border-radius: 5px; }
-.sk-chev:hover { background: rgba(148, 163, 184, 0.15); }
+@media (hover: hover) { .sk-chev:hover { background: rgba(148, 163, 184, 0.15); } }
 .sk-chev.closed { transform: rotate(-90deg); }
 
 .sk-subnav { max-height: 0; overflow: hidden; transition: max-height 0.2s ease; }
@@ -101,7 +107,8 @@ body {
 .sk-subwrap { margin: 2px 0 4px 27px; padding-left: 8px; border-left: 1px solid rgba(148, 163, 184, 0.20); display: flex; flex-direction: column; gap: 1px; }
 .sk-subitem { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; color: #94A3B8; cursor: pointer; white-space: nowrap; text-decoration: none; }
 .sk-subitem .sk-sdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; flex-shrink: 0; }
-.sk-subitem:hover { background: rgba(148, 163, 184, 0.10); color: #E2E8F0; }
+@media (hover: hover) { .sk-subitem:hover { background: rgba(148, 163, 184, 0.10); color: #E2E8F0; } }
+.sk-subitem:active { background: rgba(148, 163, 184, 0.18); }
 .sk-subitem.active { color: #fff; background: rgba(148, 163, 184, 0.14); font-weight: 600; }
 .sk-side.collapsed .sk-subnav { display: none; }
 
@@ -114,7 +121,8 @@ body {
   background: rgba(148, 163, 184, 0.08); color: #94A3B8; cursor: pointer; font-size: 12px; font-weight: 600;
   border: none; font-family: inherit; text-decoration: none;
 }
-.sk-fbtn:hover { background: rgba(148, 163, 184, 0.16); color: #E2E8F0; }
+@media (hover: hover) { .sk-fbtn:hover { background: rgba(148, 163, 184, 0.16); color: #E2E8F0; } }
+.sk-fbtn:active { background: rgba(148, 163, 184, 0.22); }
 .sk-fbtn svg { width: 16px; height: 16px; stroke: currentColor; }
 .sk-side.collapsed .sk-fbtn .sk-fl { display: none; }
 .sk-side.collapsed .sk-foot-actions { flex-direction: column; }

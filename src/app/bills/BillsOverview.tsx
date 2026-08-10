@@ -4,6 +4,12 @@ import { Fragment, useMemo, useState } from 'react';
 import { iso } from '@/lib/bills/billsEngine';
 import type { ReconciledOccurrence } from '@/lib/bills/reconcile';
 import type { Suggestion } from '@/lib/bills/suggestMatch';
+
+// Mirrors suggestMatch.ts's EARLY_FLAG_DAYS — kept as a local constant rather
+// than a value import, since suggestMatch.ts is `server-only` and importing
+// a real (non-type) binding from it here would pull the whole server module
+// into the client bundle.
+const EARLY_FLAG_DAYS = 5;
 import type { ClientBill } from './page';
 
 const STORE_COLORS: Record<string, string> = { margate: '#3B82F6', miramar: '#F59E0B', pines: '#10B981' };
@@ -273,6 +279,12 @@ export default function BillsOverview({
                               className={`inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${sug.confidence === 'vendor' ? 'bg-emerald-500' : 'bg-amber-400'}`}
                               title={sug.confidence === 'vendor' ? 'Matched by vendor' : 'Matched by amount + date, and vendor-related text'}
                             />
+                            {sug.earlyByDays != null && sug.earlyByDays >= EARLY_FLAG_DAYS && (
+                              <span
+                                className="flex-shrink-0 text-[11px] text-red-500"
+                                title={`Caution: this payment landed ${sug.earlyByDays} days before the due date. On a frequent bill that usually means a nearer transaction went to a different occurrence — double-check before confirming.`}
+                              >⚠</span>
+                            )}
                             <div className="min-w-0 leading-tight">
                               <div className="whitespace-nowrap font-mono text-[11px] font-bold tabular-nums text-slate-700">
                                 {$f(sug.amount)} · {fmtShort(new Date(sug.date + 'T00:00:00'))}

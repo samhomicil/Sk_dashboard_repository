@@ -196,9 +196,30 @@ console.log('\nInventory / order-guide core')
     'netchef_usage_api has gaps (Jul 28-Aug 2 2026 is absent). Dividing summed COGS by '
     + 'a MIN..MAX sales span understated food cost % by 10% on the Budget module.')
 
+  const cogsCore = src('lib/core/cogs.ts')
   check('multi-week COGS averages exclude 1-day nightly periods',
-    /period_start\s*<>\s*u?\.?period_end/.test(src('app/api/ops-week/route.ts')),
+    /period_start\s*<>\s*u?\.?period_end/.test(cogsCore),
     'Averaging a single night in as if it were a week skews the derived COGS target.')
+
+  check('COGS values usage at netchef_onhand.inventory_price, not usage_api.price',
+    /inventory_price/.test(cogsCore)
+    // strip comments first — the prose in these files quotes the old expression on purpose
+    && !FILES.some(f => f.rel !== 'lib/core/cogs.ts' && !f.rel.includes('scripts/check')
+      && /qty_issue\s*\*\s*u?\.?price/.test(
+        f.src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*(\/\/|\*).*$/gm, ''))),
+    'netchef_usage_api.price is empty on 81% of nightly rows (1510 of 1921 with real usage), '
+    + 'so qty_issue*price reads 15-16% against a true 24-27%. Use core/cogs.')
+
+  check('no COGS surface reads nightly (1-day) periods',
+    [cogsCore, src('lib/cogsCache.ts')].every(f => /period_start\s*<>\s*u?\.?period_end/.test(f)),
+    'Nightly rows cannot carry a cost rate: price is empty on 81% of them, and a blank '
+    + 'count line makes beginning + received - physical read as total consumption '
+    + '(Margate 75.8%, Miramar 61.3% against a theoretical 26.9% / 26.0%). COGS comes '
+    + 'from full inventory periods only.')
+
+  check('the COGS rate is never surfaced without the window it was measured over',
+    /cogsWindow/.test(src('app/api/ops-week/route.ts')) && /cogsWindow/.test(src('app/ops-report/page.tsx')),
+    'A rate shown undated is how a 14-day-old figure got read as current.')
 
   check('the demand clamp is not wide enough to hide a broken window',
     !/Math\.min\(\s*2\s*,/.test(guide),

@@ -16,6 +16,9 @@ interface Holiday { date: string; day: string; name: string }
 interface OpsPayload {
   weekMode?: 'this' | 'next'
   weekLabel: string; today: string; cogsTarget: number; cogsWeeks?: number; laborTarget: number; laborAmber: number
+  // The window the COGS rate was actually measured over. A rate shown without its dates
+  // is how a 14-day-old figure got read as current.
+  cogsWindow?: { start: string; end: string; days: number; grain: string; unpriced: number } | null
   holidays: Holiday[]; week: WeekDay[]; stores: StoreData[]; warnings: string[]
 }
 
@@ -47,6 +50,12 @@ function makeDay(wk: WeekDay, sPlan: number, sAct: number, sPY: number, hPlan: n
     laborPctPlan: sPlan ? (lcp / sPlan) * 100 : 0,
     anomaly: (Number.isFinite(temp) && temp > 85) || /rain/i.test(wk.weather.condition),
   }
+}
+
+// 'Aug 3' from an ISO date — COGS windows are shown inline, so keep it short.
+function shortDay(iso: string): string {
+  const d = new Date(iso + 'T12:00:00Z')
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
 
 interface View { name: string; otbBase: number; otbDirect: number; cogsRate: number; cogsTarget: number; orders: OrderSplit[]; days: Day[] }
@@ -329,7 +338,10 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
               delta={`${sMoney(mwLaborVar)} · ${sPct(mwLaborPct)}`} tone={Math.abs(mwLaborVar) < 1 ? 'neutral' : mwLaborVar > 0 ? 'neg' : 'pos'} />
             <Stat lab="Labor % pacing" val={`${paceAct.toFixed(1)}%`} sub={`vs ${paceTarget.toFixed(1)}%`}
               delta={`${sPct(paceDrift)} pts`} tone={paceDrift > 0.05 ? 'warn' : paceDrift < -0.05 ? 'pos' : 'neutral'} />
-            <Stat lab="COGS % pacing" val={`${cogsPct.toFixed(1)}%`} sub={`vs ${cogsTargetPct.toFixed(0)}%`}
+            <Stat lab="COGS % pacing" val={`${cogsPct.toFixed(1)}%`}
+              sub={data.cogsWindow
+                ? `${shortDay(data.cogsWindow.start)}–${shortDay(data.cogsWindow.end)} · vs ${cogsTargetPct.toFixed(0)}%`
+                : `vs ${cogsTargetPct.toFixed(0)}%`}
               delta={`${sPct(cogsDrift)} pts`} tone={cogsDrift > 0.05 ? 'warn' : cogsDrift < -0.05 ? 'pos' : 'neutral'} />
           </>)}
         </div>
@@ -437,7 +449,9 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
           <div className="card border-l-[3px] border-l-teal-500">
             <div className="flex items-baseline justify-between mb-3">
               <h3 className="text-sm font-bold text-slate-700">💵 Cost vs plan</h3>
-              <span className="text-[11px] text-slate-400">recipe COGS · projected week</span>
+              <span className="text-[11px] text-slate-400">
+                recipe COGS · {data.cogsWindow ? `measured ${shortDay(data.cogsWindow.start)}–${shortDay(data.cogsWindow.end)} (${data.cogsWindow.days}d)` : 'projected week'}
+              </span>
             </div>
             <div className="space-y-3.5">
               <div>
@@ -464,7 +478,9 @@ function ReportBody({ data, v }: { data: OpsPayload; v: View }) {
               </div>
             )}
             <p className="mt-2.5 text-[11px] text-slate-400 leading-relaxed">
-              COGS is theoretical — recipe usage × unit cost for the latest NetChef inventory week, ÷ net sales. The {cogsTargetPct.toFixed(1)}% target is <b>derived</b> — this {v.name === 'All stores' ? 'group' : 'store'}&rsquo;s recipe run-rate over {data.cogsWeeks ?? 1} wk{(data.cogsWeeks ?? 1) === 1 ? '' : 's'} minus a 0.5-pt improvement goal (deepens as more inventory weeks land).
+              COGS is theoretical — recipe usage × last known unit cost, ÷ net sales over{' '}
+              {data.cogsWindow ? `${shortDay(data.cogsWindow.start)}–${shortDay(data.cogsWindow.end)}, the ${data.cogsWindow.days} day${data.cogsWindow.days === 1 ? '' : 's'} usage actually exists for` : 'the latest NetChef inventory week'}
+              {data.cogsWindow && data.cogsWindow.unpriced > 0 ? ` (${data.cogsWindow.unpriced} product${data.cogsWindow.unpriced === 1 ? '' : 's'} had usage we could not price, so the rate is fractionally low)` : ''}. The {cogsTargetPct.toFixed(1)}% target is <b>derived</b> — this {v.name === 'All stores' ? 'group' : 'store'}&rsquo;s recipe run-rate over {data.cogsWeeks ?? 1} wk{(data.cogsWeeks ?? 1) === 1 ? '' : 's'} minus a 0.5-pt improvement goal (deepens as more inventory weeks land).
               {v.orders.length > 1 && <> Per-order targets split that {cogsTargetPct.toFixed(0)}% budget across each delivery by its window&rsquo;s forecast demand — same curve as the order guide, so the Fri order (Fri peak + weekend) runs larger than the Tue order.</>}
               {' '}Typical actual PFG order runs {money(v.otbBase)}.
             </p>

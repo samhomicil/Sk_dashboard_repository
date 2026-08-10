@@ -1,15 +1,27 @@
 /**
- * Recipe COGS % from NetChef — weekly-count-grained. This is the LIVE source for the
- * Overview's COGS %; Sigma is gone.
+ * Recipe COGS % from NetChef — WEEKLY-count-grained only. This is the LIVE source for
+ * the Overview's COGS %; Sigma is gone.
  *
- * NetChef `netchef_usage_api` is per store, per inventory count week:
- *   theoretical $ = SUM(qty_issue * price)                              (recipe usage)
- *   actual      $ = SUM((qty_beginning + qty_received - qty_physical) * price)
- * COGS % = that $ / net sales over the same count week(s).
+ * NIGHTLY periods are excluded on purpose. netchef_usage_api began carrying 1-day rows
+ * when the HOT LIST counts started, and they cannot support a cost rate:
+ *   * price is empty on 81% of them (1510 of 1921 rows with real usage), so
+ *     qty_issue * price read 15-16% against a true 24-27%;
+ *   * a skipped count line stores physical = 0, so beginning + received - physical reads
+ *     as "everything was consumed" -- Margate came out at 75.8%, Miramar 61.3%.
+ * COGS is therefore only computed from full inventory periods, which close on a real
+ * count. That makes the rate up to two weeks old, so the window it was measured over is
+ * returned and MUST be displayed with it.
  *
- * `qty_issue * price` here is the same expression /api/ops-week uses for its trailing
- * 8-week COGS, so the Overview and Weekly Ops cannot disagree about the method — only
- * about the window each one asks for.
+ * NetChef `netchef_usage_api`, per store per inventory count week:
+ *   theoretical $ = Σ(qty_issue × unit price)                           (recipe usage)
+ *   actual      $ = Σ((beginning + received − ending physical) × unit price)
+ * COGS % = that $ ÷ net sales over the same count week(s).
+ *
+ * The unit price is the last known netchef_onhand.inventory_price, NOT the row's own
+ * price column — the same rule as src/lib/core/cogs.ts, which /api/ops-week and
+ * /api/budget both use. So the Overview, Weekly Ops and Budget cannot disagree about the
+ * method, only about the window each asks for. Verified 2026-08-10: all three report
+ * 24.2% / 25.4% / 26.6% for Jul 21-27.
  *
  * (Superseded warning: an earlier header said "NOT WIRED IN YET / only ONE week".
  * Both are false — `sqlCogsPct` is imported by api/kpis and cache-builder, and the
@@ -20,7 +32,11 @@ import { query } from './db'
 import type { Store } from './types'
 import { sqlSales } from './salesCache'
 
-type CogsWeek = { store: string; start: string; end: string; theo: number; actual: number }
+type CogsWeek = {
+  store: string; start: string; end: string; theo: number; actual: number
+  /** true when period_start = period_end, i.e. a nightly count rather than a full inventory */
+  nightly: boolean
+}
 
 let _weeks: CogsWeek[] | null = null
 let _loading: Promise<void> | null = null
@@ -30,16 +46,35 @@ export async function loadCogsCache(): Promise<void> {
   if (_weeks) return
   if (_loading) return _loading
   _loading = (async () => {
-    const rows = await query<{ store: string; start: string; end: string; theo: number; actual: number }[]>(
-      `SELECT LOWER(store) AS store,
-              CONVERT(char(10), period_start, 23) AS start,
-              CONVERT(char(10), period_end, 23)   AS [end],
-              SUM(qty_issue * price) AS theo,
-              SUM((qty_beginning + qty_received - qty_physical) * price) AS actual
-         FROM smoothieking.netchef_usage_api
-        GROUP BY LOWER(store), CONVERT(char(10), period_start, 23), CONVERT(char(10), period_end, 23)`,
+    // Usage is valued at the last known netchef_onhand.inventory_price, falling back to
+    // the row's own price. netchef_usage_api.price is empty on 81% of the nightly rows
+    // (1510 of 1921 that carry real usage), and since nightly periods are now the most
+    // recent ones, `qty_issue * price` made the Overview's COGS % read far too low —
+    // 15-16% against a true 24-27%. Quantities on those rows are sound; only the price
+    // is missing. Same rule as src/lib/core/cogs.ts, so the Overview, Weekly Ops and
+    // Budget cannot disagree about how a dollar of food cost is derived.
+    const rows = await query<{ store: string; start: string; end: string; theo: number; actual: number; nightly: number }[]>(
+      `WITH px AS (
+         SELECT store, product_number, inventory_price,
+                ROW_NUMBER() OVER (PARTITION BY store, product_number ORDER BY as_of DESC) rn
+         FROM smoothieking.netchef_onhand
+         WHERE inventory_price > 0)
+       SELECT LOWER(u.store) AS store,
+              CONVERT(char(10), u.period_start, 23) AS start,
+              CONVERT(char(10), u.period_end, 23)   AS [end],
+              SUM(u.qty_issue * COALESCE(px.inventory_price, u.price, 0)) AS theo,
+              SUM((u.qty_beginning + u.qty_received - u.qty_physical)
+                  * COALESCE(px.inventory_price, u.price, 0)) AS actual,
+              MAX(CASE WHEN u.period_start = u.period_end THEN 1 ELSE 0 END) AS nightly
+         FROM smoothieking.netchef_usage_api u
+         LEFT JOIN px ON px.store = u.store AND px.product_number = u.product_number AND px.rn = 1
+        WHERE u.period_start <> u.period_end
+        GROUP BY LOWER(u.store), CONVERT(char(10), u.period_start, 23), CONVERT(char(10), u.period_end, 23)`,
     )
-    _weeks = rows.map(r => ({ store: r.store, start: r.start, end: r.end, theo: n(r.theo), actual: n(r.actual) }))
+    _weeks = rows.map(r => ({
+      store: r.store, start: r.start, end: r.end,
+      theo: n(r.theo), actual: n(r.actual), nightly: n(r.nightly) === 1,
+    }))
   })()
   await _loading
   _loading = null
@@ -84,8 +119,11 @@ export function sqlCogsPct(store: Store, start: string, end: string): {
     sales += sqlSales(store, w.start, w.end).net_sales
   }
 
+  // Only full inventory periods reach this point (nightly rows are filtered at load), so
+  // both figures rest on a real closing count. The guard stays as a belt-and-braces check.
+  const anyNightly = matched.some(w => w.nightly)
   return {
-    actualPct: actual > 0 && sales > 0 ? actual / sales : null,
+    actualPct: !anyNightly && actual > 0 && sales > 0 ? actual / sales : null,
     theoreticalPct: theo > 0 && sales > 0 ? theo / sales : null,
     asOf: a,
   }

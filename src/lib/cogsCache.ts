@@ -23,6 +23,13 @@
  * method, only about the window each asks for. Verified 2026-08-10: all three report
  * 24.2% / 25.4% / 26.6% for Jul 21-27.
  *
+ * REACHING THE OVERVIEW. /api/kpis serves standard periods (weekly/monthly/quarterly/ytd)
+ * from smoothieking.dashboard_cache, NOT from this function — only a `custom` range calls
+ * it live. So changing anything here does nothing to the Overview until the cache is
+ * rebuilt by /api/refresh, the 6am dash-refresh job, or `npm run refresh:proxy`. That gap
+ * is why the Overview still showed a 4.9% actual / 15.8% theoretical COGS after the
+ * weekly-only fix shipped: the 06:31 job had baked the pre-fix numbers in.
+ *
  * (Superseded warning: an earlier header said "NOT WIRED IN YET / only ONE week".
  * Both are false — `sqlCogsPct` is imported by api/kpis and cache-builder, and the
  * table holds ~30 weeks. Don't reintroduce a Sigma fallback on that basis.)

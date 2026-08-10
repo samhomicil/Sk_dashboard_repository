@@ -10,6 +10,7 @@
     "lint": "eslint",
     "import": "python3 src/scripts/import_labor_till.py",
     "refresh": "npx tsx src/scripts/refresh.ts",
+    "refresh:proxy": "npx tsx src/scripts/refresh-via-proxy.ts",
     "go": "concurrently -n proxy,dashboard -c cyan,teal \"python3 /Users/sam/azure-sql-proxy.py\" \"npm run dev\"",
     "deploy": "git add data && (git commit -m 'Refresh data' || true) && git push",
     "ship": "npm run refresh && npm run deploy",

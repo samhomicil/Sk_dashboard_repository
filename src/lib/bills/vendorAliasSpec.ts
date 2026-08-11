@@ -222,16 +222,19 @@ export const SPEC: SpecEntry[] = [
     amountMin: 220, amountMax: 255, priority: 70, confirmed: true,
     note: 'one draft settles Business + Umbrella. $194.00 + $36.00 = $230, real draft $238.05 (3.4% gap, plausible fee/tax).' },
 
-  // Miramar STILL PARKED — left disabled rather than deleted so the finding
-  // survives. Charges the same $238.05/mo real draft as Pines did, against
-  // Business $138 + Umbrella $36 = $174 currently in the bill table — but
-  // Pines' resolution above shows that $138/$36 pairing was actually a
-  // copy-paste of the WRONG numbers into Pines, so Miramar's own $138/$36
-  // can't be assumed correct just because it's internally consistent.
-  // Re-enable once Sam supplies Miramar's actual Lockton invoice.
-  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance', store: 'Miramar',
-    amountMin: 230, amountMax: 245, priority: 70, confirmed: false, enabled: false,
-    note: 'PARKED. $238.05/mo vs Business $138 + Umbrella $36 = $174 stored — unverified against a real invoice.' },
+  // Miramar RE-ENABLED 2026-08-10: Sam supplied the real Lockton receipt
+  // (invoices 7483057/7483058, paid on Miramar's own Capital One card
+  // ••7879 — confirms the store, not a guess) — Business is $194.00,
+  // Umbrella $36.00, identical to Pines' real split. Subtotal $230.00 + an
+  // $8.05 fee = $238.05, matching the real draft exactly (fee accounted
+  // for, not just close). The $138 that had been sitting in Miramar's
+  // Business Insurance bill was indeed the wrong-store copy-paste Pines'
+  // fix predicted — corrected to $194 in both the live DB and bills.json;
+  // Umbrella was already right at $36.
+  { pattern: 'Lockton Affinity', vendorLike: 'Lockton Insurance — Business Insurance',
+    alsoSettles: ['Lockton Insurance — Umbrella Policy'], store: 'Miramar',
+    amountMin: 220, amountMax: 255, priority: 70, confirmed: true,
+    note: 'one draft settles Business + Umbrella. $194.00 + $36.00 = $230, + $8.05 fee = $238.05 (exact match to the real draft).' },
 
   // ---- payroll ----------------------------------------------------------------
   { pattern: 'ADP Tax DES:ADP Tax', vendorLike: 'ADP — Payroll', priority: 72, confirmed: false,

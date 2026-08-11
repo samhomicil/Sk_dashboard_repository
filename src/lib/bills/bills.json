@@ -548,13 +548,13 @@
       "day": 3
     },
     "amountType": "fixed",
-    "amountValue": 138.0,
+    "amountValue": 194.0,
     "payment": "auto",
     "paidFrom": "Chase",
     "account": null,
     "anchor": null,
     "end": null,
-    "notes": "",
+    "notes": "Invoice 7483058 \u00b7 Ref: Lockton",
     "active": true
   },
   {
@@ -572,7 +572,7 @@
     "account": null,
     "anchor": null,
     "end": null,
-    "notes": "",
+    "notes": "Invoice 7483057 \u00b7 Ref: Lockton",
     "active": true
   },
   {

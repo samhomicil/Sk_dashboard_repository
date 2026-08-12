@@ -379,11 +379,22 @@ export async function getOpenBudgetBalances(): Promise<StoreBalance[]> {
       store, checking: 0, savings: 0, creditCard: 0, cashTotal: 0,
       balanceDate: 0, ageHours: 0, stale: false,
     };
-    const syncedAt = Math.floor(new Date(a.lastSync).getTime() / 1000);
-    entry.balanceDate = entry.balanceDate ? Math.min(entry.balanceDate, syncedAt) : syncedAt;
-    if (a.isLiability) entry.creditCard += a.balanceCurrent;
-    else if (a.subtype === 'savings') entry.savings += a.balanceCurrent;
-    else entry.checking += a.balanceCurrent;
+    if (a.isLiability) {
+      // Credit cards refresh on their own, often slower, cadence — they must
+      // never factor into cash-balance freshness. They previously did (this
+      // loop set balanceDate from every account, liability or not), which
+      // meant a card stuck on a stale Plaid sync silently marked the whole
+      // store's CASH balance "stale" even when checking/savings were synced
+      // minutes ago — the actual bug behind a "why is the feed still stale"
+      // report on 2026-08-12, when the cash accounts were current the whole
+      // time.
+      entry.creditCard += a.balanceCurrent;
+    } else {
+      const syncedAt = Math.floor(new Date(a.lastSync).getTime() / 1000);
+      entry.balanceDate = entry.balanceDate ? Math.min(entry.balanceDate, syncedAt) : syncedAt;
+      if (a.subtype === 'savings') entry.savings += a.balanceCurrent;
+      else entry.checking += a.balanceCurrent;
+    }
     byStore.set(store, entry);
   }
 

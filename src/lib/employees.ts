@@ -47,6 +47,14 @@ export type EmployeeDim = {
    *  needed for (minor-hour rules). null for everyone else. */
   age: number | null
   isMinor: boolean | null
+  /**
+   * True for salaried managers and owners. Their Brink punches are administrative — open
+   * to close, frequently 18-20h with no clock-out — and they barely ring, so any
+   * per-hour productivity figure is meaningless for them. Measured over 2026-07-16..08-12:
+   * Madaffari 477.0h / $0.50/hr, Homicil 198.1h / $1.60/hr, Aybar 5.1h / $1.93/hr.
+   * Surfaces must suppress productivity for these rows rather than print the number.
+   */
+  productivityApplies: boolean
   firstShift: string
   lastShift: string
   totalHours: number
@@ -122,6 +130,7 @@ export async function getRoster(store?: string): Promise<EmployeeDim[]> {
     totalHours: Number(r.total_hours) || 0,
     shiftCount: Number(r.shift_count) || 0,
     status: r.status === 'active' ? 'active' : 'inactive',
+    productivityApplies: !/salary|owner|franchisee/i.test(r.role ?? ''),
   }))
 }
 

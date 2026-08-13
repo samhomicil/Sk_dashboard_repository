@@ -20,6 +20,7 @@ type Row = {
   hourlyRate: number | null
   hiredDate: string | null; hiredSource: 'brink' | 'netchef-approx' | null
   birthdayMonthDay: string | null; age: number | null; isMinor: boolean | null
+  productivityApplies: boolean
   lastShift: string; status: 'active' | 'inactive'
   productivity: Productivity | null
   attendance: Attendance | null
@@ -41,6 +42,10 @@ type Payload = {
 }
 
 const STORES = ['all', 'Pines', 'Miramar', 'Margate'] as const
+
+const SALARIED_NOTE =
+  'Salaried managers and owners work open-to-close administrative shifts and rarely ring ' +
+  'orders, so a per-hour sales figure would be meaningless for them — not a performance signal.'
 
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`
 const money2 = (n: number) => `$${n.toFixed(2)}`
@@ -246,9 +251,14 @@ export default function EmployeesPage() {
                       <td className="text-right text-slate-600">
                         {r.attendance?.workedHours ? r.attendance.workedHours.toFixed(1) : '—'}
                       </td>
-                      <td className="text-right text-slate-600">{r.productivity?.orders ?? '—'}</td>
+                      <td className="text-right text-slate-600">
+                        {r.productivityApplies ? (r.productivity?.orders ?? '—')
+                          : <span className="text-slate-300" title={SALARIED_NOTE}>—</span>}
+                      </td>
                       <td className="text-right text-slate-700 font-semibold">
-                        {r.productivity ? money(r.productivity.grossSales) : '—'}
+                        {r.productivityApplies
+                          ? (r.productivity ? money(r.productivity.grossSales) : '—')
+                          : <span className="text-slate-300 font-normal" title={SALARIED_NOTE}>—</span>}
                       </td>
                       <td className="text-right text-slate-600">
                         {r.grossPerHour != null ? money(r.grossPerHour) : '—'}

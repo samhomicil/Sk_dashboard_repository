@@ -74,11 +74,14 @@ export async function GET(req: NextRequest) {
         // r already carries birthdayMonthDay / age (minors only) / isMinor — and
         // deliberately no date of birth.
         ...r,
-        productivity: p ?? null,
         attendance: a ?? null,
         // Per-employee sales per labor hour, on the in-store gross basis. Only shown when
         // both sides exist for the window — a gross figure over zero hours is meaningless.
-        grossPerHour: p && a && a.workedHours > 0 ? p.grossSales / a.workedHours : null,
+        // Suppressed for salaried/owner rows — see EmployeeDim.productivityApplies.
+        grossPerHour: r.productivityApplies && p && a && a.workedHours > 0
+          ? p.grossSales / a.workedHours
+          : null,
+        productivity: r.productivityApplies ? (p ?? null) : null,
       }
     })
 

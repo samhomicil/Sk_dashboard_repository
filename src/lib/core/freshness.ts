@@ -56,6 +56,35 @@ export const SOURCES: SourceContract[] = [
     cadence: 'daily', maxAgeDays: 3, fedBy: 'Brink schedule extractor', forwardLooking: true,
     consumers: ['Weekly Ops', 'Budget', 'payroll model'] },
 
+  // ── Employee module ────────────────────────────────────────────────────────
+  // Same Brink feed as labor, so the same 2-day contract. Break records drive minor-hour
+  // compliance, which is a legal exposure rather than a reporting nicety — a stale feed
+  // there means a violation goes unflagged, not just a number going soft.
+  { table: 'smoothieking.employee_breaks', label: 'Employee breaks', dateColumn: 'business_date',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard extractor',
+    consumers: ['Employees', 'minor-hour compliance'] },
+  { table: 'smoothieking.employee_sales', label: 'Per-employee sales', dateColumn: 'business_date',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink extractor',
+    consumers: ['Employees'] },
+  { table: 'smoothieking.labor_edits', label: 'Timecard edits', dateColumn: 'business_date',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard extractor',
+    consumers: ['Employees', 'labor audit'] },
+  { table: 'smoothieking.manager_overrides', label: 'Manager overrides', dateColumn: 'approval_time',
+    cadence: 'daily', maxAgeDays: 3, fedBy: 'Brink extractor',
+    consumers: ['Employees', 'labor audit'] },
+  // Reference data, not a feed: rows change when someone is hired or aliased, so age is
+  // not a health signal. Generous contracts so they never raise a false alarm, but they
+  // stay registered — an unregistered table is one nobody notices has stopped updating.
+  { table: 'smoothieking.vw_employee_dim', label: 'Employee roster (view)', dateColumn: 'hired_date',
+    cadence: 'weekly', maxAgeDays: 400, fedBy: 'Brink HR sync',
+    consumers: ['Employees'] },
+  { table: 'smoothieking.employee_hr_netchef', label: 'NetChef HR records', dateColumn: 'date_of_birth',
+    cadence: 'weekly', maxAgeDays: 40000, fedBy: 'netchef sync_hr',
+    consumers: ['Employees', 'minor-hour compliance'] },
+  { table: 'smoothieking.employee_alias', label: 'Employee name aliases', dateColumn: 'created_at',
+    cadence: 'weekly', maxAgeDays: 400, fedBy: 'manual mapping',
+    consumers: ['Employees', 'Weekly Ops'] },
+
   // ── Food ───────────────────────────────────────────────────────────────────
   { table: 'smoothieking.pfs_invoices', label: 'PFG invoices', dateColumn: 'invoice_date',
     cadence: 'weekly', maxAgeDays: 6, fedBy: 'pfg-portal extractor',

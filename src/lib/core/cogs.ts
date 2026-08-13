@@ -61,6 +61,12 @@ export interface CogsWindow {
 /**
  * Last known unit price per store+product. netchef_onhand is a daily snapshot carrying
  * inventory_price, so this is both fresher and far more complete than usage_api.price.
+ *
+ * NOTE that this makes a historical COGS rate re-value as prices move: Pines' Jul 21-27
+ * rate read 24.22% against the Aug 9 price vintage and 24.78% against Aug 13, because
+ * netchef-daily kept refreshing inventory_price in between. That is intended — the rate
+ * answers "what does that week's usage cost at today's prices" — but it does mean a
+ * figure quoted last week will not reproduce exactly this week.
  */
 const PRICE_CTE = `
   px AS (
@@ -89,12 +95,24 @@ export async function cogsWeeklySeries(sinceWeeks = 8): Promise<CogsWindow[]> {
       AND u.period_end >= DATEADD(week, -${sinceWeeks}, (SELECT MAX(period_end) FROM smoothieking.netchef_usage_api))
     GROUP BY u.store, u.period_start, u.period_end`)
 
+  if (!rows.length) return []
+
+  // Sales for every period in ONE round trip. This used to be a query per store-week
+  // inside the loop — 21 of them in an 8-week window, sequential, and paid twice over
+  // because /api/ops-week and /api/budget both call this. Pairing sales to each period
+  // is still essential (netchef_usage_api has gaps, so a MIN..MAX span over-counts the
+  // denominator), it just doesn't need a round trip each.
+  const spans = [...new Set(rows.map(r => `${r.ps}|${r.pe}`))].map(s => s.split('|'))
+  const salesRows = await query<{ store: string; ps: string; pe: string; net: number }[]>(
+    spans.map(([ps, pe]) => `
+      SELECT store, '${ps}' ps, '${pe}' pe, ${NET_SALES} net FROM smoothieking.sales
+      WHERE CAST(closed_datetime AS DATE) BETWEEN '${ps}' AND '${pe}' GROUP BY store`
+    ).join('\nUNION ALL\n'))
+  const netBy = new Map(salesRows.map(s => [`${s.store}|${s.ps}|${s.pe}`, Number(s.net) || 0]))
+
   const out: CogsWindow[] = []
   for (const r of rows) {
-    const net = await query<{ net: number }[]>(`
-      SELECT ${NET_SALES} net FROM smoothieking.sales
-      WHERE store = '${r.store}' AND CAST(closed_datetime AS DATE) BETWEEN '${r.ps}' AND '${r.pe}'`)
-    const n = Number(net[0]?.net) || 0
+    const n = netBy.get(`${r.store}|${r.ps}|${r.pe}`) ?? 0
     const cogs = Number(r.cogs) || 0
     const days = Math.round((Date.parse(r.pe + 'T12:00:00Z') - Date.parse(r.ps + 'T12:00:00Z')) / 86400000) + 1
     out.push({

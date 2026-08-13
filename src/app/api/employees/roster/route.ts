@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server'
 import { requireOwner } from '@/lib/owner-guard'
-import { getRoster, getProductivity, getAttendance, getInStoreGross, getDobMap } from '@/lib/employees'
+import {
+  getRoster, getProductivity, getAttendance, getInStoreGross, getDobMap,
+  getExceptions, getCash,
+} from '@/lib/employees'
 import { checkMinorSchedule, type ScheduledShift } from '@/lib/minorLabor'
 import { query } from '@/lib/db'
 import { resolvedKeySql } from '@/lib/core/employee'
@@ -25,13 +28,16 @@ export async function GET(req: NextRequest) {
   const start = sp.get('start') ?? iso(new Date(new Date(end).getTime() - 27 * 86400000))
 
   try {
-    const [roster, prod, att, gross, dobByKey] = await Promise.all([
+    const st = store === 'all' ? undefined : store
+    const [roster, prod, att, gross, dobByKey, exc, cash] = await Promise.all([
       getRoster(store),
-      getProductivity(start, end, store === 'all' ? undefined : store),
-      getAttendance(start, end, store === 'all' ? undefined : store),
-      getInStoreGross(start, end, store === 'all' ? undefined : store),
+      getProductivity(start, end, st),
+      getAttendance(start, end, st),
+      getInStoreGross(start, end, st),
       // Server-only: full DOBs, used for the minor check and never put in the response.
       getDobMap(store),
+      getExceptions(start, end, st),
+      getCash(start, end, st),
     ])
 
     // Minor-labor check runs on the POSTED schedule from today forward — the whole point
@@ -82,6 +88,11 @@ export async function GET(req: NextRequest) {
           ? p.grossSales / a.workedHours
           : null,
         productivity: r.productivityApplies ? (p ?? null) : null,
+        // void/discount/EE come from smoothieking.sales, whose cashier stamp is missing
+        // for everyone hired since ~2026-05-05. Absent means "not attributed", NOT zero —
+        // the UI has to distinguish those, or a missing employee reads as a clean one.
+        exceptions: exc.get(r.employeeKey) ?? null,
+        cash: cash.get(r.employeeKey) ?? null,
       }
     })
 

@@ -14,6 +14,16 @@ type Attendance = {
   scheduledHours: number; workedHours: number
   avgClockInDeltaMin: number | null; avgClockOutDeltaMin: number | null
   lateArrivals: number; noShows: number; unscheduledShifts: number; otHours: number
+  latePct: number | null; hoursVariance: number
+}
+type Exceptions = {
+  orders: number; voidOrders: number; voidPct: number | null
+  discountTotal: number; grossSales: number; discountPct: number | null
+  ee: number; sm: number; eePct: number | null
+}
+type Cash = {
+  ownTills: number; ownNet: number; ownPerTill: number | null; ownShortTills: number
+  assocTills: number; assocNet: number; assocPerTill: number | null
 }
 type Row = {
   employeeKey: string; employee: string; homeStore: string; role: string
@@ -24,8 +34,13 @@ type Row = {
   lastShift: string; status: 'active' | 'inactive'
   productivity: Productivity | null
   attendance: Attendance | null
+  exceptions: Exceptions | null
+  cash: Cash | null
   grossPerHour: number | null
 }
+
+const VIEWS = ['Productivity', 'Attendance', 'Exceptions'] as const
+type View = (typeof VIEWS)[number]
 type Violation = {
   employeeKey: string; employee: string; store: string
   date: string; rule: MinorRule; detail: string; age: number
@@ -94,6 +109,7 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [showInactive, setShowInactive] = useState(false)
+  const [view, setView] = useState<View>('Productivity')
 
   useEffect(() => {
     setLoading(true); setErr(null)
@@ -196,18 +212,29 @@ export default function EmployeesPage() {
 
           {/* ── Roster ────────────────────────────────────────────────────────── */}
           <div className="card mt-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
                 <div className="text-sm font-bold text-slate-700">Roster</div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  Rates and hours from Brink · sorted by attributed sales
-                </div>
+                <div className="text-xs text-slate-400 mt-0.5">{VIEW_NOTE[view]}</div>
               </div>
-              <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-                <input type="checkbox" checked={showInactive}
-                  onChange={e => setShowInactive(e.target.checked)} className="accent-teal-600" />
-                show inactive
-              </label>
+              <div className="flex items-center gap-3">
+                {/* Three narrow views rather than one 17-column table — each stays
+                    scannable, and grouping keeps unrelated measures from being read
+                    against each other. */}
+                <div className="flex gap-1">
+                  {VIEWS.map(v => (
+                    <button key={v} onClick={() => setView(v)}
+                      className={`px-2.5 py-1 text-[11px] font-medium rounded transition-colors ${
+                        view === v ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'
+                      }`}>{v}</button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                  <input type="checkbox" checked={showInactive}
+                    onChange={e => setShowInactive(e.target.checked)} className="accent-teal-600" />
+                  inactive
+                </label>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -215,89 +242,143 @@ export default function EmployeesPage() {
                   <tr className="text-[10px] text-slate-400 uppercase border-b border-slate-100">
                     <th className="text-left pb-2">Employee</th>
                     <th className="text-left pb-2">Store</th>
-                    <th className="text-left pb-2">Role</th>
-                    <th className="text-right pb-2">Rate</th>
-                    <th className="text-right pb-2">Hrs</th>
-                    <th className="text-right pb-2">Orders</th>
-                    <th className="text-right pb-2">Gross</th>
-                    <th className="text-right pb-2">$/hr</th>
-                    <th className="text-right pb-2">Avg sale</th>
-                    <th className="text-right pb-2">Late</th>
-                    <th className="text-left pb-2">Hired</th>
+                    {view === 'Productivity' && <>
+                      <th className="text-right pb-2">Hrs</th>
+                      <th className="text-right pb-2">Orders</th>
+                      <th className="text-right pb-2">Gross</th>
+                      <th className="text-right pb-2">$/hr</th>
+                      <th className="text-right pb-2">Avg sale</th>
+                      <th className="text-right pb-2" title="Extras &amp; enhancers attach rate">EE%</th>
+                    </>}
+                    {view === 'Attendance' && <>
+                      <th className="text-right pb-2">Sched hrs</th>
+                      <th className="text-right pb-2">Actual hrs</th>
+                      <th className="text-right pb-2">Variance</th>
+                      <th className="text-right pb-2">Late %</th>
+                      <th className="text-right pb-2">No-show</th>
+                      <th className="text-right pb-2">Unsched</th>
+                      <th className="text-right pb-2">OT</th>
+                    </>}
+                    {view === 'Exceptions' && <>
+                      <th className="text-right pb-2">Void %</th>
+                      <th className="text-right pb-2">Disc %</th>
+                      <th className="text-right pb-2">Drawers</th>
+                      <th className="text-right pb-2">Own $/till</th>
+                      <th className="text-right pb-2">On-shift</th>
+                      <th className="text-right pb-2">On-shift $/till</th>
+                    </>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {rows.map(r => (
-                    <tr key={r.employeeKey} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-1.5 font-semibold text-slate-700">
-                        <Link href={`/employees/${encodeURIComponent(r.employeeKey)}`}
-                          className="hover:text-teal-600 transition-colors">
-                          {r.employee}
-                        </Link>
-                        {r.isMinor && (
-                          <span className="ml-1.5 px-1 py-0.5 rounded bg-amber-50 text-amber-700 text-[9px] font-bold align-middle">
-                            {r.age}
-                          </span>
-                        )}
-                        {r.status === 'inactive' && (
-                          <span className="ml-1.5 text-[9px] text-slate-300">inactive</span>
-                        )}
-                      </td>
-                      <td className="text-slate-400">{r.homeStore}</td>
-                      <td className="text-slate-500">{shortRole(r.role)}</td>
-                      <td className="text-right text-slate-600">
-                        {r.hourlyRate ? money2(r.hourlyRate) : <span className="text-slate-300 italic">salary</span>}
-                      </td>
-                      <td className="text-right text-slate-600">
-                        {r.attendance?.workedHours ? r.attendance.workedHours.toFixed(1) : '—'}
-                      </td>
-                      <td className="text-right text-slate-600">
-                        {r.productivityApplies ? (r.productivity?.orders ?? '—')
-                          : <span className="text-slate-300" title={SALARIED_NOTE}>—</span>}
-                      </td>
-                      <td className="text-right text-slate-700 font-semibold">
-                        {r.productivityApplies
-                          ? (r.productivity ? money(r.productivity.grossSales) : '—')
-                          : <span className="text-slate-300 font-normal" title={SALARIED_NOTE}>—</span>}
-                      </td>
-                      <td className="text-right text-slate-600">
-                        {r.grossPerHour != null ? money(r.grossPerHour) : '—'}
-                      </td>
-                      <td className="text-right text-slate-600">
-                        {r.productivity?.ast != null ? money2(r.productivity.ast) : '—'}
-                      </td>
-                      <td className="text-right">
-                        {r.attendance ? (
-                          <span className={r.attendance.lateArrivals > 2 ? 'text-amber-600 font-semibold' : 'text-slate-400'}>
-                            {r.attendance.lateArrivals}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className="text-slate-500">
-                        {r.hiredDate ? (
-                          <span title={r.hiredSource === 'netchef-approx'
-                            ? 'Approximate — Brink has no hire date for this person, so this is NetChef’s record-creation date'
-                            : 'From Brink'}>
-                            {r.hiredDate}
-                            {r.hiredSource === 'netchef-approx' && (
-                              <span className="ml-1 text-[9px] text-amber-600">approx</span>
-                            )}
-                          </span>
-                        ) : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map(r => {
+                    const a = r.attendance, e = r.exceptions, c = r.cash, p = r.productivity
+                    return (
+                      <tr key={r.employeeKey} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-1.5 font-semibold text-slate-700">
+                          <Link href={`/employees/${encodeURIComponent(r.employeeKey)}`}
+                            className="hover:text-teal-600 transition-colors">{r.employee}</Link>
+                          {r.isMinor && (
+                            <span className="ml-1.5 px-1 py-0.5 rounded bg-amber-50 text-amber-700 text-[9px] font-bold align-middle">
+                              {r.age}
+                            </span>
+                          )}
+                          {r.status === 'inactive' && <span className="ml-1.5 text-[9px] text-slate-300">inactive</span>}
+                        </td>
+                        <td className="text-slate-400">{r.homeStore}</td>
+
+                        {view === 'Productivity' && <>
+                          <Num v={a?.workedHours} d={1} />
+                          {r.productivityApplies
+                            ? <><Num v={p?.orders} /><Cell>{p ? money(p.grossSales) : '—'}</Cell>
+                               <Cell>{r.grossPerHour != null ? money(r.grossPerHour) : '—'}</Cell>
+                               <Cell>{p?.ast != null ? money2(p.ast) : '—'}</Cell></>
+                            : <td className="text-right text-slate-300" colSpan={4} title={SALARIED_NOTE}>salaried — not measured</td>}
+                          <Cell>{e?.eePct != null
+                            ? <span className={e.eePct >= 0.6 ? 'text-emerald-600' : e.eePct >= 0.4 ? 'text-slate-600' : 'text-amber-600'}>
+                                {(e.eePct * 100).toFixed(1)}%</span>
+                            : <NoPos has={!!e} />}</Cell>
+                        </>}
+
+                        {view === 'Attendance' && <>
+                          <Num v={a?.scheduledHours} d={1} />
+                          <Num v={a?.workedHours} d={1} />
+                          <Cell>{a ? <span className={Math.abs(a.hoursVariance) > 8 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
+                            {a.hoursVariance > 0 ? '+' : ''}{a.hoursVariance.toFixed(1)}</span> : '—'}</Cell>
+                          <Cell>{a?.latePct != null
+                            ? <span className={a.latePct > 0.25 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
+                                {(a.latePct * 100).toFixed(0)}%</span>
+                            : <span className="text-slate-300" title="fewer than 3 shifts matched to a posted schedule">—</span>}</Cell>
+                          <Cell>{a?.noShows ? <span className="text-amber-600 font-semibold">{a.noShows}</span> : (a ? '0' : '—')}</Cell>
+                          <Num v={a?.unscheduledShifts} />
+                          <Cell>{a?.otHours ? a.otHours.toFixed(1) : (a ? '0' : '—')}</Cell>
+                        </>}
+
+                        {view === 'Exceptions' && <>
+                          <Cell>{e?.voidPct != null
+                            ? <span className={e.voidPct > 0.02 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
+                                {(e.voidPct * 100).toFixed(2)}%</span>
+                            : <NoPos has={!!e} />}</Cell>
+                          <Cell>{e?.discountPct != null
+                            ? <span className={e.discountPct > 0.08 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
+                                {(e.discountPct * 100).toFixed(2)}%</span>
+                            : <NoPos has={!!e} />}</Cell>
+                          <Num v={c?.ownTills} />
+                          <Cell>{c?.ownPerTill != null
+                            ? <span className={c.ownPerTill < -5 || c.ownPerTill > 5 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
+                                {signed(c.ownPerTill)}</span> : '—'}</Cell>
+                          <Num v={c?.assocTills} />
+                          <Cell>{c?.assocPerTill != null
+                            ? <span className={c.assocPerTill < -5 || c.assocPerTill > 5 ? 'text-amber-600' : 'text-slate-500'}>
+                                {signed(c.assocPerTill)}</span> : '—'}</Cell>
+                        </>}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
             {rows.length === 0 && (
               <div className="text-xs text-slate-400 py-6 text-center">No employees in this view.</div>
             )}
+            {view === 'Exceptions' && (
+              <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+                <strong className="text-slate-500">On-shift</strong> counts drawers open while
+                this person was working that were run by someone else — it is how a person who
+                rarely runs a drawer becomes visible at all. Read it as presence, not fault:
+                about 3.7 crew overlap the average session. Tested against a store-controlled
+                null over Jun–Aug, no employee&apos;s associated variance was statistically
+                distinguishable from chance, so treat a figure here as a prompt to look at a
+                trend over time, never as evidence.
+              </p>
+            )}
           </div>
         </>
       )}
     </div>
   )
+}
+
+const VIEW_NOTE: Record<View, string> = {
+  Productivity: 'Sales are in-store gross on the Brink cashier basis · sorted by gross',
+  Attendance: 'Posted schedule vs Brink timecards · salaried and owners excluded from punctuality',
+  Exceptions: 'Void% and Discount% use the same definitions as the Ops Health card',
+}
+
+/** Right-aligned numeric cell. */
+function Num({ v, d = 0 }: { v?: number | null; d?: number }) {
+  return <td className="text-right text-slate-600">{v != null ? v.toFixed(d) : '—'}</td>
+}
+function Cell({ children }: { children: React.ReactNode }) {
+  return <td className="text-right text-slate-600">{children}</td>
+}
+/** Distinguishes "no POS attribution for this person" from a genuine zero. */
+function NoPos({ has }: { has: boolean }) {
+  return has
+    ? <span className="text-slate-300">—</span>
+    : <span className="text-slate-300 italic" title="No POS attribution for this employee — the item-sales export drops the cashier stamp for staff hired since May 2026, so this is unknown, not zero.">n/a</span>
+}
+function signed(n: number) {
+  return `${n < 0 ? '−' : '+'}$${Math.abs(n).toFixed(2)}`
 }
 
 function shortRole(role: string) {

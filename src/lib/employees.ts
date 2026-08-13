@@ -20,8 +20,14 @@
 // smoothieking.sales). Brink's report attributes all of them.
 
 import { query } from './db'
+
+// NOTE ON ERROR HANDLING: none of the queries below swallow failures. An earlier version
+// wrapped each in .catch(() => []), which meant a query that SQL Server rejected rendered
+// as "this employee has no sales" rather than as an error — the productivity map was empty
+// for everyone for a full release before anyone noticed. Let it throw; the route returns
+// 500 and the page says so.
 import { LABOR_EXCLUDE_ROLES } from './core/targets'
-import { resolvedKeySql } from './core/employee'
+import { resolvedKeySql, empKeySql } from './core/employee'
 
 const EXCLUDED = LABOR_EXCLUDE_ROLES.map(r => `'${r}'`).join(', ')
 
@@ -87,6 +93,11 @@ export type AttendanceRow = {
   noShows: number          // scheduled, never clocked in
   unscheduledShifts: number // worked without being on the schedule
   otHours: number
+  /** late arrivals ÷ scheduled shifts that were actually worked. null below 3 matched
+   *  shifts — a single late day out of two is not a 50% punctuality problem. */
+  latePct: number | null
+  /** worked − scheduled, in hours. Positive = worked over the posted schedule. */
+  hoursVariance: number
 }
 
 /** Everyone who has actually worked a shift, with hire date, DOB and rate attached. */
@@ -136,24 +147,27 @@ export async function getRoster(store?: string): Promise<EmployeeDim[]> {
 
 /** Per-employee sales for a window. In-store cashier-rung gross basis. */
 export async function getProductivity(start: string, end: string, store?: string) {
-  const sf = store && store !== 'all' ? `AND store = '${store}'` : ''
+  const sf = store && store !== 'all' ? `AND es.store = '${store}'` : ''
   const rows = await query<{
     employee_key: string; orders: number; guests: number; gross: number
     att: number | null; tpp: number | null; days: number
   }[]>(`
-    SELECT COALESCE((SELECT TOP 1 a.employee_key FROM smoothieking.employee_alias a
-                     WHERE a.alias = es.employee_key), es.employee_key) AS employee_key,
-           SUM(orders)          AS orders,
-           SUM(guests)          AS guests,
-           SUM(gross_sales)     AS gross,
-           AVG(CAST(att_seconds AS float)) AS att,
-           AVG(CAST(tpp_seconds AS float)) AS tpp,
-           COUNT(DISTINCT business_date)   AS days
+    -- Alias resolution is a LEFT JOIN, not a correlated subquery: SQL Server rejects a
+    -- subquery in a GROUP BY list ("Cannot use an aggregate or a subquery in an expression
+    -- used for the group by list"). The subquery form parsed fine in TypeScript and failed
+    -- only at the database, so it produced an empty productivity map for every employee.
+    SELECT COALESCE(al.employee_key, es.employee_key) AS employee_key,
+           SUM(es.orders)          AS orders,
+           SUM(es.guests)          AS guests,
+           SUM(es.gross_sales)     AS gross,
+           AVG(CAST(es.att_seconds AS float)) AS att,
+           AVG(CAST(es.tpp_seconds AS float)) AS tpp,
+           COUNT(DISTINCT es.business_date)   AS days
     FROM smoothieking.employee_sales es
-    WHERE business_date BETWEEN '${start}' AND '${end}' ${sf}
-    GROUP BY COALESCE((SELECT TOP 1 a.employee_key FROM smoothieking.employee_alias a
-                       WHERE a.alias = es.employee_key), es.employee_key)
-  `).catch(() => [])
+    LEFT JOIN smoothieking.employee_alias al ON al.alias = es.employee_key
+    WHERE es.business_date BETWEEN '${start}' AND '${end}' ${sf}
+    GROUP BY COALESCE(al.employee_key, es.employee_key)
+  `)
 
   const out = new Map<string, ProductivityRow>()
   for (const r of rows) {
@@ -191,7 +205,7 @@ export async function getInStoreGross(start: string, end: string, store?: string
       AND destination NOT IN ('Online Ordering')
       AND destination NOT LIKE '%Delivery%'
     GROUP BY store
-  `).catch(() => [])
+  `)
   const out = new Map<string, { gross: number; orders: number }>()
   for (const r of rows) out.set(r.store, { gross: Number(r.gross) || 0, orders: Number(r.orders) || 0 })
   return out
@@ -251,7 +265,7 @@ export async function getAttendance(start: string, end: string, store?: string) 
            0                                                           AS unscheduled,
            SUM(ISNULL(j.ot_hrs, 0))                                    AS ot_hours
     FROM j GROUP BY j.k
-  `).catch(() => [])
+  `)
 
   // Worked-but-not-scheduled is a separate pass: it has no row on the schedule side.
   const extra = await query<{ employee_key: string; n: number; hrs: number }[]>(`
@@ -265,13 +279,17 @@ export async function getAttendance(start: string, end: string, store?: string) 
       FROM smoothieking.labor l
       WHERE l.shift_date BETWEEN '${start}' AND '${end}' ${sfL}
         AND l.employee_role NOT IN (${EXCLUDED})
+        -- Must mirror the exclusion above. Without it, salaried staff and owners are never
+        -- scheduled, so EVERY shift they clock lands here as "unscheduled" and their hours
+        -- variance reads as a huge overage (the owner showed +198.1h against 0 scheduled).
+        AND l.employee_role NOT LIKE '%Salary%' AND l.employee_role NOT LIKE '%Owner%'
     )
     SELECT act.k AS employee_key, COUNT(*) AS n, SUM(ISNULL(act.total_hrs,0)) AS hrs
     FROM act
     LEFT JOIN sched ON sched.k = act.k AND sched.store = act.store AND sched.d = act.d
     WHERE sched.k IS NULL
     GROUP BY act.k
-  `).catch(() => [])
+  `)
 
   const out = new Map<string, AttendanceRow>()
   for (const r of rows) {
@@ -287,6 +305,8 @@ export async function getAttendance(start: string, end: string, store?: string) 
       noShows: Number(r.no_shows) || 0,
       unscheduledShifts: 0,
       otHours: Number(r.ot_hours) || 0,
+      latePct: null,
+      hoursVariance: 0,
     })
   }
   for (const e of extra) {
@@ -303,8 +323,14 @@ export async function getAttendance(start: string, end: string, store?: string) 
         scheduledHours: 0, workedHours: Number(e.hrs) || 0,
         avgClockInDeltaMin: null, avgClockOutDeltaMin: null,
         lateArrivals: 0, noShows: 0, unscheduledShifts: n, otHours: 0,
+        latePct: null, hoursVariance: 0,
       })
     }
+  }
+  for (const row of out.values()) {
+    const matched = row.workedShifts - row.unscheduledShifts
+    row.latePct = matched >= 3 ? row.lateArrivals / matched : null
+    row.hoursVariance = row.workedHours - row.scheduledHours
   }
   return out
 }
@@ -384,7 +410,7 @@ export async function getProfile(
       LEFT JOIN sch ON sch.k = act.k AND sch.store = act.store AND sch.d = act.d
       WHERE act.k = N'${k}'
       ORDER BY act.d DESC
-    `).catch(() => []),
+    `),
 
     query<{ d: string; s: string | null; e: string | null; paid: number; ph: number; uh: number }[]>(`
       SELECT CONVERT(char(10), business_date, 23) AS d,
@@ -393,7 +419,7 @@ export async function getProfile(
       FROM smoothieking.employee_breaks
       WHERE employee_key = N'${k}' AND business_date ${win}
       ORDER BY business_date DESC
-    `).catch(() => []),
+    `),
 
     query<{ d: string; drawer: string | null; os: number; tips: number }[]>(`
       SELECT CONVERT(char(10), till_date, 23) AS d, drawer,
@@ -401,7 +427,7 @@ export async function getProfile(
       FROM smoothieking.tillhistory
       WHERE ${K('employee')} = N'${k}' AND CAST(till_date AS date) ${win}
       ORDER BY till_date DESC
-    `).catch(() => []),
+    `),
 
     query<{
       d: string; f: string | null; ov: string | null; nv: string | null
@@ -413,7 +439,7 @@ export async function getProfile(
       FROM smoothieking.labor_edits
       WHERE ${K('employee')} = N'${k}' AND business_date ${win}
       ORDER BY business_date DESC
-    `).catch(() => []),
+    `),
   ])
 
   // Overrides carry a FIRST NAME only, so match on that and report the ambiguity rather
@@ -428,7 +454,7 @@ export async function getProfile(
         WHERE LOWER(login_user) = N'${firstName.replace(/'/g, "''")}'
           AND business_date ${win}
         ORDER BY approval_time DESC
-      `).catch(() => [])
+      `)
     : []
 
   return {
@@ -476,8 +502,172 @@ export async function getDobMap(store?: string): Promise<Map<string, string>> {
   const rows = await query<{ employee_key: string; dob: string | null }[]>(`
     SELECT employee_key, CONVERT(char(10), date_of_birth, 23) AS dob
     FROM smoothieking.vw_employee_dim ${where}
-  `).catch(() => [])
+  `)
   const out = new Map<string, string>()
   for (const r of rows) if (r.dob) out.set(r.employee_key, r.dob)
+  return out
+}
+
+// ── Exceptions, attach rate, and cash — per employee ─────────────────────────
+//
+// DEFINITIONS ARE THE APP'S, NOT NEW ONES. void% and discount% here match the Ops Health
+// card exactly (cache-builder.ts): void% is void ORDERS ÷ orders, and discount% is
+// discount ÷ GROSS sales. Deriving them the "obvious" way instead — void LINES ÷ orders,
+// discount ÷ NET — reads more than double on voids (5.4% vs 2.5% at Margate) and pushes
+// discount over target where it isn't. EE% likewise reuses the dashboard's definition:
+// ee = distinct orders carrying a 'Modifiers' line, sm = distinct non-modifier orders.
+//
+// COVERAGE CAVEAT: all three come from smoothieking.sales, whose cashier stamp is missing
+// for everyone hired since ~2026-05-05. Those employees get nulls here — NOT zeroes — and
+// the UI must show "no POS attribution" rather than a flattering 0% void rate.
+
+/** Minimum attributed orders before a rate is shown at all (design §5.7 exposure gates). */
+const MIN_ORDERS_FOR_RATE = 20
+
+export type ExceptionRow = {
+  employeeKey: string
+  orders: number
+  voidOrders: number
+  voidPct: number | null
+  discountTotal: number
+  grossSales: number
+  discountPct: number | null
+  ee: number
+  sm: number
+  eePct: number | null
+}
+
+export async function getExceptions(start: string, end: string, store?: string) {
+  const sf = store && store !== 'all' ? `AND s.store = '${store}'` : ''
+  const rows = await query<{
+    employee_key: string; orders: number; void_orders: number
+    disc: number; gross: number; ee: number; sm: number
+  }[]>(`
+    SELECT COALESCE(al.employee_key, ${empKeySql('s.employee')}) AS employee_key,
+           COUNT(DISTINCT s.order_id)                                          AS orders,
+           COUNT(DISTINCT CASE WHEN s.voided = 1 THEN s.order_id END)          AS void_orders,
+           SUM(s.discount_total)                                               AS disc,
+           SUM(CASE WHEN s.voided = 0 THEN s.gross_sales ELSE 0 END)           AS gross,
+           COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.revenue_center = 'Modifiers'
+                               THEN s.order_id END)                            AS ee,
+           COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.is_modifier = 0
+                               THEN s.order_id END)                            AS sm
+    FROM smoothieking.sales s
+    LEFT JOIN smoothieking.employee_alias al ON al.alias = ${empKeySql('s.employee')}
+    WHERE CAST(s.closed_datetime AS date) BETWEEN '${start}' AND '${end}' ${sf}
+      AND s.employee IS NOT NULL AND s.employee NOT IN ('None', '')
+    GROUP BY COALESCE(al.employee_key, ${empKeySql('s.employee')})
+  `)
+
+  const out = new Map<string, ExceptionRow>()
+  for (const r of rows) {
+    const orders = Number(r.orders) || 0
+    const gross = Number(r.gross) || 0
+    const disc = Number(r.disc) || 0
+    const sm = Number(r.sm) || 0
+    const ee = Number(r.ee) || 0
+    out.set(r.employee_key, {
+      employeeKey: r.employee_key,
+      orders,
+      voidOrders: Number(r.void_orders) || 0,
+      // Exposure floor, matching the design's 20-order gate. Below it a single void reads
+      // as a 5%+ rate and an owner who rang one order reads as a flawless 0% — both noise
+      // presented as a measurement.
+      voidPct: orders >= MIN_ORDERS_FOR_RATE ? (Number(r.void_orders) || 0) / orders : null,
+      discountTotal: disc,
+      grossSales: gross,
+      discountPct: orders >= MIN_ORDERS_FOR_RATE && gross > 0 ? disc / gross : null,
+      ee, sm,
+      // Same 5-order floor the existing Employee Labor table uses — an attach rate off
+      // three orders is noise.
+      eePct: sm >= 5 ? ee / sm : null,
+    })
+  }
+  return out
+}
+
+// ── Cash: their own drawers, and drawers open on shifts they worked ──────────
+//
+// THE POINT OF THE SECOND NUMBER (Sam's ask): someone who rarely runs a drawer is invisible
+// in a direct-only view. Nevaeh St. Fleur ran 3 drawers herself but overlapped 59 sessions.
+// So each person gets BOTH: what their own drawer did, and what happened on shifts they
+// were part of.
+//
+// READ IT AS PRESENCE, NOT FAULT. An average of 3.7 crew overlap each till session, so an
+// associated variance implicates everyone on the floor. It is exposure-normalised (per
+// drawer, not a raw total) because a raw total just ranks whoever works most. And it is
+// NOT scored: tested over Jun-Aug against a store-controlled permutation null, 0 of 28
+// employees cleared p<0.05, so this is a lookup for spotting a trend, never evidence.
+
+export type CashRow = {
+  employeeKey: string
+  ownTills: number
+  ownNet: number            // signed; over is as interesting as short
+  ownPerTill: number | null
+  ownShortTills: number     // drawers worse than -$5
+  assocTills: number
+  assocNet: number
+  assocPerTill: number | null
+}
+
+export async function getCash(start: string, end: string, store?: string) {
+  const sfT = store && store !== 'all' ? `AND t.store = '${store}'` : ''
+  const sfL = store && store !== 'all' ? `AND l.store = '${store}'` : ''
+  const K = resolvedKeySql
+
+  const rows = await query<{
+    employee_key: string; own_tills: number; own_net: number; own_short: number
+    assoc_tills: number; assoc_net: number
+  }[]>(`
+    WITH t AS (
+      SELECT ${K('t.employee')} AS k, t.store, CAST(t.till_date AS date) AS d,
+             t.assigned_time, t.checkout_time, CAST(t.over_short AS float) AS os
+      FROM smoothieking.tillhistory t
+      WHERE CAST(t.till_date AS date) BETWEEN '${start}' AND '${end}' ${sfT}
+        AND t.employee <> 'EOD Till'
+    ),
+    l AS (
+      SELECT DISTINCT ${K('l.employee')} AS k, l.store, l.shift_date AS d,
+             l.shift_start, l.shift_end
+      FROM smoothieking.labor l
+      WHERE l.shift_date BETWEEN '${start}' AND '${end}' ${sfL}
+        AND l.employee_role NOT IN (${EXCLUDED}) AND l.shift_start IS NOT NULL
+    ),
+    own AS (
+      SELECT k, COUNT(*) AS tills, SUM(os) AS net,
+             SUM(CASE WHEN os < -5 THEN 1 ELSE 0 END) AS shorts
+      FROM t GROUP BY k
+    ),
+    -- A drawer counts as "associated" when the person's shift overlaps the drawer's open
+    -- window and the drawer is not theirs. Sessions with no assigned/checkout time (24% of
+    -- rows) cannot be overlapped and are simply absent rather than day-matched, which would
+    -- silently attribute a whole day's drawers to everyone who worked it.
+    assoc AS (
+      SELECT l.k, COUNT(*) AS tills, SUM(t.os) AS net
+      FROM l JOIN t ON t.store = l.store AND t.d = l.d AND t.k <> l.k
+                   AND t.assigned_time IS NOT NULL AND t.checkout_time IS NOT NULL
+                   AND l.shift_start < t.checkout_time AND l.shift_end > t.assigned_time
+      GROUP BY l.k
+    )
+    SELECT COALESCE(own.k, assoc.k) AS employee_key,
+           ISNULL(own.tills, 0) AS own_tills, ISNULL(own.net, 0) AS own_net,
+           ISNULL(own.shorts, 0) AS own_short,
+           ISNULL(assoc.tills, 0) AS assoc_tills, ISNULL(assoc.net, 0) AS assoc_net
+    FROM own FULL OUTER JOIN assoc ON assoc.k = own.k
+  `)
+
+  const out = new Map<string, CashRow>()
+  for (const r of rows) {
+    const ot = Number(r.own_tills) || 0
+    const at = Number(r.assoc_tills) || 0
+    out.set(r.employee_key, {
+      employeeKey: r.employee_key,
+      ownTills: ot, ownNet: Number(r.own_net) || 0,
+      ownPerTill: ot > 0 ? (Number(r.own_net) || 0) / ot : null,
+      ownShortTills: Number(r.own_short) || 0,
+      assocTills: at, assocNet: Number(r.assoc_net) || 0,
+      assocPerTill: at > 0 ? (Number(r.assoc_net) || 0) / at : null,
+    })
+  }
   return out
 }

@@ -1,6 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import Timeframe from '@/components/Timeframe'
+import { resolveDateRange } from '@/lib/dates'
+import type { Period } from '@/lib/types'
 import Link from 'next/link'
 import { MINOR_RULE_LABEL, type MinorRule } from '@/lib/minorLabor'
 
@@ -20,6 +24,7 @@ type Exceptions = {
   orders: number; voidOrders: number; voidPct: number | null
   discountTotal: number; grossSales: number; discountPct: number | null
   ee: number; sm: number; eePct: number | null
+  shiftOrders: number; shiftVoidPct: number | null; shiftDiscountPct: number | null
 }
 type Cash = {
   ownTills: number; ownNet: number; ownPerTill: number | null; ownShortTills: number
@@ -104,21 +109,36 @@ function yearsSince(iso: string, today = new Date()): number {
 }
 
 export default function EmployeesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-100 p-6"><div className="card"><div className="skeleton h-64 w-full" /></div></div>}>
+      <EmployeesInner />
+    </Suspense>
+  )
+}
+
+function EmployeesInner() {
   const [store, setStore] = useState<(typeof STORES)[number]>('all')
   const [data, setData] = useState<Payload | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [showInactive, setShowInactive] = useState(false)
   const [view, setView] = useState<View>('Productivity')
+  // Timeframe comes from the URL, same Period model as the inventory module and the
+  // dashboard tabs, so a window is shareable and consistent across surfaces.
+  const sp = useSearchParams()
+  // Default matches the inventory module. Not 'monthly': month-to-date on the 1st is a
+  // single day, which would render as an empty roster rather than as a short window.
+  const period = (sp.get('period') as Period) || 'quarterly'
+  const win = resolveDateRange(period, sp.get('start') || undefined, sp.get('end') || undefined)
 
   useEffect(() => {
     setLoading(true); setErr(null)
-    fetch(`/api/employees/roster?store=${store}`, { cache: 'no-store' })
+    fetch(`/api/employees/roster?store=${store}&start=${win.start}&end=${win.end}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(d => { d.error ? setErr(d.error) : setData(d) })
       .catch(e => setErr(String(e)))
       .finally(() => setLoading(false))
-  }, [store])
+  }, [store, win.start, win.end])
 
   const rows = useMemo(() => {
     if (!data) return []
@@ -153,8 +173,12 @@ export default function EmployeesPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 md:p-6 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h1 className="text-xl font-bold text-slate-800">Employees</h1>
+        <Timeframe />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div className="text-xs text-slate-400">{win.start} – {win.end}</div>
         <div className="flex gap-1">
           {STORES.map(s => (
             <button key={s} onClick={() => setStore(s)}
@@ -239,6 +263,17 @@ export default function EmployeesPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
+                  {view === 'Exceptions' && (
+                    <tr className="text-[9px] uppercase tracking-wide">
+                      <th colSpan={2} />
+                      <th colSpan={3} className="pb-1 text-center text-slate-500 border-b-2 border-slate-300">
+                        Theirs — rung / counted by them
+                      </th>
+                      <th colSpan={3} className="pb-1 text-center text-slate-400 border-b-2 border-slate-200">
+                        Rest of shift — same hours, other people
+                      </th>
+                    </tr>
+                  )}
                   <tr className="text-[10px] text-slate-400 uppercase border-b border-slate-100">
                     <th className="text-left pb-2">Employee</th>
                     <th className="text-left pb-2">Store</th>
@@ -262,10 +297,10 @@ export default function EmployeesPage() {
                     {view === 'Exceptions' && <>
                       <th className="text-right pb-2">Void %</th>
                       <th className="text-right pb-2">Disc %</th>
-                      <th className="text-right pb-2">Drawers</th>
-                      <th className="text-right pb-2">Own $/till</th>
-                      <th className="text-right pb-2">On-shift</th>
-                      <th className="text-right pb-2">On-shift $/till</th>
+                      <th className="text-right pb-2">Cash / drawer</th>
+                      <th className="text-right pb-2">Void %</th>
+                      <th className="text-right pb-2">Disc %</th>
+                      <th className="text-right pb-2">Cash / drawer</th>
                     </>}
                   </tr>
                 </thead>
@@ -314,22 +349,24 @@ export default function EmployeesPage() {
                         </>}
 
                         {view === 'Exceptions' && <>
-                          <Cell>{e?.voidPct != null
-                            ? <span className={e.voidPct > 0.02 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
-                                {(e.voidPct * 100).toFixed(2)}%</span>
-                            : <NoPos has={!!e} />}</Cell>
-                          <Cell>{e?.discountPct != null
-                            ? <span className={e.discountPct > 0.08 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
-                                {(e.discountPct * 100).toFixed(2)}%</span>
-                            : <NoPos has={!!e} />}</Cell>
-                          <Num v={c?.ownTills} />
+                          {/* Theirs */}
+                          <Rate v={e?.voidPct} limit={0.02} n={e?.orders} unit="orders" fallback={<NoPos has={!!e} />} />
+                          <Rate v={e?.discountPct} limit={0.08} n={e?.orders} unit="orders" fallback={<NoPos has={!!e} />} />
                           <Cell>{c?.ownPerTill != null
-                            ? <span className={c.ownPerTill < -5 || c.ownPerTill > 5 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
-                                {signed(c.ownPerTill)}</span> : '—'}</Cell>
-                          <Num v={c?.assocTills} />
+                            ? <span className={Math.abs(c.ownPerTill) > 5 ? 'text-amber-600 font-semibold' : 'text-slate-500'}
+                                    title={`${c.ownTills} drawer${c.ownTills === 1 ? '' : 's'} they ran`}>
+                                {signed(c.ownPerTill)}<span className="text-slate-300 ml-1">·{c.ownTills}</span></span>
+                            : <span className="text-slate-300" title="ran no drawers in this window">—</span>}</Cell>
+                          {/* Rest of shift — muted, so it reads as context rather than as their score */}
+                          <Rate v={e?.shiftVoidPct} limit={0.02} n={e?.shiftOrders} unit="orders" muted
+                                fallback={<span className="text-slate-300">—</span>} />
+                          <Rate v={e?.shiftDiscountPct} limit={0.08} n={e?.shiftOrders} unit="orders" muted
+                                fallback={<span className="text-slate-300">—</span>} />
                           <Cell>{c?.assocPerTill != null
-                            ? <span className={c.assocPerTill < -5 || c.assocPerTill > 5 ? 'text-amber-600' : 'text-slate-500'}>
-                                {signed(c.assocPerTill)}</span> : '—'}</Cell>
+                            ? <span className="text-slate-400"
+                                    title={`${c.assocTills} drawer${c.assocTills === 1 ? '' : 's'} run by other people while they were clocked in`}>
+                                {signed(c.assocPerTill)}<span className="text-slate-300 ml-1">·{c.assocTills}</span></span>
+                            : <span className="text-slate-300">—</span>}</Cell>
                         </>}
                       </tr>
                     )
@@ -341,15 +378,28 @@ export default function EmployeesPage() {
               <div className="text-xs text-slate-400 py-6 text-center">No employees in this view.</div>
             )}
             {view === 'Exceptions' && (
-              <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
-                <strong className="text-slate-500">On-shift</strong> counts drawers open while
-                this person was working that were run by someone else — it is how a person who
-                rarely runs a drawer becomes visible at all. Read it as presence, not fault:
-                about 3.7 crew overlap the average session. Tested against a store-controlled
-                null over Jun–Aug, no employee&apos;s associated variance was statistically
-                distinguishable from chance, so treat a figure here as a prompt to look at a
-                trend over time, never as evidence.
-              </p>
+              <div className="text-[11px] text-slate-400 mt-3 leading-relaxed space-y-1.5">
+                <p>
+                  <strong className="text-slate-600">Theirs</strong> is what this person rang or
+                  counted themselves. <strong className="text-slate-600">Rest of shift</strong> is
+                  the same measure over the <em>same hours</em>, for orders and drawers belonging
+                  to <em>other</em> people — their own activity is excluded from it, so the two
+                  columns are a like-for-like comparison rather than a total and a subset.
+                </p>
+                <p>
+                  Read them side by side. A 4% void rate means little on its own; a 4% rate
+                  against a rest-of-shift 1% is a question worth asking, and against a
+                  rest-of-shift 4% it is just what that daypart looks like. The small grey
+                  number after each cash figure is the drawer count behind it.
+                </p>
+                <p>
+                  <strong className="text-slate-600">Rest of shift is presence, not fault.</strong>{' '}
+                  About 3.7 crew overlap the average drawer session. Tested against a
+                  store-controlled null over Jun–Aug, no employee&apos;s rest-of-shift variance was
+                  distinguishable from chance — so use it to spot a trend over time, never as
+                  evidence about a person.
+                </p>
+              </div>
             )}
           </div>
         </>
@@ -361,7 +411,7 @@ export default function EmployeesPage() {
 const VIEW_NOTE: Record<View, string> = {
   Productivity: 'Sales are in-store gross on the Brink cashier basis · sorted by gross',
   Attendance: 'Posted schedule vs Brink timecards · salaried and owners excluded from punctuality',
-  Exceptions: 'Void% and Discount% use the same definitions as the Ops Health card',
+  Exceptions: 'Their own activity beside the rest of their shift · same definitions as the Ops Health card',
 }
 
 /** Right-aligned numeric cell. */
@@ -371,6 +421,19 @@ function Num({ v, d = 0 }: { v?: number | null; d?: number }) {
 function Cell({ children }: { children: React.ReactNode }) {
   return <td className="text-right text-slate-600">{children}</td>
 }
+/** A percentage cell that shows its own sample size on hover and greys out when muted. */
+function Rate({ v, limit, n, unit, muted, fallback }: {
+  v?: number | null; limit: number; n?: number; unit: string
+  muted?: boolean; fallback: React.ReactNode
+}) {
+  if (v == null) return <Cell>{fallback}</Cell>
+  const over = v > limit
+  const cls = muted
+    ? 'text-slate-400'
+    : over ? 'text-amber-600 font-semibold' : 'text-slate-500'
+  return <Cell><span className={cls} title={n != null ? `${n} ${unit}` : undefined}>{(v * 100).toFixed(2)}%</span></Cell>
+}
+
 /** Distinguishes "no POS attribution for this person" from a genuine zero. */
 function NoPos({ has }: { has: boolean }) {
   return has

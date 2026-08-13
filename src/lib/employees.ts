@@ -535,6 +535,15 @@ export type ExceptionRow = {
   ee: number
   sm: number
   eePct: number | null
+  /**
+   * The SAME measures for the rest of the shift — orders rung by OTHER people while this
+   * person was clocked in. Deliberately excludes their own orders so the two columns are a
+   * real comparison: "your void rate against the void rate of the shift around you", which
+   * controls for daypart and traffic in a way a bare rate does not.
+   */
+  shiftOrders: number
+  shiftVoidPct: number | null
+  shiftDiscountPct: number | null
 }
 
 export async function getExceptions(start: string, end: string, store?: string) {
@@ -581,7 +590,55 @@ export async function getExceptions(start: string, end: string, store?: string) 
       // Same 5-order floor the existing Employee Labor table uses — an attach rate off
       // three orders is noise.
       eePct: sm >= 5 ? ee / sm : null,
+      shiftOrders: 0, shiftVoidPct: null, shiftDiscountPct: null,
     })
+  }
+
+  // Rest-of-shift pass: join orders to the shifts they fall inside, keeping only orders
+  // rung by someone else. Order-grain first (an order is one row here, not one per line),
+  // so the void rate matches the canonical void-ORDERS definition.
+  const shift = await query<{
+    employee_key: string; orders: number; voids: number; disc: number; gross: number
+  }[]>(`
+    WITH shifts AS (
+      SELECT DISTINCT ${empKeySql('l.employee')} AS k, l.store, l.shift_date AS d,
+             l.shift_start, l.shift_end
+      FROM smoothieking.labor l
+      WHERE l.shift_date BETWEEN '${start}' AND '${end}' ${store && store !== 'all' ? `AND l.store = '${store}'` : ''}
+        AND l.employee_role NOT IN (${EXCLUDED}) AND l.shift_start IS NOT NULL
+    ),
+    ord AS (
+      SELECT s.order_id, s.store, CAST(s.closed_datetime AS date) AS d,
+             CAST(s.closed_datetime AS time) AS t,
+             MAX(${empKeySql('s.employee')}) AS ok,
+             MAX(CASE WHEN s.voided = 1 THEN 1 ELSE 0 END) AS voided,
+             SUM(s.discount_total) AS disc,
+             SUM(CASE WHEN s.voided = 0 THEN s.gross_sales ELSE 0 END) AS gross
+      FROM smoothieking.sales s
+      WHERE CAST(s.closed_datetime AS date) BETWEEN '${start}' AND '${end}' ${sf}
+        AND s.employee IS NOT NULL AND s.employee NOT IN ('None', '')
+      GROUP BY s.order_id, s.store, CAST(s.closed_datetime AS date), CAST(s.closed_datetime AS time)
+    )
+    SELECT sh.k AS employee_key, COUNT(*) AS orders, SUM(o.voided) AS voids,
+           SUM(o.disc) AS disc, SUM(o.gross) AS gross
+    FROM shifts sh
+    JOIN ord o ON o.store = sh.store AND o.d = sh.d
+              AND o.t >= sh.shift_start AND o.t <= sh.shift_end
+              AND o.ok <> sh.k
+    GROUP BY sh.k
+  `)
+  for (const r of shift) {
+    const orders = Number(r.orders) || 0
+    const gross = Number(r.gross) || 0
+    const row = out.get(r.employee_key) ?? {
+      employeeKey: r.employee_key, orders: 0, voidOrders: 0, voidPct: null,
+      discountTotal: 0, grossSales: 0, discountPct: null, ee: 0, sm: 0, eePct: null,
+      shiftOrders: 0, shiftVoidPct: null, shiftDiscountPct: null,
+    }
+    row.shiftOrders = orders
+    row.shiftVoidPct = orders >= MIN_ORDERS_FOR_RATE ? (Number(r.voids) || 0) / orders : null
+    row.shiftDiscountPct = orders >= MIN_ORDERS_FOR_RATE && gross > 0 ? (Number(r.disc) || 0) / gross : null
+    out.set(r.employee_key, row)
   }
   return out
 }

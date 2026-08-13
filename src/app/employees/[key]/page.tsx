@@ -7,7 +7,8 @@ type Dim = {
   employeeKey: string; employee: string; homeStore: string; role: string
   hourlyRate: number | null; hiredDate: string | null
   hiredSource: 'brink' | 'netchef-approx' | null
-  dateOfBirth: string | null; firstShift: string; lastShift: string
+  birthdayMonthDay: string | null; age: number | null; isMinor: boolean | null
+  firstShift: string; lastShift: string
   totalHours: number; shiftCount: number; status: 'active' | 'inactive'
 }
 type Shift = {

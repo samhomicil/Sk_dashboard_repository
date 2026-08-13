@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireOwner } from '@/lib/owner-guard'
-import { getRoster, getProductivity, getAttendance, getInStoreGross } from '@/lib/employees'
-import { checkMinorSchedule, ageOn, type ScheduledShift } from '@/lib/minorLabor'
+import { getRoster, getProductivity, getAttendance, getInStoreGross, getDobMap } from '@/lib/employees'
+import { checkMinorSchedule, type ScheduledShift } from '@/lib/minorLabor'
 import { query } from '@/lib/db'
 import { resolvedKeySql } from '@/lib/core/employee'
 import { LABOR_EXCLUDE_ROLES } from '@/lib/core/targets'
@@ -25,11 +25,13 @@ export async function GET(req: NextRequest) {
   const start = sp.get('start') ?? iso(new Date(new Date(end).getTime() - 27 * 86400000))
 
   try {
-    const [roster, prod, att, gross] = await Promise.all([
+    const [roster, prod, att, gross, dobByKey] = await Promise.all([
       getRoster(store),
       getProductivity(start, end, store === 'all' ? undefined : store),
       getAttendance(start, end, store === 'all' ? undefined : store),
       getInStoreGross(start, end, store === 'all' ? undefined : store),
+      // Server-only: full DOBs, used for the minor check and never put in the response.
+      getDobMap(store),
     ])
 
     // Minor-labor check runs on the POSTED schedule from today forward — the whole point
@@ -52,9 +54,6 @@ export async function GET(req: NextRequest) {
         AND (s.role IS NULL OR s.role NOT IN (${excl}))
     `).catch(() => [])
 
-    const dobByKey = new Map<string, string>()
-    for (const r of roster) if (r.dateOfBirth) dobByKey.set(r.employeeKey, r.dateOfBirth)
-
     const shifts: ScheduledShift[] = schedRows.map(r => ({
       employeeKey: r.k, employee: r.employee, store: r.store, date: r.d,
       startTime: r.start_time, endTime: r.end_time, hours: Number(r.hours) || 0,
@@ -65,16 +64,16 @@ export async function GET(req: NextRequest) {
     // exactly the case the check exists to catch, so it must not read as "compliant".
     const scheduledKeys = new Set(shifts.map(s => s.employeeKey))
     const unknownDob = roster
-      .filter(r => scheduledKeys.has(r.employeeKey) && !r.dateOfBirth)
+      .filter(r => scheduledKeys.has(r.employeeKey) && !dobByKey.has(r.employeeKey))
       .map(r => ({ employeeKey: r.employeeKey, employee: r.employee, store: r.homeStore }))
 
     const rows = roster.map(r => {
       const p = prod.get(r.employeeKey)
       const a = att.get(r.employeeKey)
       return {
+        // r already carries birthdayMonthDay / age (minors only) / isMinor — and
+        // deliberately no date of birth.
         ...r,
-        age: r.dateOfBirth ? ageOn(r.dateOfBirth, today) : null,
-        isMinor: r.dateOfBirth ? ageOn(r.dateOfBirth, today) < 18 : null,
         productivity: p ?? null,
         attendance: a ?? null,
         // Per-employee sales per labor hour, on the in-store gross basis. Only shown when

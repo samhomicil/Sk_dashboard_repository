@@ -19,7 +19,7 @@ type Row = {
   employeeKey: string; employee: string; homeStore: string; role: string
   hourlyRate: number | null
   hiredDate: string | null; hiredSource: 'brink' | 'netchef-approx' | null
-  dateOfBirth: string | null; age: number | null; isMinor: boolean | null
+  birthdayMonthDay: string | null; age: number | null; isMinor: boolean | null
   lastShift: string; status: 'active' | 'inactive'
   productivity: Productivity | null
   attendance: Attendance | null
@@ -49,6 +49,21 @@ const money2 = (n: number) => `$${n.toFixed(2)}`
 function monthDay(iso: string) {
   const [, m, d] = iso.split('-').map(Number)
   return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]} ${d}`
+}
+
+/** 'MMM D' from a bare MM-DD (no year involved). */
+function monthDayMD(md: string) {
+  const [m, d] = md.split('-').map(Number)
+  return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]} ${d}`
+}
+
+/** Days until the next occurrence of a bare MM-DD. */
+function daysUntilAnniversaryMD(md: string, today = new Date()): number {
+  const [m, d] = md.split('-').map(Number)
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  let next = new Date(today.getFullYear(), m - 1, d)
+  if (next < t) next = new Date(today.getFullYear() + 1, m - 1, d)
+  return Math.round((next.getTime() - t.getTime()) / 86400000)
 }
 
 /** Days until the next anniversary of `iso` (month/day only). */
@@ -99,9 +114,10 @@ export default function EmployeesPage() {
   const upcoming = useMemo(() => {
     const out: { employee: string; store: string; kind: 'birthday' | 'anniversary'; date: string; days: number; years?: number }[] = []
     for (const r of active) {
-      if (r.dateOfBirth) {
-        const d = daysUntilAnniversary(r.dateOfBirth)
-        if (d <= 30) out.push({ employee: r.employee, store: r.homeStore, kind: 'birthday', date: monthDay(r.dateOfBirth), days: d })
+      if (r.birthdayMonthDay) {
+        // MM-DD only — no birth year is sent to the client.
+        const d = daysUntilAnniversaryMD(r.birthdayMonthDay)
+        if (d <= 30) out.push({ employee: r.employee, store: r.homeStore, kind: 'birthday', date: monthDayMD(r.birthdayMonthDay), days: d })
       }
       if (r.hiredDate && r.hiredSource === 'brink') {
         const d = daysUntilAnniversary(r.hiredDate)

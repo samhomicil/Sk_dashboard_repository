@@ -36,7 +36,17 @@ export type EmployeeDim = {
    *  in for one; every NetChef hire date sampled equalled its dateCreate, so it is only
    *  ever an approximation and the UI must say so. */
   hiredSource: 'brink' | 'netchef-approx' | null
-  dateOfBirth: string | null
+  /**
+   * Birthday as MM-DD — deliberately NO year, so a full date of birth never leaves the
+   * server. This is all the recognition card needs. The complete DOB stays in
+   * smoothieking.employee_hr_netchef because age-on-a-future-date math needs it (someone
+   * turns 18 mid-schedule), and it is read only by getDobMap() below, server-side.
+   */
+  birthdayMonthDay: string | null
+  /** Populated ONLY for under-18s, who are the only people an age is operationally
+   *  needed for (minor-hour rules). null for everyone else. */
+  age: number | null
+  isMinor: boolean | null
   firstShift: string
   lastShift: string
   totalHours: number
@@ -77,12 +87,18 @@ export async function getRoster(store?: string): Promise<EmployeeDim[]> {
   const rows = await query<{
     employee_key: string; employee: string; home_store: string; role: string
     hourly_rate: number | null; hired_date: string | null; hired_source: string | null
-    date_of_birth: string | null; first_shift: string; last_shift: string
+    birth_md: string | null; age: number | null; first_shift: string; last_shift: string
     total_hours: number; shift_count: number; status: string
   }[]>(`
     SELECT employee_key, employee, home_store, role, hourly_rate,
            CONVERT(char(10), hired_date, 23)    AS hired_date, hired_source,
-           CONVERT(char(10), date_of_birth, 23) AS date_of_birth,
+           -- month/day only; the year never leaves the server
+           CONVERT(char(5), date_of_birth, 110) AS birth_md,
+           CASE WHEN date_of_birth IS NULL THEN NULL ELSE
+             DATEDIFF(year, date_of_birth, GETDATE())
+             - CASE WHEN DATEADD(year, DATEDIFF(year, date_of_birth, GETDATE()), date_of_birth)
+                         > CAST(GETDATE() AS date) THEN 1 ELSE 0 END
+           END AS age,
            CONVERT(char(10), first_shift, 23)   AS first_shift,
            CONVERT(char(10), last_shift, 23)    AS last_shift,
            total_hours, shift_count, status
@@ -97,7 +113,10 @@ export async function getRoster(store?: string): Promise<EmployeeDim[]> {
     hourlyRate: r.hourly_rate != null ? Number(r.hourly_rate) : null,
     hiredDate: r.hired_date,
     hiredSource: (r.hired_source as EmployeeDim['hiredSource']) ?? null,
-    dateOfBirth: r.date_of_birth,
+    // MM-DD (SQL style 110 gives MM-DD-YYYY; take the first five chars).
+    birthdayMonthDay: r.birth_md ? r.birth_md.slice(0, 5).replace(/\//g, '-') : null,
+    age: r.age != null && Number(r.age) < 18 ? Number(r.age) : null,
+    isMinor: r.age != null ? Number(r.age) < 18 : null,
     firstShift: r.first_shift,
     lastShift: r.last_shift,
     totalHours: Number(r.total_hours) || 0,
@@ -430,4 +449,26 @@ export async function getProfile(
     })),
     overrideNameAmbiguous: sameFirst.length > 1,
   }
+}
+
+
+/**
+ * SERVER-ONLY. Full dates of birth, keyed by employee, for the minor-hour check — which
+ * needs a real date because it evaluates age on FUTURE scheduled days (someone can turn 18
+ * partway through a posted schedule).
+ *
+ * This must never be returned to a client. A preview deployment once served the roster
+ * route unauthenticated and exposed exactly this data for four 16-17 year olds, so DOB was
+ * removed from every wire shape; this accessor is the only remaining read path and it is
+ * consumed inside route handlers only.
+ */
+export async function getDobMap(store?: string): Promise<Map<string, string>> {
+  const where = store && store !== 'all' ? `WHERE home_store = '${store}'` : ''
+  const rows = await query<{ employee_key: string; dob: string | null }[]>(`
+    SELECT employee_key, CONVERT(char(10), date_of_birth, 23) AS dob
+    FROM smoothieking.vw_employee_dim ${where}
+  `).catch(() => [])
+  const out = new Map<string, string>()
+  for (const r of rows) if (r.dob) out.set(r.employee_key, r.dob)
+  return out
 }

@@ -139,6 +139,33 @@ console.log('\nManager / owner separation')
     'Labor shown to managers is unloaded hourly wages only; loaded cost is owner-side.')
 }
 
+// ── 4b. Agent access must not widen the owner boundary ───────────────────────
+console.log('\nAgent access')
+{
+  const proxy = src('proxy.ts')
+  const guard = src('lib/owner-guard.ts')
+  check('the agent gate is applied in proxy AND in the handler guard',
+    /agentRole\(/.test(proxy) && /agentRole\(/.test(guard),
+    'AGENTS.md rule 2: money routes need both gates. An agent token that only the '
+    + 'middleware understands would sail past requireOwner() and 401 — or worse, a '
+    + 'guard that trusted it without the middleware would have no second line.')
+
+  check('a manager-scope agent token is refused on owner routes',
+    /agent !== 'owner'/.test(proxy) && /agent === 'manager'/.test(guard),
+    'The role must be enforced, not merely carried.')
+
+  // Anything that touches sk_bills is financial. If an agent can reach it, the
+  // middleware list has to name it — the in-handler guard alone leaves one gate idle.
+  const billsRoutes = FILES
+    .filter(f => /^app\/api\/.+route\.ts$/.test(f.rel) && /sk_bills|prisma|QbBalance/.test(f.src))
+    .map(f => '/' + f.rel.replace(/^app\//, '').replace(/\/route\.ts$/, ''))
+    .filter(r => r !== '/api/sync')   // the cron, authenticated with CRON_SECRET
+  const listed = (proxy.match(/'\/api\/[a-z-]+'/g) ?? []).map(s2 => s2.replace(/'/g, ''))
+  const unlisted = billsRoutes.filter(r => !listed.includes(r))
+  check('every route touching sk_bills is in OWNER_APIS', unlisted.length === 0,
+    unlisted.join(', '))
+}
+
 // ── 5b. Wide Promise.all must bind by name ───────────────────────────────────
 // ops-week destructured a nine-element Promise.all positionally and had prior-year
 // swapped with the trailing-4-week history. Both were SalesRow[], so the types matched,

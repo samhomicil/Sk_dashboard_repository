@@ -1,5 +1,6 @@
 import { auth, isOwner } from '@/auth'
 import { redirect } from 'next/navigation'
+import { agentRole } from './agentAuth'
 
 /**
  * Server-side owner gate for financial API routes — defense-in-depth on top of
@@ -10,6 +11,14 @@ import { redirect } from 'next/navigation'
  *   const gate = await requireOwner(); if (gate) return gate
  */
 export async function requireOwner(): Promise<Response | null> {
+  // An owner-scope agent token is an accepted credential here, exactly as an owner
+  // session is. A manager-scope token deliberately falls through to the session check
+  // below and ends up with the same 403 a manager would get — the gate is unchanged,
+  // only the set of things that can present credentials for it.
+  const agent = await agentRole()
+  if (agent === 'owner') return null
+  if (agent === 'manager') return Response.json({ error: 'forbidden' }, { status: 403 })
+
   let email: string | null | undefined
   try {
     const session = await auth()

@@ -1,5 +1,6 @@
 import { auth, isOwner } from '@/auth'
 import { NextResponse } from 'next/server'
+import { agentRole } from '@/lib/agentAuth'
 
 /**
  * Route gate (Next.js 16 "proxy" — the renamed middleware convention).
@@ -30,6 +31,11 @@ const OWNER_APIS = [
   '/api/bills', '/api/forecast', '/api/cost-plan', '/api/accounts',
   '/api/payments', '/api/reconcile', '/api/qb', '/api/sales',
   '/api/openbudget', '/api/transactions',
+  // Both read sk_bills and both already call requireOwner() in-handler, so they were
+  // never exposed — but only one of the two required gates was doing the work. That
+  // matters more now that an agent token can present credentials: the middleware is
+  // where a manager-scope token gets turned away.
+  '/api/budget', '/api/balances',
 ]
 
 function isOwnerOnly(pathname: string): boolean {
@@ -37,8 +43,20 @@ function isOwnerOnly(pathname: string): boolean {
   return OWNER_PAGES.some(hit) || OWNER_APIS.some(hit)
 }
 
-export default auth((req) => {
+export default auth(async (req) => {
   const { pathname, search } = req.nextUrl
+
+  // 0) agent gate — the MCP connector presents a bearer token instead of a session, so
+  //    other AI sessions can ask about a module and get the SAME numbers the screen
+  //    shows (the routes run the rules; nothing re-implements them). The owner gate is
+  //    still applied by ROLE below, so a manager-scope token cannot read financials.
+  const agent = await agentRole()
+  if (agent) {
+    if (isOwnerOnly(pathname) && agent !== 'owner') {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+    return NextResponse.next()
+  }
 
   // 1) session gate
   if (!req.auth) {

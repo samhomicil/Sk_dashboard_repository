@@ -102,7 +102,22 @@ export type AttendanceRow = {
 
 /** Everyone who has actually worked a shift, with hire date, DOB and rate attached. */
 export async function getRoster(store?: string): Promise<EmployeeDim[]> {
-  const where = store && store !== 'all' ? `WHERE home_store = '${store}'` : ''
+  // Owners and the salaried manager are not crew and don't belong on a crew roster. They
+  // clock administrative hours (open-to-close, 18-20h with no clock-out), barely ring, and
+  // are never scheduled — so on this page every column is blank or actively misleading.
+  // They are why productivity had to be suppressed per-row at all.
+  //
+  // Filtered on ROLE, not on names, so it stays true for whoever holds the title later.
+  // Today that is Aybar and Homicil (Owner), Madaffari (Manager - Salary), plus the
+  // inactive Tome and DeCicco. Hourly managers keep their place: 'Manager' and 'Assistant
+  // General Manager' work real scheduled shifts and are measured like anyone else.
+  const clauses = [
+    "role NOT LIKE '%Owner%'",
+    "role NOT LIKE '%Franchise%'",
+    "role NOT LIKE '%Salary%'",
+  ]
+  if (store && store !== 'all') clauses.push(`home_store = '${store}'`)
+  const where = `WHERE ${clauses.join(' AND ')}`
   const rows = await query<{
     employee_key: string; employee: string; home_store: string; role: string
     hourly_rate: number | null; hired_date: string | null; hired_source: string | null
@@ -498,7 +513,22 @@ export async function getProfile(
  * consumed inside route handlers only.
  */
 export async function getDobMap(store?: string): Promise<Map<string, string>> {
-  const where = store && store !== 'all' ? `WHERE home_store = '${store}'` : ''
+  // Owners and the salaried manager are not crew and don't belong on a crew roster. They
+  // clock administrative hours (open-to-close, 18-20h with no clock-out), barely ring, and
+  // are never scheduled — so on this page every column is blank or actively misleading.
+  // They are why productivity had to be suppressed per-row at all.
+  //
+  // Filtered on ROLE, not on names, so it stays true for whoever holds the title later.
+  // Today that is Aybar and Homicil (Owner), Madaffari (Manager - Salary), plus the
+  // inactive Tome and DeCicco. Hourly managers keep their place: 'Manager' and 'Assistant
+  // General Manager' work real scheduled shifts and are measured like anyone else.
+  const clauses = [
+    "role NOT LIKE '%Owner%'",
+    "role NOT LIKE '%Franchise%'",
+    "role NOT LIKE '%Salary%'",
+  ]
+  if (store && store !== 'all') clauses.push(`home_store = '${store}'`)
+  const where = `WHERE ${clauses.join(' AND ')}`
   const rows = await query<{ employee_key: string; dob: string | null }[]>(`
     SELECT employee_key, CONVERT(char(10), date_of_birth, 23) AS dob
     FROM smoothieking.vw_employee_dim ${where}

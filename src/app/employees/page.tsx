@@ -126,9 +126,7 @@ function EmployeesInner() {
   // Timeframe comes from the URL, same Period model as the inventory module and the
   // dashboard tabs, so a window is shareable and consistent across surfaces.
   const sp = useSearchParams()
-  // Default matches the inventory module. Not 'monthly': month-to-date on the 1st is a
-  // single day, which would render as an empty roster rather than as a short window.
-  const period = (sp.get('period') as Period) || 'quarterly'
+  const period = (sp.get('period') as Period) || 'weekly'
   const win = resolveDateRange(period, sp.get('start') || undefined, sp.get('end') || undefined)
 
   useEffect(() => {

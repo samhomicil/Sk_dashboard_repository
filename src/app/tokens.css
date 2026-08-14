@@ -1,0 +1,137 @@
+/* ============================================================================
+   DESIGN TOKENS — Hispaniola Wellness
+   Ported from design_handoff_sk_dashboard/tokens/{colors,typography,spacing}.css
+   ----------------------------------------------------------------------------
+   This is the ONLY file allowed to contain a raw colour. Everything else reads a
+   token — `npm run lint:design` enforces it. Names are semantic (`--surface`, not
+   `--bone`) so a future dark mode is a token file rather than a rewrite.
+
+   Two deliberate departures from the handoff, both mechanical, neither a rule:
+
+   1. NO @import of Google Fonts. Archivo and IBM Plex Mono load through
+      next/font/google in layout.tsx — self-hosted, no render-blocking request,
+      and no external fetch to fail. --font-sans / --font-mono read the variables
+      next/font defines, with the handoff's own stacks as fallback.
+
+   2. Store colours are the three tint steps the README names, not the single
+      indigo tokens/colors.css collapses them to. Three identical-hue lines on one
+      chart cannot be told apart. Verified with the dataviz validator against the
+      bone surface: worst adjacent pair ΔE 18.8 protan / 19.3 tritan / 19.2 normal
+      — comfortably separable. The validator also WARNs that Pines (2.2:1) and
+      brass (2.78:1) fall under 3:1 contrast, which obliges direct labels rather
+      than colour-alone identity. The module contract requires those anyway.
+   ========================================================================== */
+
+:root {
+  /* ── Brand ──────────────────────────────────────────────────────────────── */
+  --brand: #262F5A;         /* Indigo */
+  --brand-deep: #161B33;    /* dark surfaces (login, email masthead) */
+  --accent: #B08D57;        /* Brass — rules, underlines, dividers, active markers.
+                               NEVER a badge, number or status: a figure in brass
+                               reads as amber. design-lint enforces this. */
+
+  /* ── Ground ─────────────────────────────────────────────────────────────── */
+  --ground: #E4E3E0;        /* Limestone — page background */
+  --surface: #F4F3EF;       /* Bone — cards, tables */
+  --border: #D6D4D0;
+  --border-subtle: #E4E3E0;
+
+  /* ── Text ───────────────────────────────────────────────────────────────── */
+  --ink: #1A1C26;
+  --ink-muted: #6E7079;
+  --ink-inverse: #F4F3EF;
+
+  /* ── Status — the only semantic colours ─────────────────────────────────── */
+  --status-bad: #C0392B;
+  --status-warn: #D89A2B;
+  --status-good: #2E7D4F;
+  --owner-only: #7D3F6D;    /* Plum — owner-only financial content */
+
+  /* ── Series ─────────────────────────────────────────────────────────────── */
+  /* Tints of one indigo hue, never separate colours. Brass is reserved for the
+     portfolio aggregate and appears on nothing else. */
+  --store-pines: #9AA5C7;
+  --store-miramar: #5A6B9E;
+  --store-margate: #262F5A;
+  --series-store: #262F5A;
+  --series-portfolio: #B08D57;
+
+  /* ── Chart ramps ────────────────────────────────────────────────────────── */
+  --ramp-sequential-1: #F4F3EF;
+  --ramp-sequential-2: #D8DCE8;
+  --ramp-sequential-3: #9AA5C7;
+  --ramp-sequential-4: #5A6B9E;
+  --ramp-sequential-5: #262F5A;
+
+  --ramp-diverging-good: #2E7D4F;
+  --ramp-diverging-good-soft: #7FA98C;
+  --ramp-diverging-neutral: #E4E3E0;
+  --ramp-diverging-bad-soft: #E0A96D;
+  --ramp-diverging-bad: #C0392B;
+
+  /* ── Type ───────────────────────────────────────────────────────────────── */
+  --font-sans: var(--font-archivo), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Roles: size / line-height / weight */
+  --text-page-title: 24px;
+  --text-page-title-lh: 1.2;
+  --text-page-title-weight: 700;
+
+  --text-section: 18px;
+  --text-section-lh: 1.3;
+  --text-section-weight: 700;
+
+  --text-card-title: 15px;
+  --text-card-title-lh: 1.3;
+  --text-card-title-weight: 600;
+
+  --text-body: 14px;
+  --text-body-lh: 1.5;
+  --text-body-weight: 400;
+
+  --text-metric-hero: 32px;
+  --text-metric-hero-lh: 1.0;
+  --text-metric-hero-weight: 700;
+
+  --text-metric-card: 22px;
+  --text-metric-card-lh: 1.1;
+  --text-metric-card-weight: 700;
+
+  --text-table-cell: 13px;
+  --text-table-cell-lh: 1.4;
+  --text-table-cell-weight: 400;
+
+  --text-eyebrow: 11px;
+  --text-eyebrow-tracking: 0.025em;
+  --text-eyebrow-weight: 500;
+
+  --text-code: 12px;
+  --text-code-weight: 400;
+
+  /* ── Space — 4px base ───────────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --gutter-desktop: 24px;
+  --gutter-mobile: 16px;
+  --card-padding: 20px;
+  --card-radius: 6px;
+  --grid-gutter: 20px;
+  --content-max-width: 1440px;
+  --table-row-height: 40px;
+  --table-cell-padding: 12px;
+  --header-bar-height: 62px;
+
+  /* Touch target floor — checked on a phone at 6am. design-lint fails below it. */
+  --touch-min: 44px;
+}
+
+/* Every figure in this product wears tabular numerals. Non-negotiable #7. */
+.tabular-nums { font-variant-numeric: tabular-nums; }

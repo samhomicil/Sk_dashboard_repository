@@ -1,4 +1,45 @@
 @import "tailwindcss";
+@import "./tokens.css";
+@import "./design.css";
+
+/* Expose the design tokens as Tailwind utilities: `bg-surface`, `text-ink-muted`,
+   `border-subtle`, `font-mono`. `inline` keeps them referencing the custom
+   properties, so a theme swap is still one file.
+
+   NOTE the transition state: the app below is mid-redesign. Legacy styles (slate
+   body, teal accents, 12px radii, shadows) still carry the modules that have not
+   been rebuilt yet, and are deleted module by module as each one lands. New work
+   uses tokens only — `npm run lint:design` ratchets the old values down and
+   refuses new ones. */
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-accent: var(--accent);
+
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-line: var(--border);
+  --color-line-subtle: var(--border-subtle);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-inverse: var(--ink-inverse);
+
+  --color-bad: var(--status-bad);
+  --color-warn: var(--status-warn);
+  --color-good: var(--status-good);
+  --color-owner: var(--owner-only);
+
+  --color-store-pines: var(--store-pines);
+  --color-store-miramar: var(--store-miramar);
+  --color-store-margate: var(--store-margate);
+  --color-series-portfolio: var(--series-portfolio);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-card: var(--card-radius);
+}
 
 body {
   background: #f1f5f9;

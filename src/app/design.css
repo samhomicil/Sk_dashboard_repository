@@ -1,0 +1,332 @@
+/* ============================================================================
+   DESIGN SYSTEM — component layer
+   ----------------------------------------------------------------------------
+   Classes for the shell components in src/components/design/. The handoff's
+   reference implementation styles these inline; this app already carries its
+   component styling in CSS (`.card`, `.pill`, `.sk-*`), so they land as classes —
+   the markup stays readable and one place governs the look.
+
+   Every value here is a token. No raw colours, no shadows, no gradients.
+   ========================================================================== */
+
+/* ── The page ground ─────────────────────────────────────────────────────── */
+/* Scoped to .sk-page rather than body, so redesigned screens can sit beside
+   not-yet-redesigned ones without either fighting the other. When the last
+   legacy module lands, this moves to body and the wrapper disappears. */
+.sk-page {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body-lh);
+  min-height: 100vh;
+  padding: 0 var(--gutter-desktop) var(--space-16);
+}
+.sk-page-inner {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--grid-gutter);
+}
+
+/* ── Card — the one container ────────────────────────────────────────────── */
+.sk-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+}
+.sk-card-title {
+  margin: 0;
+  font-size: var(--text-card-title);
+  line-height: var(--text-card-title-lh);
+  font-weight: var(--text-card-title-weight);
+}
+
+/* ── Eyebrow / mono meta ─────────────────────────────────────────────────── */
+.sk-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--text-eyebrow-weight);
+  letter-spacing: var(--text-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.sk-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── PageBar ─────────────────────────────────────────────────────────────── */
+.sk-pagebar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-6);
+  flex-wrap: wrap;
+  padding: var(--space-6) 0 0;
+}
+.sk-pagebar h1 {
+  font-size: var(--text-page-title);
+  line-height: var(--text-page-title-lh);
+  font-weight: var(--text-page-title-weight);
+  margin: var(--space-1) 0 0;
+}
+.sk-pagebar-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.sk-pagebar-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ── TakeCard / FlagList share the left status rule ──────────────────────── */
+.sk-take,
+.sk-flags {
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+.sk-take {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.sk-take-text {
+  font-size: var(--text-body);
+  line-height: 1.6;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.sk-take-why { color: var(--ink-muted); }
+
+/* The status pill is an outline, never a filled block — filled status blocks
+   compete with the figures they sit beside. */
+.sk-pill {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+/* Tone is set by the component through --tone, so one rule serves every status
+   and no colour is ever typed at a call site. */
+.sk-tone-good { --tone: var(--status-good); }
+.sk-tone-warn { --tone: var(--status-warn); }
+.sk-tone-bad  { --tone: var(--status-bad); }
+.sk-tone-neutral { --tone: var(--accent); }
+.sk-take, .sk-flags { border-left-color: var(--tone, var(--accent)); }
+.sk-take .sk-pill { color: var(--tone); }
+
+/* ── FlagList ────────────────────────────────────────────────────────────── */
+.sk-flags-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.sk-flag {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: var(--space-2) 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.sk-flag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tone);
+  margin-top: 7px;
+  flex: 0 0 auto;
+}
+.sk-flags-empty {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin: var(--space-2) 0 0;
+}
+
+/* ── Typed absence ───────────────────────────────────────────────────────── */
+/* Four things look like a blank cell and must not. Each carries a reason on
+   hover; `cursor: help` is what tells the reader one exists. */
+.sk-unknown {
+  color: var(--ink-muted);
+  font-style: italic;
+  cursor: help;
+}
+.sk-notmeasured {
+  color: var(--ink-muted);
+  cursor: help;
+}
+.sk-needsinput {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  color: var(--status-warn);
+  border: 1px solid var(--status-warn);
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: help;
+}
+
+/* ── CertaintySplit ──────────────────────────────────────────────────────── */
+.sk-certainty {
+  display: flex;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--border-subtle);
+  margin-left: auto;
+  margin-top: var(--space-1);
+}
+.sk-certainty > i { display: block; }
+.sk-cert-actual    { background: var(--brand); }
+.sk-cert-committed { background: var(--store-miramar); }
+.sk-cert-forecast  { background: var(--ramp-sequential-2); }
+.sk-cert-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+}
+.sk-cert-legend span { display: flex; align-items: center; gap: 6px; }
+.sk-cert-legend i { width: 10px; height: 4px; border-radius: 2px; display: block; }
+
+/* ── Tiles ───────────────────────────────────────────────────────────────── */
+.sk-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--grid-gutter);
+}
+.sk-tile-value {
+  font-size: var(--text-metric-card);
+  line-height: var(--text-metric-card-lh);
+  font-weight: var(--text-metric-card-weight);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-2);
+}
+.sk-tile-value.hero {
+  font-size: var(--text-metric-hero);
+  line-height: var(--text-metric-hero-lh);
+  font-weight: var(--text-metric-hero-weight);
+}
+.sk-tile-target {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-1);
+}
+.sk-tile-value[data-tone] { color: var(--tone); }
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+.sk-table-wrap { overflow-x: auto; }
+.sk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-table-cell);
+  line-height: var(--text-table-cell-lh);
+}
+.sk-table th,
+.sk-table td {
+  padding: var(--table-cell-padding);
+  height: var(--table-row-height);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+.sk-table thead th {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--text-eyebrow-weight);
+  letter-spacing: var(--text-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+/* Numeric columns take only the width their figures need, so the label column
+   absorbs the slack. Without this, table auto-layout spreads the last column
+   across half the card and the figures drift away from their row label. It also
+   makes a wide table OVERFLOW (and so scroll, and pin its first column) instead
+   of compressing every label onto three lines. */
+.sk-table th.num,
+.sk-table td.num { width: 1%; white-space: nowrap; }
+
+/* A numeric column is right-aligned in BOTH rows. Aligning the header opposite
+   its figures is the specificity bug that shipped once already — so the header
+   and the cell carry the same class and the same rule. */
+.sk-table th.num,
+.sk-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sk-table td.divider,
+.sk-table th.divider { border-left: 1px solid var(--border); }
+.sk-table tbody tr.muted td { color: var(--ink-muted); }
+.sk-table tbody tr.child td { background: color-mix(in srgb, var(--ground) 45%, transparent); }
+/* Children read as belonging to the row above, not as peers of it. */
+.sk-table tbody tr.child td:first-child { padding-left: calc(var(--table-cell-padding) + 26px); }
+.sk-table tbody tr.total td { font-weight: 600; border-top: 1px solid var(--border); }
+
+/* Expanders are a real control, so they get a real target. */
+.sk-expander {
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-min);
+  padding: 0;
+  text-align: left;
+}
+.sk-expander:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sk-expander .caret { transition: transform 0.15s ease; color: var(--ink-muted); }
+.sk-expander[aria-expanded='true'] .caret { transform: rotate(90deg); }
+
+/* ── Basis footnote ──────────────────────────────────────────────────────── */
+.sk-basis {
+  font-size: 12px;
+  color: var(--ink-muted);
+  line-height: 1.6;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-3);
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+/* MUST stay last in this file. These override equal-specificity base rules
+   above, so source order is what decides — putting them earlier silently
+   reverts the whole mobile pass, which is exactly how it went wrong before. */
+@media (max-width: 900px) {
+  .sk-page { padding-left: var(--gutter-mobile); padding-right: var(--gutter-mobile); }
+  .sk-pagebar-right { align-items: flex-start; width: 100%; }
+  .sk-pagebar-filters { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
+}
+@media (max-width: 620px) {
+  .sk-tiles { grid-template-columns: 1fr; }
+  /* The row label is what makes the numbers mean anything, so it stays put. */
+  .sk-table th:first-child,
+  .sk-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+  }
+}

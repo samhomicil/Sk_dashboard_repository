@@ -2,6 +2,7 @@
 
 import type { StaffingData, StaffingCell, DateRange } from '@/lib/types'
 import { weekLabel } from '@/lib/dates'
+import { STORE_UPH } from '@/lib/core/targets'
 
 interface Props {
   data:        StaffingData | null
@@ -28,7 +29,7 @@ const HOURS = Array.from({ length: 15 }, (_, i) => {
 // revenue per unit, back-solved for a 22% Labor% target:
 //   target UPLH = avg wage/hr ÷ (22% × avg revenue per real unit)
 // Below target is overstaffed relative to the cost goal, above is understaffed.
-const STORE_TARGETS: Record<string, number> = { pines: 7.5, miramar: 8.4, margate: 8.2 }
+const STORE_TARGETS = STORE_UPH
 
 function heatBg(v: number, target: number): string {
   if (!v)                   return '#f8fafc'

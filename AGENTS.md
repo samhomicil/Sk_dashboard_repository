@@ -15,6 +15,10 @@ data gotchas that have caused real bugs. The rules below are the ones most often
    `src/lib/core/targets.ts`, metric SQL from `src/lib/core/sources.ts`. Restating a
    number locally is how the Overview ended up grading labor at 25% while Weekly Ops
    used 22% — the same store read "on target" on one tab and "over" on another.
+   `npm run check` enforces this: a const named like a target, or any of the relocated
+   rules, may not be assigned a literal outside `core/targets.ts`. **A redesign is not a
+   licence to author a rule** — if a mockup carries a threshold the app doesn't have, it
+   becomes a core constant with a sourced comment, never a number in a component.
 
 2. **Money routes need both gates.** Add the prefix to `OWNER_APIS`/`OWNER_PAGES` in
    `src/proxy.ts` *and* call `requireOwner()` (APIs) / `requireOwnerPage()` (pages)
@@ -55,3 +59,18 @@ curl recipe for diagnosing this without a browser.
 Labor **%** shown to managers is *unloaded hourly wages ÷ net sales*, so it reconciles
 with the POS. Tips, salaried manager pay, employer burden and taxes are owner-side
 concepts — they belong in Budget and Cash Flow, never on the manager surfaces.
+
+## Design work
+
+The target design lives in `/Users/sam/Downloads/design_handoff_sk_dashboard` — read its
+`module-contract.md` before building a screen. Its `lint/design-lint.mjs` is vendored at
+`src/scripts/design-lint.mjs` and runs as a **ratchet**: `npm run lint:design` fails only
+when a rule's count rises above `design-lint-baseline.json`. Redesign a module, drive its
+rules down, then `npm run lint:design -- --save`. The app starts at 258 findings, so the
+baseline is a debt ledger, not a passing grade.
+
+Three contradictions between the handoff and the live app are **unresolved and must not be
+silently settled** — each is recorded inline in `core/targets.ts`: the salaried manager at
+$625/wk here vs $693/wk in `cash-forecast/forecast.py`; prime cost graded at 0.52 here vs
+0.55 in the handoff; and "UPLH", which names two different metrics (orders ÷ on-duty in the
+recap, units per labor hour on the Heatmap).

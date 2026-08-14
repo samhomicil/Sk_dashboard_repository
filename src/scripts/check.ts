@@ -60,6 +60,27 @@ check('config.TARGETS.cogsPct === core COGS_TARGET', TARGETS.cogsPct === COGS_TA
   check('no hardcoded labor target outside core/targets.ts', offenders.length === 0,
     offenders.map(o => o.rel).join('\n'))
 }
+{
+  // Generalisation of the rule above: a target, threshold or band is a BUSINESS RULE,
+  // and every one of them belongs in core/targets.ts. Six were living as literals in
+  // components and route handlers (prime 0.52, the manager's $625/wk, two 0.85 quality
+  // targets, the per-store UPH bands, the watchlist thresholds) — each one invisible to
+  // anyone reading targets.ts and asking "what does this app grade against?".
+  //
+  // Two patterns are refused anywhere but core/targets.ts:
+  //   a. a const NAMED like a target   — *TARGET / *THRESHOLD, any case
+  //   b. a const named like one of the relocated rules, re-declared locally
+  // Importing them and aliasing (`const QUALITY_TARGET = JOLT_QUALITY_TARGET`) is fine:
+  // the right-hand side is an identifier, not a literal.
+  const NAMED = /^[ \t]*(?:export )?const [A-Za-z_][A-Za-z0-9_]*(?:TARGET|TARGETS|THRESHOLD|THRESHOLDS|Target|Threshold)[A-Za-z0-9_]*[ \t]*(?::[^=]+)?=[ \t]*[0-9{]/m
+  const RELOCATED = /^[ \t]*(?:export )?const (?:MGR_WK|MGR_WEEKLY|STORE_UPH|STORE_TARGETS|PRIME_TARGET|FAST_MOVER_(?:DAYS|THRESHOLD_DAYS)|VARIANCE_FLAG_(?:PCT|THRESHOLD_PCT)|STAFFING_BANDS)[ \t]*(?::[^=]+)?=[ \t]*[0-9{[]/m
+  const offenders = FILES.filter(f =>
+    !f.rel.includes('core/targets') && !f.rel.includes('scripts/check') &&
+    (NAMED.test(f.src) || RELOCATED.test(f.src)))
+  check('no target/threshold literal outside core/targets.ts', offenders.length === 0,
+    offenders.map(o => o.rel).join('\n') +
+    (offenders.length ? '\n  -> move the value to src/lib/core/targets.ts and import it' : ''))
+}
 
 // ── 2. Every queried data source declares a freshness contract ───────────────
 console.log('\nData sources')

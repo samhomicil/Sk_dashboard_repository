@@ -28,3 +28,70 @@ export const STORES = [
 // PFG delivery cadence by store (JS getUTCDay: Tue=2, Fri=5). Pines/Miramar
 // deliver Tue+Fri, Margate Tue — same source of truth as the order guide.
 export const DELIVERY_DOWS: Record<string, number[]> = { Pines: [2, 5], Miramar: [2, 5], Margate: [2] }
+
+// ── Constants relocated here, values unchanged ───────────────────────────────
+// Each of these was a literal in the file that used it, which is how the Overview
+// came to grade labor at 25% while Weekly Ops used 22%. Moving them changes no
+// number; it gives each one a single address so the next surface reads it rather
+// than restating it. `npm run check` fails if a new one appears outside this file.
+
+/** Prime cost ceiling, LOADED (recipe COGS + labor incl. tips and burden).
+ *  Was a local literal in app/api/budget/route.ts. NOT COGS_TARGET + LABOR_TARGET,
+ *  which is the unloaded 0.47 — the two are different bases and both are shown. */
+export const PRIME_TARGET = 0.52
+
+/** Jolt evidence-photo pass rate below which the card reads red.
+ *  Was a literal in components/JoltQualityCard.tsx. */
+export const JOLT_QUALITY_TARGET = 0.85
+
+/** Jolt SOP completion target. Was a literal in components/SopCard.tsx.
+ *  Deliberately a separate constant from JOLT_QUALITY_TARGET despite sharing a
+ *  value today — completing a checklist and photographing it well are different
+ *  things, and tying them together would make one move when the other is tuned. */
+export const SOP_COMPLETE_TARGET = 0.85
+
+/** Inventory watchlist thresholds. Were literals in lib/inventoryWatchlistUtils.ts. */
+export const FAST_MOVER_DAYS = 30
+export const VARIANCE_FLAG_PCT = 0.15
+
+/**
+ * Salaried manager cost per store, per WEEK, BEFORE burden.
+ *
+ * ⚠️ This disagrees with cash-forecast/forecast.py, which carries
+ * DAN_PER_ENTITY = {Miramar: 1386, Pines: 1386, Margate: 0} per BIWEEKLY period —
+ * $693/week against the $625 here. Both are pre-burden (Budget applies `empBurden`
+ * separately, forecast.py multiplies by PAY_BURDEN afterwards), so the bases match
+ * and the $68/week/store gap is real: ~$7,072/yr across the two salaried entities.
+ *
+ * The value here is UNCHANGED pending a decision. Budget's comment says 625 makes
+ * "Brink hourly + this salary + 0.85×tips tie to actual Staff Wages within ~1%";
+ * forecast.py's 1386 is described as validated against the 7/31 ADP register. One of
+ * those calibrations is stale. Do not resolve it by editing this line alone — the two
+ * repos must move together or the Budget and Cash Flow tabs will disagree.
+ */
+export const MGR_WEEKLY: Record<string, number> = { Miramar: 625, Pines: 625, Margate: 0 }
+
+/**
+ * Staffing adequacy — forecast orders ÷ staff on duty. HIGH IS BAD.
+ *
+ * Canon is daily-recap/recap.py `_uplh_style`, which these bands reproduce exactly.
+ * The daily recap is the reference for insight methodology, so any surface showing
+ * this metric must use these bands.
+ *
+ * ⚠️ NAME COLLISION: components/Heatmap.tsx also says "UPLH" but means something
+ * else — units per labor hour, with per-store targets back-solved from wage cost
+ * (STORE_UPH below). The ranges overlap, so a reader seeing "UPLH 7" gets "near
+ * optimal" from the heatmap and "tight, red" from the recap. Same word, opposite
+ * verdicts. Renaming one is a decision, not a refactor.
+ */
+export const STAFFING_BANDS = [
+  { under: 3, word: 'overstaffed' },
+  { max: 6, word: 'on target' },
+  { max: 7.5, word: 'tight' },
+  { word: 'understaffed' },
+] as const
+
+/** Units per labor hour, per store — the OTHER "UPLH". Back-solved from each store's
+ *  June wage cost and average revenue per unit against the 22% labor target.
+ *  Was a literal in components/Heatmap.tsx. See the collision note above. */
+export const STORE_UPH: Record<string, number> = { pines: 7.5, miramar: 8.4, margate: 8.2 }

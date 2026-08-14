@@ -1,7 +1,7 @@
 import { query } from '@/lib/db'
 import { getPrisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/owner-guard'
-import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS } from '@/lib/core/targets'
+import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS, PRIME_TARGET, MGR_WEEKLY } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf } from '@/lib/core/dates'
 import { buildRateFor, type EmpRateRow } from '@/lib/core/labor'
 import { empBurden, uncappedRate, TIP_PAYOUT } from '@/lib/core/laborBurden'
@@ -30,13 +30,15 @@ export const revalidate = 0
 const HORIZON_FWD = 5          // weeks ahead (+ current)
 const HORIZON_HIST = 3         // completed weeks for context + 4-wk run-rate
 // Salaried manager (Dan Madaffari, "Manager - Salary") — $65,000/yr, paid 50/50
-// through Miramar + Pines ADP = $625/wk each; $0 at Margate (his Margate management
-// is bundled through those two entities' payroll). He's $0-pay in Brink so this
-// never double-counts hourly wages, and it's what closes the labor-vs-ADP gap:
-// Brink hourly + this salary + 0.85×tips ties to actual Staff Wages within ~1%.
-// (The $3,333 "consulting" on Miramar/Pines is NOT him — that's the Tome seller-
+// through Miramar + Pines ADP; $0 at Margate (his Margate management is bundled
+// through those two entities' payroll). He's $0-pay in Brink so this never
+// double-counts hourly wages, and it's what closes the labor-vs-ADP gap: Brink
+// hourly + this salary + 0.85×tips ties to actual Staff Wages within ~1%. (The
+// $3,333 "consulting" on Miramar/Pines is NOT him — that's the Tome seller-
 // financing note, already booked to Debt.) Owners don't draw W-2 wages yet.
-const MGR_WK: Record<string, number> = { Miramar: 625, Pines: 625, Margate: 0 }
+// The figure itself lives in core/targets.ts, which also records its open
+// disagreement with cash-forecast/forecast.py.
+const MGR_WK = MGR_WEEKLY
 // Card processing, % of all-channel net sales (the base `sales` below carries).
 // Ground truth = the processor deposit statement (Margate SK2384, both MIDs,
 // Jul'25-Jul'26): $257,597.82 card sales -> $7,952.78 fees = 3.09% of CARD volume
@@ -383,7 +385,6 @@ export async function GET() {
 
   // Fully-loaded prime target: food 25% + loaded labor (22% wages x ~1.13 burden +
   // management allowance) ≈ 52%. A single owner-facing goal for the hero metric.
-  const PRIME_TARGET = 0.52
 
   return Response.json({
     asOf: today, current: wk0,

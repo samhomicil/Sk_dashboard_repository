@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, useState } from 'react'
+import { SOP_COMPLETE_TARGET } from '@/lib/core/targets'
 
 // Jolt completion — per-location Complete / On-Time / Late / Missed with a summary
 // bar, each location row collapsing open to its per-checklist breakdown.
@@ -20,7 +21,7 @@ export interface SopData {
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`
 const shortDate = (s?: string) => (s ? `${Number(s.split('-')[1])}/${Number(s.split('-')[2])}` : '')
 
-const COMPLETE_TARGET = 0.85 // completion target; below this reads red
+const COMPLETE_TARGET = SOP_COMPLETE_TARGET
 
 // Default columns show "count (pct%)". The Complete column leads with the pct and
 // colors it green/red against the 85% target.

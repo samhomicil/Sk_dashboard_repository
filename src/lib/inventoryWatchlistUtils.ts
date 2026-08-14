@@ -1,3 +1,8 @@
+import { FAST_MOVER_DAYS, VARIANCE_FLAG_PCT } from '@/lib/core/targets'
+// Re-exported under their original names so existing callers are untouched; the
+// values now live in core/targets.ts.
+export const FAST_MOVER_THRESHOLD_DAYS = FAST_MOVER_DAYS
+export const VARIANCE_FLAG_THRESHOLD_PCT = VARIANCE_FLAG_PCT
 // Client-safe types and pure logic for the Inventory Watchlist (Tier 2).
 // Par/reorder rule validated by hand on Gladiator earlier: par 2 / reorder-at-1
 // when a unit (bag/case) lasts under 30 days; par 1 / reorder-on-open above that,
@@ -5,8 +10,8 @@
 // safety margin, once the item is that slow-moving.
 
 export const PFS_LEAD_TIME_DAYS = 4
-export const FAST_MOVER_THRESHOLD_DAYS = 30
-export const VARIANCE_FLAG_THRESHOLD_PCT = 0.15 // |variance| / theoretical beyond this gets flagged
+
+
 
 export type StoreKey = 'pines' | 'miramar' | 'margate'
 export const STORE_KEYS: StoreKey[] = ['pines', 'miramar', 'margate']

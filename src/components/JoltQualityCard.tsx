@@ -1,5 +1,7 @@
 'use client'
 
+import { JOLT_QUALITY_TARGET } from '@/lib/core/targets'
+
 // Jolt photo quality — was the SOP done to standard, not just "a photo uploaded"?
 // Per-store quality % (pass / graded). quality_rate excludes neutral (stocking) &
 // can't-determine — only pass vs fail count. (Per-photo detail lives on the Ops page.)
@@ -23,7 +25,7 @@ export interface SopQualityData {
 
 const pct = (v: number) => `${(v * 100).toFixed(0)}%`
 const shortDate = (s?: string) => (s ? `${Number(s.split('-')[1])}/${Number(s.split('-')[2])}` : '')
-const QUALITY_TARGET = 0.85
+const QUALITY_TARGET = JOLT_QUALITY_TARGET
 
 function QCell({ rate, graded }: { rate: number; graded: number }) {
   const color = graded === 0 ? 'text-slate-400'

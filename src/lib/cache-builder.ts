@@ -604,71 +604,53 @@ async function fetchHeatmap(store: Store): Promise<unknown[]> {
 }
 
 // ── Products ──────────────────────────────────────────────────────
-const MENU_MIX_PATH = () => dataPath('menu-mix.json')
-const MM_LOC_STORE: Record<string, Store> = {
-  '1392 - Pembroke Pines, FL': 'pines',
-  '1892 - Miramar, FL':        'miramar',
-  '2384 - Margate, FL':        'margate',
-}
+// The data/menu-mix.json reader that used to live here is gone. It was a Sigma
+// export refreshed by hand — last on 2026-07-04 — so any window after July matched
+// no rows and the category and product panels rendered empty. Both now read live
+// SQL; see the two functions below.
 
-interface MixRow  { month: string; location: string; subcategory: string; product: string; qty: number; sales: number }
-interface MixFile { thruDate: string; mix: MixRow[] }
-
-function mmMatchesStore(location: string, store: Store): boolean {
-  if (store === 'all') return location in MM_LOC_STORE
-  return MM_LOC_STORE[location] === store
-}
-function mmMonthDays(month: string, thruDate: string): number {
-  const [y, m] = month.split('-').map(Number)
-  const lastDay = new Date(y, m, 0).getDate()
-  if (thruDate.slice(0, 7) === month) return parseInt(thruDate.slice(8, 10))
-  return lastDay
-}
-
+/**
+ * Top products, live from smoothieking.sales joined to the Brink category map.
+ *
+ * Was: data/menu-mix.json, a Sigma export refreshed by hand — last on 2026-07-04, so
+ * every window after July matched nothing and the panel went blank. Sigma is no longer
+ * a connection. The taxonomy now comes from Brink's own Product Mix by Item Group
+ * (see brink-extractor/brink/pmix.py) into smoothieking.menu_item_category, which
+ * joins to sales on item_name — Brink to Brink, so no cross-system name matching.
+ *
+ * Sellable categories only, as before: a modifier is not a product, and retail is not
+ * what "top products" is asking about.
+ */
 async function fetchProducts(store: Store, start: string, end: string): Promise<ProductRow[]> {
-  if (!existsSync(MENU_MIX_PATH())) return []
-  const mm = JSON.parse(readFileSync(MENU_MIX_PATH(), 'utf-8')) as MixFile
+  const days = Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 86400000) + 1)
+  // Prior comparable window of equal length, immediately before this one.
+  const priorEnd   = new Date(Date.parse(start) - 86400000).toISOString().slice(0, 10)
+  const priorStart = new Date(Date.parse(priorEnd) - (days - 1) * 86400000).toISOString().slice(0, 10)
 
-  const startMonth = start.slice(0, 7)
-  const endMonth   = end.slice(0, 7)
-  const priorMonthDate = new Date(startMonth + '-01')
-  priorMonthDate.setMonth(priorMonthDate.getMonth() - 1)
-  const priorMonth = format(priorMonthDate, 'yyyy-MM')
-  const priorDays  = mmMonthDays(priorMonth, mm.thruDate)
+  const rows = await dbQuery<{ name: string; qty: number; priorQty: number }[]>(`
+    WITH cat AS (SELECT item_name, category FROM smoothieking.menu_item_category
+                 WHERE category IN ('Smoothies','Smoothie Bowls','Food'))
+    SELECT s.item_name AS name,
+           SUM(CASE WHEN CAST(s.closed_datetime AS DATE) BETWEEN '${start}' AND '${end}' THEN 1 ELSE 0 END) AS qty,
+           SUM(CASE WHEN CAST(s.closed_datetime AS DATE) BETWEEN '${priorStart}' AND '${priorEnd}' THEN 1 ELSE 0 END) AS priorQty
+    FROM smoothieking.sales s
+    JOIN cat ON cat.item_name = s.item_name
+    WHERE ${sf(store)} AND s.voided = 0 AND s.is_modifier = 0
+      AND CAST(s.closed_datetime AS DATE) BETWEEN '${priorStart}' AND '${end}'
+    GROUP BY s.item_name
+    HAVING SUM(CASE WHEN CAST(s.closed_datetime AS DATE) BETWEEN '${start}' AND '${end}' THEN 1 ELSE 0 END) > 0
+    ORDER BY 2 DESC`)
 
-  const qtyMap = new Map<string, number>()
-  const l4wMap = new Map<string, number>()
-  const monthsInPeriod = new Set<string>()
-
-  for (const r of mm.mix) {
-    const goodCat = r.subcategory === 'Smoothies' || r.subcategory === 'Smoothie Bowls' || r.subcategory === 'Food'
-    if (!r.product || !goodCat || r.qty <= 0) continue
-    if (!mmMatchesStore(r.location, store)) continue
-    if (r.month >= startMonth && r.month <= endMonth) {
-      qtyMap.set(r.product, (qtyMap.get(r.product) ?? 0) + r.qty)
-      monthsInPeriod.add(r.month)
+  return rows.slice(0, 20).map(r => {
+    const qpd  = Number(r.qty) / days
+    const qL4W = Number(r.priorQty) > 0 ? Number(r.priorQty) / days : qpd
+    return {
+      name: r.name,
+      qtyPerDay:    Math.round(qpd  * 10) / 10,
+      qtyPerDayL4W: Math.round(qL4W * 10) / 10,
+      changePct: qL4W > 0 ? (qpd - qL4W) / qL4W : 0,
     }
-    if (r.month === priorMonth) {
-      l4wMap.set(r.product, (l4wMap.get(r.product) ?? 0) + r.qty)
-    }
-  }
-
-  const effectiveDays = Math.max(1, [...monthsInPeriod].reduce((sum, m) => sum + mmMonthDays(m, mm.thruDate), 0))
-
-  return [...qtyMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 20)
-    .map(([name, qty]) => {
-      const qpd    = qty / effectiveDays
-      const l4wQty = l4wMap.get(name) ?? 0
-      const qL4W   = l4wQty > 0 ? l4wQty / priorDays : qpd
-      return {
-        name,
-        qtyPerDay:    Math.round(qpd  * 10) / 10,
-        qtyPerDayL4W: Math.round(qL4W * 10) / 10,
-        changePct: qL4W > 0 ? (qpd - qL4W) / qL4W : 0,
-      }
-    })
+  })
 }
 
 // ── Categories ────────────────────────────────────────────────────
@@ -678,32 +660,35 @@ const SUBCAT_LABEL: Record<string, string> = {
   'Retail Products': 'Retail', 'Retail Goods': 'Retail',
 }
 
-function fetchCategories(store: Store, start: string, end: string): CategoryRow[] {
-  if (!existsSync(MENU_MIX_PATH())) return []
-  const mm = JSON.parse(readFileSync(MENU_MIX_PATH(), 'utf-8')) as MixFile
-  const startMonth = start.slice(0, 7)
-  const endMonth   = end.slice(0, 7)
+/**
+ * Category mix, live from smoothieking.sales joined to the Brink category map.
+ * Same swap as fetchProducts above, and the same five buckets the old Sigma taxonomy
+ * used, so nothing downstream had to learn new names.
+ *
+ * Modifiers are excluded from the mix, as they were before: they are attachments to a
+ * sale, not a share of it.
+ */
+async function fetchCategories(store: Store, start: string, end: string): Promise<CategoryRow[]> {
+  const rows = await dbQuery<{ name: string; sales: number }[]>(`
+    SELECT c.category AS name, SUM(s.net_sales) AS sales
+    FROM smoothieking.sales s
+    JOIN smoothieking.menu_item_category c ON c.item_name = s.item_name
+    WHERE ${sf(store)} AND s.voided = 0 AND s.is_modifier = 0
+      AND c.category <> 'Modifiers'
+      AND CAST(s.closed_datetime AS DATE) BETWEEN '${start}' AND '${end}'
+    GROUP BY c.category
+    HAVING SUM(s.net_sales) > 0
+    ORDER BY 2 DESC`)
 
-  const salesByLabel = new Map<string, number>()
-  for (const r of mm.mix) {
-    if (r.month < startMonth || r.month > endMonth) continue
-    if (!mmMatchesStore(r.location, store)) continue
-    const label = SUBCAT_LABEL[r.subcategory]
-    if (!label || r.sales <= 0) continue
-    salesByLabel.set(label, (salesByLabel.get(label) ?? 0) + r.sales)
-  }
-
-  const total = [...salesByLabel.values()].reduce((s, v) => s + v, 0)
+  const total = rows.reduce((t, r) => t + Number(r.sales), 0)
   if (total === 0) return []
-
-  return [...salesByLabel.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, sales]) => ({
-      name,
-      sales: Math.round(sales * 100) / 100,
-      pct:   Math.round(sales / total * 1000) / 1000,
-    }))
+  return rows.map(r => ({
+    name: r.name,
+    sales: Math.round(Number(r.sales) * 100) / 100,
+    pct:   Math.round(Number(r.sales) / total * 1000) / 1000,
+  }))
 }
+
 
 // ── Channels ──────────────────────────────────────────────────────
 const CHANNEL_BUCKET: Record<string, string> = {
@@ -999,7 +984,7 @@ export async function buildCacheData() {
   for (const store of STORES) {
     catData[store] = {}
     for (const period of PERIODS) {
-      catData[store][period] = fetchCategories(store, dr[period].start, dr[period].end)
+      catData[store][period] = await fetchCategories(store, dr[period].start, dr[period].end)
     }
   }
 

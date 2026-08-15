@@ -47,6 +47,14 @@ export const SOURCES: SourceContract[] = [
   { table: 'smoothieking.tillhistory', label: 'Tills & tips', dateColumn: 'till_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink extractor',
     consumers: ['Cash Flow', 'Budget', 'payroll model'] },
+  // The menu taxonomy: item -> Smoothies / Smoothie Bowls / Food / Retail / Modifiers,
+  // derived from Brink's Product Mix by Item Group. A catalogue, not a transaction
+  // feed — it only moves when the menu does, so a fortnight is not stale. It replaced
+  // data/menu-mix.json, a hand-refreshed Sigma export that silently went two months
+  // out of date and blanked the category and product panels.
+  { table: 'smoothieking.menu_item_category', label: 'Menu taxonomy', dateColumn: 'synced_at',
+    cadence: 'weekly', maxAgeDays: 14, fedBy: 'Brink extractor (run_pmix.py)',
+    consumers: ['Overview category mix', 'Overview top products'] },
 
   // ── Labor ──────────────────────────────────────────────────────────────────
   { table: 'smoothieking.labor', label: 'Labor actuals', dateColumn: 'shift_date',

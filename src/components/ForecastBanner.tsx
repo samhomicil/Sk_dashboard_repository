@@ -57,7 +57,7 @@ export default function ForecastBanner({ kpis, period }: Props) {
       </div>
       {!onTrack && (
         <div className="mt-2 text-xs text-amber-700">
-          ⚠️ Tracking {pctFmt(Math.abs(pctVsTarget))} below the 10% growth target.
+          Tracking {pctFmt(Math.abs(pctVsTarget))} below the 10% growth target.
           Need {dolFmt((salesTarget - salesForecast) / Math.max(1, daysTotal - daysElapsed))} more/day to close the gap.
         </div>
       )}

@@ -14,12 +14,12 @@ const num    = (n: number) => n.toLocaleString()
 const cogsColor = (v: number | null) => v === null ? '' : v < 0.28 ? 'text-emerald-600 font-semibold' : v < 0.35 ? 'text-amber-600 font-semibold' : 'text-rose-600 font-semibold'
 
 const CAT_COLOR: Record<string, { bg: string; dot: string }> = {
-  'Smoothies':      { bg: 'bg-teal-500',   dot: '#14b8a6' },
-  'Smoothie Bowls': { bg: 'bg-violet-500', dot: '#8b5cf6' },
-  'Food':           { bg: 'bg-amber-500',  dot: '#f59e0b' },
-  'Retail Products':{ bg: 'bg-sky-400',    dot: '#38bdf8' },
-  'Retail Goods':   { bg: 'bg-slate-400',  dot: '#94a3b8' },
-  'Modifiers':      { bg: 'bg-rose-400',   dot: '#fb7185' },
+  'Smoothies':      { bg: 'bg-teal-500',   dot: 'var(--brand)' },
+  'Smoothie Bowls': { bg: 'bg-violet-500', dot: 'var(--owner-only)' },
+  'Food':           { bg: 'bg-amber-500',  dot: 'var(--status-warn)' },
+  'Retail Products':{ bg: 'bg-sky-400',    dot: 'var(--ramp-sequential-3)' },
+  'Retail Goods':   { bg: 'bg-slate-400',  dot: 'var(--ink-muted)' },
+  'Modifiers':      { bg: 'bg-rose-400',   dot: 'var(--status-bad)' },
 }
 const CAT_SHORT: Record<string, string> = {
   'Smoothies': 'Smoothie', 'Smoothie Bowls': 'Bowl', 'Food': 'Food',
@@ -71,7 +71,7 @@ function CategoryMetricsTable({ coreCats, products, coreTotal, coreUnits, days }
             {coreCats.map(c => {
               const cogs   = blendedCogs(products[c.subcategory] ?? [])
               const margin = cogs != null ? 1 - cogs : null
-              const dot    = (CAT_COLOR[c.subcategory] ?? {}).dot ?? '#94a3b8'
+              const dot    = (CAT_COLOR[c.subcategory] ?? {}).dot ?? 'var(--ink-muted)'
               return (
                 <tr key={c.subcategory} className="border-b border-slate-50 hover:bg-slate-50">
                   <td className="py-2 font-medium text-slate-700">
@@ -172,7 +172,7 @@ function TopSellers({ products, modifiers, coreUnits, days }: {
           </thead>
           <tbody>
             {rows.map((p, i) => {
-              const dot = (CAT_COLOR[p.subcategory] ?? {}).dot ?? '#94a3b8'
+              const dot = (CAT_COLOR[p.subcategory] ?? {}).dot ?? 'var(--ink-muted)'
               return (
                 <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
                   <td className="py-1.5 text-slate-300 tabular-nums">{i + 1}</td>

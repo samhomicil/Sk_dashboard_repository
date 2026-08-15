@@ -37,20 +37,22 @@ const WX_LAT = 26.05
 const WX_LON = -80.28
 
 /* ---------- weather ---------- */
-function wxMap(code: number): { icon: string; condition: string } {
-  if (code === 0) return { icon: '☀️', condition: 'Clear' }
-  if (code === 1) return { icon: '🌤️', condition: 'Mostly clear' }
-  if (code === 2) return { icon: '⛅', condition: 'Partly cloudy' }
-  if (code === 3) return { icon: '☁️', condition: 'Overcast' }
-  if (code === 45 || code === 48) return { icon: '🌫️', condition: 'Fog' }
-  if (code >= 51 && code <= 57) return { icon: '🌦️', condition: 'Drizzle' }
-  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { icon: '🌧️', condition: 'Rain' }
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { icon: '🌨️', condition: 'Snow' }
-  if (code >= 95) return { icon: '⛈️', condition: 'Rain (storms)' }
-  return { icon: '☁️', condition: 'Cloudy' }
+// No `icon`: the emoji it used to carry were never rendered — Weekly Ops prints
+// "93°F Overcast" — and emoji are not in the design system.
+function wxMap(code: number): { condition: string } {
+  if (code === 0) return { condition: 'Clear' }
+  if (code === 1) return { condition: 'Mostly clear' }
+  if (code === 2) return { condition: 'Partly cloudy' }
+  if (code === 3) return { condition: 'Overcast' }
+  if (code === 45 || code === 48) return { condition: 'Fog' }
+  if (code >= 51 && code <= 57) return { condition: 'Drizzle' }
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { condition: 'Rain' }
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { condition: 'Snow' }
+  if (code >= 95) return { condition: 'Rain (storms)' }
+  return { condition: 'Cloudy' }
 }
-async function getWeather(dates: string[]): Promise<Record<string, { icon: string; temp: string; condition: string }>> {
-  const out: Record<string, { icon: string; temp: string; condition: string }> = {}
+async function getWeather(dates: string[]): Promise<Record<string, { temp: string; condition: string }>> {
+  const out: Record<string, { temp: string; condition: string }> = {}
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}`
       + `&daily=weather_code,temperature_2m_max&temperature_unit=fahrenheit`
@@ -68,7 +70,7 @@ async function getWeather(dates: string[]): Promise<Record<string, { icon: strin
     }
   } catch { /* weather optional — fall through to neutral */ }
   for (const d of dates) {
-    if (!out[d]) out[d] = { icon: '☁️', temp: '—', condition: 'n/a' }
+    if (!out[d]) out[d] = { temp: '—', condition: 'n/a' }
   }
   return out
 }

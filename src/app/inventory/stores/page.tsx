@@ -25,7 +25,7 @@ function StoresInner() {
 
   return (
     <div className="space-y-4">
-      <div className="card border-l-4 border-teal-500" style={{ background: '#f0fdfa' }}>
+      <div className="card border-l-4 border-teal-500" style={{ background: 'color-mix(in srgb, var(--brand) 6%, var(--surface))' }}>
         <div className="text-xs text-teal-800">
           <strong>Note on Miramar&apos;s share:</strong> Miramar is used as a deliberate ordering hub for several dry-goods
           items — bought there and split via transfer to Pines and Margate to smooth week-to-week costs. Its higher spend

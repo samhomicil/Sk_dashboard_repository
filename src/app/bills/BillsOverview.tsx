@@ -12,7 +12,9 @@ import type { Suggestion } from '@/lib/bills/suggestMatch';
 const EARLY_FLAG_DAYS = 5;
 import type { ClientBill } from './page';
 
-const STORE_COLORS: Record<string, string> = { margate: '#3B82F6', miramar: '#F59E0B', pines: '#10B981' };
+// Tints of one indigo hue, per the kit — store identity is carried by the label
+// beside the dot, never by three unrelated colours.
+const STORE_COLORS: Record<string, string> = { margate: 'var(--store-margate)', miramar: 'var(--store-miramar)', pines: 'var(--store-pines)' };
 const NAME: Record<string, string> = { margate: 'Margate', miramar: 'Miramar', pines: 'Pines' };
 const key = (s: string) => s.toLowerCase();
 
@@ -198,7 +200,7 @@ export default function BillsOverview({
             {([7, 14, 30] as const).map(h => (
               <button key={h} onClick={() => setHorizon(h)}
                 className="rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors"
-                style={horizon === h ? { background: '#fff', color: '#0F172A', boxShadow: '0 1px 2px rgba(0,0,0,.06)' } : { color: '#64748B' }}>{h}d</button>
+                style={horizon === h ? { background: 'var(--surface)', color: 'var(--ink)', boxShadow: 'inset 0 0 0 1px var(--border)' } : { color: 'var(--ink-muted)' }}>{h}d</button>
             ))}
           </div>
         </div>
@@ -219,7 +221,7 @@ export default function BillsOverview({
             {(['open', 'paid', 'all'] as const).map(t => (
               <button key={t} onClick={() => setStatusTab(t)}
                 className="rounded-md px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors"
-                style={statusTab === t ? { background: '#fff', color: '#0F172A', boxShadow: '0 1px 2px rgba(0,0,0,.06)' } : { color: '#64748B' }}>{t}</button>
+                style={statusTab === t ? { background: 'var(--surface)', color: 'var(--ink)', boxShadow: 'inset 0 0 0 1px var(--border)' } : { color: 'var(--ink-muted)' }}>{t}</button>
             ))}
           </div>
         </div>
@@ -254,7 +256,7 @@ export default function BillsOverview({
                 const isOpen = expanded.has(rowKey);
                 return (
                   <Fragment key={rowKey}>
-                    <tr key={rowKey} className={`border-b border-slate-100 ${over ? 'bg-[#FEF7F7]' : ''} ${paid ? 'opacity-70' : ''}`}>
+                    <tr key={rowKey} className={`border-b border-slate-100 ${over ? 'bg-rose-50' : ''} ${paid ? 'opacity-70' : ''}`}>
                       <td className="px-[18px] py-[11px]">
                         <span className={`block whitespace-nowrap font-bold ${today || over ? 'text-red-600' : 'text-slate-700'}`}>{dueLbl}</span>
                         <span className="block text-[10px] font-medium text-slate-400">{dow(i.due)} {fmtShort(i.due)}</span>
@@ -335,7 +337,7 @@ export default function BillsOverview({
 }
 
 function Kpi({ k, v, sub, tone }: { k: string; v: string; sub: string; tone?: 'warn' | 'bad' | 'good' }) {
-  const color = tone === 'warn' ? '#B45309' : tone === 'bad' ? '#DC2626' : tone === 'good' ? '#059669' : '#0F172A';
+  const color = tone === 'warn' ? 'var(--status-warn)' : tone === 'bad' ? 'var(--status-bad)' : tone === 'good' ? 'var(--status-good)' : 'var(--ink)';
   return (
     <div className="px-5 py-4">
       <div className="text-[11px] font-semibold text-slate-400">{k}</div>
@@ -384,16 +386,16 @@ function buildTimeline(
   if (forward.length === 0) return null;
 
   let svg = '';
-  days.forEach(o => { const wd = dateFor(o).getDay(); if (wd === 0 || wd === 6) svg += `<rect x="${(xOf(o) - slot / 2).toFixed(1)}" y="${PAD.t}" width="${slot.toFixed(1)}" height="${cH}" fill="#0F172A" opacity=".025"/>`; });
-  svg += `<line x1="${PAD.l}" y1="${baseY.toFixed(1)}" x2="${W - PAD.r}" y2="${baseY.toFixed(1)}" stroke="#E2E8F0"/>`;
+  days.forEach(o => { const wd = dateFor(o).getDay(); if (wd === 0 || wd === 6) svg += `<rect x="${(xOf(o) - slot / 2).toFixed(1)}" y="${PAD.t}" width="${slot.toFixed(1)}" height="${cH}" fill="var(--ink)" opacity=".025"/>`; });
+  svg += `<line x1="${PAD.l}" y1="${baseY.toFixed(1)}" x2="${W - PAD.r}" y2="${baseY.toFixed(1)}" stroke="var(--border)"/>`;
   const tx = xOf(0);
-  svg += `<line x1="${tx.toFixed(1)}" y1="${PAD.t}" x2="${tx.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="#0F172A" stroke-dasharray="2 3" opacity=".35"/>`;
-  svg += `<text x="${tx.toFixed(1)}" y="${(PAD.t + 8).toFixed(1)}" font-size="8" fill="#64748B" text-anchor="middle" font-family="Inter,sans-serif" font-weight="700">TODAY</text>`;
+  svg += `<line x1="${tx.toFixed(1)}" y1="${PAD.t}" x2="${tx.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="var(--ink)" stroke-dasharray="2 3" opacity=".35"/>`;
+  svg += `<text x="${tx.toFixed(1)}" y="${(PAD.t + 8).toFixed(1)}" font-size="8" fill="var(--ink-muted)" text-anchor="middle" font-family="Inter,sans-serif" font-weight="700">TODAY</text>`;
   const GAP = 2.5;
   const availH = baseY - PAD.t - 12; // keep the stack (and its count badge) inside the plot
   days.forEach(o => {
     const bl = at(o).slice().sort((a, b) => b.amt - a.amt);
-    if (!bl.length) { if (o % (horizon > 20 ? 5 : 2) === 0) svg += `<text x="${xOf(o).toFixed(1)}" y="${(H - 8).toFixed(1)}" font-size="8" fill="#CBD5E1" text-anchor="middle" font-family="Inter,sans-serif">${fmtShort(dateFor(o))}</text>`; return; }
+    if (!bl.length) { if (o % (horizon > 20 ? 5 : 2) === 0) svg += `<text x="${xOf(o).toFixed(1)}" y="${(H - 8).toFixed(1)}" font-size="8" fill="var(--border)" text-anchor="middle" font-family="Inter,sans-serif">${fmtShort(dateFor(o))}</text>`; return; }
     const radii = bl.map(i => 3 + Math.min(6.5, (i.amt / maxAmt) * 6.5));
     const needed = radii.reduce((s, r) => s + 2 * r, 0) + GAP * (bl.length - 1);
     const scale = needed > availH ? availH / needed : 1;
@@ -402,8 +404,8 @@ function buildTimeline(
       svg += `<circle cx="${xOf(o).toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${STORE_COLORS[key(i.o.store)]}" opacity=".9"/>`;
       topY = y - r; y -= (r + GAP * scale); });
     if (bl.length > 1) { const by = Math.max(PAD.t + 7, topY - 3);
-      svg += `<circle cx="${(xOf(o) + 11).toFixed(1)}" cy="${by.toFixed(1)}" r="7" fill="#1E293B"/><text x="${(xOf(o) + 11).toFixed(1)}" y="${(by + 3).toFixed(1)}" font-size="8.5" fill="#fff" text-anchor="middle" font-family="Inter,sans-serif" font-weight="700">${bl.length}</text>`; }
-    svg += `<text x="${xOf(o).toFixed(1)}" y="${(H - 8).toFixed(1)}" font-size="8" fill="#94A3B8" text-anchor="middle" font-family="Inter,sans-serif">${fmtShort(dateFor(o))}</text>`;
+      svg += `<circle cx="${(xOf(o) + 11).toFixed(1)}" cy="${by.toFixed(1)}" r="7" fill="var(--brand-deep)"/><text x="${(xOf(o) + 11).toFixed(1)}" y="${(by + 3).toFixed(1)}" font-size="8.5" fill="var(--surface)" text-anchor="middle" font-family="Inter,sans-serif" font-weight="700">${bl.length}</text>`; }
+    svg += `<text x="${xOf(o).toFixed(1)}" y="${(H - 8).toFixed(1)}" font-size="8" fill="var(--ink-muted)" text-anchor="middle" font-family="Inter,sans-serif">${fmtShort(dateFor(o))}</text>`;
   });
 
   const offsetAtX = (svgX: number): number | null => {
@@ -425,13 +427,13 @@ function TimelineTip({ tip, unpaid, todayMid }: {
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1200;
   const left = Math.min(tip.x + 14, vw - 216);
   return (
-    <div style={{ position: 'fixed', left, top: tip.y - 10, transform: 'translateY(-100%)', width: 200, zIndex: 60, pointerEvents: 'none', background: '#fff', border: '1px solid #E2E8F0', borderRadius: 10, padding: '10px 12px', boxShadow: '0 6px 20px rgba(15,23,42,.14)' }}>
-      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: '#94A3B8', marginBottom: 6 }}>
+    <div style={{ position: 'fixed', left, top: tip.y - 10, transform: 'translateY(-100%)', width: 200, zIndex: 60, pointerEvents: 'none', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', boxShadow: '0 6px 20px rgba(15,23,42,.14)' }}>
+      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--ink-muted)', marginBottom: 6 }}>
         {tip.o === 0 ? 'Today' : `${dow(d)} · ${fmtShort(d)}`}
       </div>
       {bl.map((i, idx) => (
         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 4, fontSize: 11 }}>
-          <span style={{ color: '#475569' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: STORE_COLORS[key(i.o.store)], marginRight: 6, verticalAlign: 'middle' }} />{i.o.vendor}</span>
+          <span style={{ color: 'var(--ink-muted)' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: STORE_COLORS[key(i.o.store)], marginRight: 6, verticalAlign: 'middle' }} />{i.o.vendor}</span>
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700 }}>{$f(i.amt)}</span>
         </div>
       ))}

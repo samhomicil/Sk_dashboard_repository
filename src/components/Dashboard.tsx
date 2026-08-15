@@ -208,7 +208,7 @@ export default function Dashboard() {
 
         {data.error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-            ⚠️ Could not reach database. Make sure the proxy is running on port 5001.
+            Could not reach database. Make sure the proxy is running on port 5001.
             <br /><span className="text-xs opacity-70">{data.error}</span>
           </div>
         )}

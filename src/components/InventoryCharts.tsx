@@ -5,9 +5,9 @@ import type { WeekPoint, CategoryWeekPoint, TopProductPriced } from '@/lib/purch
 
 // Fixed categorical order (never cycled) — teal-led to match the dashboard, warm/cool
 // spread for CVD separation. 'Other' always the last, muted slot.
-const CATS = ['#0d9488', '#f59e0b', '#7c3aed', '#e11d48', '#0284c7', '#65a30d']
-const OTHER = '#94a3b8'
-const PFG_C = '#0d9488', WM_C = '#f59e0b'
+const CATS = ['var(--brand)', 'var(--status-warn)', 'var(--owner-only)', 'var(--status-bad)', 'var(--ramp-sequential-4)', 'var(--status-good)']
+const OTHER = 'var(--ink-muted)'
+const PFG_C = 'var(--brand)', WM_C = 'var(--status-warn)'
 
 const money = (n: number) => (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString()
 const wk = (iso: string) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' })
@@ -38,7 +38,7 @@ export function SpendTrendChart({ data }: { data: WeekPoint[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 480 }}>
         {[0, 0.25, 0.5, 0.75, 1].map(t => (
           <g key={t}>
-            <line x1={PL} x2={W} y1={y(max * t)} y2={y(max * t)} stroke="#f1f5f9" />
+            <line x1={PL} x2={W} y1={y(max * t)} y2={y(max * t)} stroke="var(--ground)" />
             <text x={PL - 6} y={y(max * t) + 3} textAnchor="end" className="fill-slate-400" fontSize="9">{money(max * t)}</text>
           </g>
         ))}
@@ -79,15 +79,15 @@ export function CostPctChart({ data }: { data: WeekPoint[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 480 }}>
         {[0, 10, 20, 30, 40].filter(t => t <= max).map(t => (
           <g key={t}>
-            <line x1={PL} x2={W} y1={y(t)} y2={y(t)} stroke="#f1f5f9" />
+            <line x1={PL} x2={W} y1={y(t)} y2={y(t)} stroke="var(--ground)" />
             <text x={PL - 5} y={y(t) + 3} textAnchor="end" className="fill-slate-400" fontSize="9">{t}%</text>
           </g>
         ))}
-        <line x1={PL} x2={W} y1={y(target)} y2={y(target)} stroke="#94a3b8" strokeDasharray="4 3" />
+        <line x1={PL} x2={W} y1={y(target)} y2={y(target)} stroke="var(--ink-muted)" strokeDasharray="4 3" />
         <text x={W - 4} y={y(target) - 4} textAnchor="end" className="fill-slate-400" fontSize="9">25% target</text>
         <path d={line} fill="none" stroke={PFG_C} strokeWidth={2} />
         {pts.map((d, i) => (
-          <circle key={d.week} cx={x(i)} cy={y(d.costPct)} r={3.5} fill={d.costPct > target ? '#e11d48' : '#059669'}>
+          <circle key={d.week} cx={x(i)} cy={y(d.costPct)} r={3.5} fill={d.costPct > target ? 'var(--status-bad)' : 'var(--status-good)'}>
             <title>{wk(d.week)} · {d.costPct}% ({money(d.pfg + d.walmart)} / {money(d.sales)})</title>
           </circle>
         ))}
@@ -169,7 +169,7 @@ export function PriceTrendChart({ data, items }: { data: { itemCode: string; wee
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 480 }}>
           {[min, (min + max) / 2, max].map((t, k) => (
             <g key={k}>
-              <line x1={PL} x2={W} y1={y(t)} y2={y(t)} stroke="#f1f5f9" />
+              <line x1={PL} x2={W} y1={y(t)} y2={y(t)} stroke="var(--ground)" />
               <text x={PL - 5} y={y(t) + 3} textAnchor="end" className="fill-slate-400" fontSize="9">${t.toFixed(2)}</text>
             </g>
           ))}

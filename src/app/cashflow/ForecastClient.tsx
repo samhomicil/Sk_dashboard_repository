@@ -5,8 +5,13 @@ import { useEffect, useMemo, useState } from 'react'
 // per-store tabs, a plain-English take, summary tiles, and a weekly table that
 // expands to daily detail (week -> days, mirroring budget's bucket -> items).
 type Store = string
-const COLOR: Record<string, string> = { Margate: '#2a78d6', Miramar: '#00832f', Pines: '#cf5a92' }
-const TINT: Record<string, string> = { Margate: '#eaf2fb', Miramar: '#e4f3e9', Pines: '#fbe9f1' }
+// Tints of one indigo hue — the account name sits beside every dot.
+const COLOR: Record<string, string> = { Margate: 'var(--store-margate)', Miramar: 'var(--store-miramar)', Pines: 'var(--store-pines)' }
+const TINT: Record<string, string> = {
+  Margate: 'color-mix(in srgb, var(--store-margate) 12%, var(--surface))',
+  Miramar: 'color-mix(in srgb, var(--store-miramar) 14%, var(--surface))',
+  Pines: 'color-mix(in srgb, var(--store-pines) 20%, var(--surface))',
+}
 
 interface Line { label: string; amt: number; kind: 'in' | 'out'; note: string }
 interface Day { d: string; inflow: number; outflow: number; balance: number; lines?: Line[] }
@@ -118,7 +123,7 @@ export default function ForecastClient() {
         <div className="tabs" role="tablist">
           {stores.map(s => (
             <button key={s.store} role="tab" aria-selected={s.store === store} className="tab" onClick={() => setStore(s.store)}>
-              <span className="dot" style={{ background: COLOR[s.store] ?? '#888' }} />{s.store}
+              <span className="dot" style={{ background: COLOR[s.store] ?? 'var(--ink-muted)' }} />{s.store}
               {s.need > 0 ? <span className="tabneed">fund</span> : null}
             </button>
           ))}
@@ -189,19 +194,23 @@ export default function ForecastClient() {
           {funding.length === 0 ? (
             <p className="allgood">✓ All accounts self-fund through the horizon — no transfers needed.</p>
           ) : (
+            /* Inside a scroller: `.fin table` carries a 720px min-width, which
+               without this pushed the whole page sideways on a phone. */
+            <div className="scroll">
             <table className="fund">
               <thead><tr><th className="rowlab">By</th><th className="rowlab">Account</th><th>Amount</th></tr></thead>
               <tbody>
                 {funding.map(f => (
                   <tr key={f.store}>
                     <td className="rowlab">{monDay(f.by)}</td>
-                    <td className="rowlab"><span className="dot" style={{ background: COLOR[f.store] ?? '#888' }} />{f.store}</td>
+                    <td className="rowlab"><span className="dot" style={{ background: COLOR[f.store] ?? 'var(--ink-muted)' }} />{f.store}</td>
                     <td className="cell"><span className="mv neg">{dMoney(f.need)}</span></td>
                   </tr>
                 ))}
               </tbody>
               <tfoot><tr><td className="rowlab" /><td className="rowlab">Total to move</td><td className="cell"><span className="mv neg">{dMoney(totalNeed)}</span></td></tr></tfoot>
             </table>
+            </div>
           )}
         </div>
       </div>
@@ -264,7 +273,7 @@ function WeekRows({ w, open, dips, toggle }: { w: Wk; open: boolean; dips: boole
 
 function Shell({ children, store }: { children: React.ReactNode; store?: string }) {
   return (
-    <div className="fin" style={store ? { ['--store' as string]: COLOR[store] ?? '#2a78d6', ['--store-tint' as string]: TINT[store] ?? '#eaf2fb' } : undefined}>
+    <div className="fin" style={store ? { ['--store' as string]: COLOR[store] ?? 'var(--store-margate)', ['--store-tint' as string]: TINT[store] ?? 'color-mix(in srgb, var(--brand) 10%, var(--surface))' } : undefined}>
       {children}
       <Style />
     </div>
@@ -274,28 +283,33 @@ function Shell({ children, store }: { children: React.ReactNode; store?: string 
 function Style() {
   return (
     <style>{`
-    .fin{--bg:#f3f5f8;--surface:#fff;--elev:#f9fbfe;--ink:#182231;--muted:#586376;--faint:#8a95a6;--line:#e5e9ef;--line2:#eef1f5;
-      --good:#137a4c;--good-bg:#e5f3ea;--crit:#c5352f;--crit-bg:#fbe6e5;--pos:#137a4c;--neg:#c5352f;
-      --store:#2a78d6;--store-tint:#eaf2fb;--shadow:0 1px 2px rgba(24,34,49,.05),0 8px 22px rgba(24,34,49,.06);
+    /* This screen carries its own variable set, written before the design tokens
+       existed. Rather than rewrite every rule below, the variables now RESOLVE to
+       the tokens — one indirection, and the whole panel is on the system's
+       palette. --shadow becomes none because the system has no drop shadows. */
+    .fin{--bg:var(--ground);--surface:var(--surface);--elev:var(--surface);--ink:var(--ink);--muted:var(--ink-muted);--faint:var(--ink-muted);--line:var(--border);--line2:var(--border-subtle);
+      --good:var(--status-good);--good-bg:color-mix(in srgb,var(--status-good) 12%,var(--surface));--crit:var(--status-bad);--crit-bg:color-mix(in srgb,var(--status-bad) 10%,var(--surface));--pos:var(--status-good);--neg:var(--status-bad);
+      --store:var(--brand);--store-tint:color-mix(in srgb,var(--brand) 10%,var(--surface));--shadow:none;
       background:var(--bg);color:var(--ink);min-height:100vh;padding:24px 20px 60px;font:14px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
 .fin *{box-sizing:border-box;}.fin table{font-variant-numeric:tabular-nums;}.fin .mv, .fin .bal, .fin .tval, .fin .dv{font-variant-numeric:tabular-nums;}
 .fin .muted{color:var(--muted);}.fin code{background:var(--elev);padding:1px 5px;border-radius:4px;font-size:12px;}
 .fin .eyebrow{text-transform:uppercase;letter-spacing:.09em;font-size:10.5px;font-weight:700;color:var(--faint);}
 .fin-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px;max-width:1080px;}
 .fin h1{font-size:21px;font-weight:680;margin:2px 0 3px;letter-spacing:-.01em;}.fin .sub{color:var(--muted);font-size:13px;max-width:52ch;}
-.fin .tabs{display:flex;gap:6px;}.fin .tab{border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 13px/1 inherit;padding:9px 14px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:8px;}
-@media (hover:hover){.fin .tab:hover{color:var(--ink);}}.fin .tab .dot{width:9px;height:9px;border-radius:50%;}.fin .tab[aria-selected="true"]{color:var(--ink);border-color:var(--store);background:var(--store-tint);box-shadow:inset 0 -2px 0 var(--store);}
+.fin .tabs{display:flex;gap:6px;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;}
+.fin .tabs .tab{flex:0 0 auto;}.fin .tab{border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 13px/1 inherit;padding:9px 14px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+@media (hover:hover){.fin .tab:hover{color:var(--ink);}}.fin .tab .dot{width:6px;height:6px;border-radius:50%;}.fin .tab[aria-selected="true"]{color:var(--ink);border-color:var(--store);background:var(--store-tint);box-shadow:inset 0 -2px 0 var(--store);}
 .fin .tabneed{font-size:9px;font-weight:800;color:var(--crit);background:var(--crit-bg);padding:1px 5px;border-radius:9px;letter-spacing:.03em;text-transform:uppercase;}
 .fin .warn{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit);border-radius:9px;padding:9px 13px;margin:0 0 14px;font-size:13px;max-width:1080px;}
-.fin .take{display:flex;align-items:center;gap:12px;margin:0 0 20px;padding:13px 16px;border-radius:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--store);box-shadow:var(--shadow);max-width:1080px;flex-wrap:wrap;}
+.fin .take{display:flex;align-items:center;gap:12px;margin:0 0 20px;padding:13px 16px;border-radius:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--store);max-width:1080px;flex-wrap:wrap;}
 .fin .take .big{font-weight:600;}.fin .take .lede{color:var(--muted);}
 .fin .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}.fin .pill.good{background:var(--good-bg);color:var(--good);}.fin .pill.crit{background:var(--crit-bg);color:var(--crit);}
 .fin .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;max-width:1080px;}
-.fin .tile{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px 14px;box-shadow:var(--shadow);}
+.fin .tile{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px 14px;}
 .fin .tnm{font-size:11.5px;font-weight:640;color:var(--muted);margin-bottom:5px;}
 .fin .tval{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1;}.fin .tval.pos{color:var(--pos);}.fin .tval.neg{color:var(--neg);}.fin .tval.good{color:var(--good);}.fin .tval.crit{color:var(--crit);}
 .fin .tsub{font-size:11px;color:var(--faint);margin-top:5px;}
-.fin .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:22px;max-width:1080px;padding:0;}
+.fin .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:22px;max-width:1080px;padding:0;}
 .fin .cap{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 16px 11px;border-bottom:1px solid var(--line2);flex-wrap:wrap;}.fin .cap .t{font-weight:660;font-size:14px;}.fin .tag{font-size:9.5px;color:var(--faint);font-weight:600;margin-left:6px;text-transform:none;letter-spacing:0;}
 .fin .scroll{overflow-x:auto;}.fin table{border-collapse:collapse;width:100%;min-width:720px;}.fin th, .fin td{text-align:right;padding:0;}
 .fin thead th{position:sticky;top:0;background:var(--surface);z-index:1;padding:9px 14px 8px;border-bottom:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);white-space:nowrap;}

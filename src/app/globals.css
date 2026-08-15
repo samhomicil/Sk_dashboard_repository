@@ -41,6 +41,174 @@
   --radius-card: var(--card-radius);
 }
 
+
+/* ============================================================================
+   LEGACY PALETTE BRIDGE
+   ----------------------------------------------------------------------------
+   The app has ~1,300 Tailwind colour utilities left over from the old design —
+   text-slate-500, bg-teal-600, text-emerald-600 and so on — spread across 26
+   screens. Rewriting every call site is weeks of mechanical edits with a real
+   chance of changing a judgement by accident while doing it.
+
+   So the classes stay and their MEANING moves. Tailwind v4 resolves a colour
+   utility through these theme variables, so redefining the scales points every
+   one of those call sites at the tokens. `text-slate-400` becomes muted ink,
+   `bg-teal-600` becomes brand indigo, `text-emerald-600` becomes the system's
+   good-green — without touching the files.
+
+   The mapping is by ROLE, not by hue:
+     slate / gray / zinc  -> the neutral ramp (surface .. ink)
+     teal / cyan          -> brand indigo; teal was the old accent
+     emerald / green      -> status good
+     rose / red           -> status bad
+     amber / yellow       -> status warn
+     sky / blue / indigo  -> brand tints (informational, never status)
+     violet / purple      -> owner-only plum
+
+   Tints are mixed from the token against the card surface, so a `bg-*-50` stays
+   a pale wash of the right hue instead of a stranded blue-grey.
+
+   This is a bridge, not a destination: each screen still gets rebuilt onto the
+   real components, and drops its legacy classes as it does. When the last one
+   goes, so does this block. `npm run lint:design` still counts every hardcoded
+   colour, so the ratchet keeps pointing at the work that remains.
+   ========================================================================== */
+@theme inline {
+  /* ── neutrals ───────────────────────────────────────────────────────────── */
+  --color-slate-50:  var(--surface);
+  --color-slate-100: var(--ground);
+  --color-slate-200: var(--border);
+  --color-slate-300: color-mix(in srgb, var(--ink-muted) 45%, var(--ground));
+  --color-slate-400: var(--ink-muted);
+  --color-slate-500: var(--ink-muted);
+  --color-slate-600: color-mix(in srgb, var(--ink) 70%, var(--ink-muted));
+  --color-slate-700: var(--ink);
+  --color-slate-800: var(--ink);
+  --color-slate-900: var(--ink);
+  --color-slate-950: var(--brand-deep);
+
+  --color-gray-50:  var(--surface);
+  --color-gray-100: var(--ground);
+  --color-gray-200: var(--border);
+  --color-gray-300: color-mix(in srgb, var(--ink-muted) 45%, var(--ground));
+  --color-gray-400: var(--ink-muted);
+  --color-gray-500: var(--ink-muted);
+  --color-gray-600: color-mix(in srgb, var(--ink) 70%, var(--ink-muted));
+  --color-gray-700: var(--ink);
+  --color-gray-800: var(--ink);
+  --color-gray-900: var(--ink);
+
+  /* ── teal / cyan: the old accent -> brand ───────────────────────────────── */
+  --color-teal-50:  color-mix(in srgb, var(--brand) 8%, var(--surface));
+  --color-teal-100: color-mix(in srgb, var(--brand) 14%, var(--surface));
+  --color-teal-200: var(--ramp-sequential-2);
+  --color-teal-300: var(--ramp-sequential-3);
+  --color-teal-400: var(--ramp-sequential-4);
+  --color-teal-500: var(--brand);
+  --color-teal-600: var(--brand);
+  --color-teal-700: var(--brand);
+  --color-teal-800: var(--brand-deep);
+  --color-teal-900: var(--brand-deep);
+  --color-cyan-50:  color-mix(in srgb, var(--brand) 8%, var(--surface));
+  --color-cyan-500: var(--brand);
+  --color-cyan-600: var(--brand);
+  --color-cyan-700: var(--brand);
+
+  /* ── good ───────────────────────────────────────────────────────────────── */
+  --color-emerald-50:  color-mix(in srgb, var(--status-good) 12%, var(--surface));
+  --color-emerald-100: color-mix(in srgb, var(--status-good) 20%, var(--surface));
+  --color-emerald-200: color-mix(in srgb, var(--status-good) 32%, var(--surface));
+  --color-emerald-300: color-mix(in srgb, var(--status-good) 50%, var(--surface));
+  --color-emerald-400: color-mix(in srgb, var(--status-good) 75%, var(--surface));
+  --color-emerald-500: var(--status-good);
+  --color-emerald-600: var(--status-good);
+  --color-emerald-700: var(--status-good);
+  --color-emerald-800: var(--status-good);
+  --color-green-50:  color-mix(in srgb, var(--status-good) 12%, var(--surface));
+  --color-green-100: color-mix(in srgb, var(--status-good) 20%, var(--surface));
+  --color-green-200: color-mix(in srgb, var(--status-good) 32%, var(--surface));
+  --color-green-400: color-mix(in srgb, var(--status-good) 75%, var(--surface));
+  --color-green-500: var(--status-good);
+  --color-green-600: var(--status-good);
+  --color-green-700: var(--status-good);
+  --color-green-800: var(--status-good);
+
+  /* ── bad ────────────────────────────────────────────────────────────────── */
+  --color-rose-50:  color-mix(in srgb, var(--status-bad) 10%, var(--surface));
+  --color-rose-100: color-mix(in srgb, var(--status-bad) 18%, var(--surface));
+  --color-rose-200: color-mix(in srgb, var(--status-bad) 30%, var(--surface));
+  --color-rose-500: var(--status-bad);
+  --color-rose-600: var(--status-bad);
+  --color-rose-700: var(--status-bad);
+  --color-red-50:  color-mix(in srgb, var(--status-bad) 10%, var(--surface));
+  --color-red-100: color-mix(in srgb, var(--status-bad) 18%, var(--surface));
+  --color-red-200: color-mix(in srgb, var(--status-bad) 30%, var(--surface));
+  --color-red-300: color-mix(in srgb, var(--status-bad) 45%, var(--surface));
+  --color-red-400: color-mix(in srgb, var(--status-bad) 70%, var(--surface));
+  --color-red-500: var(--status-bad);
+  --color-red-600: var(--status-bad);
+  --color-red-700: var(--status-bad);
+  --color-red-800: var(--status-bad);
+
+  /* ── warn ───────────────────────────────────────────────────────────────── */
+  --color-amber-50:  color-mix(in srgb, var(--status-warn) 12%, var(--surface));
+  --color-amber-100: color-mix(in srgb, var(--status-warn) 22%, var(--surface));
+  --color-amber-200: color-mix(in srgb, var(--status-warn) 35%, var(--surface));
+  --color-amber-300: color-mix(in srgb, var(--status-warn) 55%, var(--surface));
+  --color-amber-400: color-mix(in srgb, var(--status-warn) 80%, var(--surface));
+  --color-amber-500: var(--status-warn);
+  --color-amber-600: var(--status-warn);
+  --color-amber-700: var(--status-warn);
+  --color-amber-800: var(--status-warn);
+  --color-yellow-50:  color-mix(in srgb, var(--status-warn) 12%, var(--surface));
+  --color-yellow-100: color-mix(in srgb, var(--status-warn) 22%, var(--surface));
+  --color-yellow-500: var(--status-warn);
+  --color-yellow-600: var(--status-warn);
+  --color-yellow-700: var(--status-warn);
+  --color-orange-50:  color-mix(in srgb, var(--status-warn) 12%, var(--surface));
+  --color-orange-100: color-mix(in srgb, var(--status-warn) 22%, var(--surface));
+  --color-orange-400: color-mix(in srgb, var(--status-warn) 80%, var(--surface));
+  --color-orange-500: var(--status-warn);
+  --color-orange-600: var(--status-warn);
+  --color-orange-700: var(--status-warn);
+
+  /* ── informational (never status) ───────────────────────────────────────── */
+  --color-sky-50:  color-mix(in srgb, var(--brand) 8%, var(--surface));
+  --color-sky-100: color-mix(in srgb, var(--brand) 14%, var(--surface));
+  --color-sky-500: var(--ramp-sequential-4);
+  --color-sky-600: var(--ramp-sequential-4);
+  --color-sky-700: var(--brand);
+  --color-sky-800: var(--brand);
+  --color-blue-50:  color-mix(in srgb, var(--brand) 8%, var(--surface));
+  --color-blue-100: color-mix(in srgb, var(--brand) 14%, var(--surface));
+  --color-blue-200: var(--ramp-sequential-2);
+  --color-blue-400: var(--ramp-sequential-3);
+  --color-blue-500: var(--ramp-sequential-4);
+  --color-blue-600: var(--brand);
+  --color-blue-700: var(--brand);
+  --color-blue-800: var(--brand-deep);
+  --color-indigo-50:  color-mix(in srgb, var(--brand) 8%, var(--surface));
+  --color-indigo-100: color-mix(in srgb, var(--brand) 14%, var(--surface));
+  --color-indigo-500: var(--ramp-sequential-4);
+  --color-indigo-600: var(--brand);
+  --color-indigo-700: var(--brand);
+
+  /* ── white ──────────────────────────────────────────────────────────────── */
+  /* The system has no white: the card surface is bone. `bg-white` was reading as
+     a brighter-than-everything panel wherever it survived, and `text-white` on a
+     dark ground is the inverse ink, which is the same bone. */
+  --color-white: var(--surface);
+
+  /* ── owner-only ─────────────────────────────────────────────────────────── */
+  --color-violet-50:  color-mix(in srgb, var(--owner-only) 10%, var(--surface));
+  --color-violet-500: var(--owner-only);
+  --color-violet-600: var(--owner-only);
+  --color-purple-50:  color-mix(in srgb, var(--owner-only) 10%, var(--surface));
+  --color-purple-500: var(--owner-only);
+  --color-purple-600: var(--owner-only);
+  --color-purple-700: var(--owner-only);
+}
+
 body {
   background: var(--ground);
   color: var(--ink);
@@ -71,15 +239,19 @@ body {
   font-weight: 700;
   white-space: nowrap;
 }
-.pill-green  { background: #dcfce7; color: #15803d; }
-.pill-red    { background: #fee2e2; color: #dc2626; }
-.pill-yellow { background: #fef9c3; color: #854d0e; }
-.pill-gray   { background: #f1f5f9; color: #64748b; }
-.pill-teal   { background: #ccfbf1; color: #0f766e; }
+.pill-green  { background: color-mix(in srgb, var(--status-good) 16%, var(--surface)); color: var(--status-good); }
+.pill-red    { background: color-mix(in srgb, var(--status-bad) 14%, var(--surface));  color: var(--status-bad); }
+.pill-yellow { background: color-mix(in srgb, var(--status-warn) 18%, var(--surface)); color: var(--status-warn); }
+.pill-gray   { background: var(--ground); color: var(--ink-muted); }
+.pill-teal   { background: color-mix(in srgb, var(--brand) 12%, var(--surface)); color: var(--brand); }
 
-.dot-g { width:9px; height:9px; background:#22c55e; border-radius:50%; display:inline-block; flex-shrink:0; }
-.dot-y { width:9px; height:9px; background:#eab308; border-radius:50%; display:inline-block; flex-shrink:0; }
-.dot-r { width:9px; height:9px; background:#ef4444; border-radius:50%; display:inline-block; flex-shrink:0; }
+/* Status dots. 9px was the old size; the system's dot is 6px. */
+.dot-g, .dot-y, .dot-r {
+  width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+}
+.dot-g { background: var(--status-good); }
+.dot-y { background: var(--status-warn); }
+.dot-r { background: var(--status-bad); }
 
 /* A shimmer gradient is not in the system; a quiet block that respects reduced
    motion is. */
@@ -100,11 +272,11 @@ body {
 .sk-side {
   width: 248px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #1E293B 0%, #111827 100%);
-  color: #CBD5E1;
+  background: var(--brand-deep);
+  color: color-mix(in srgb, var(--ink-inverse) 78%, var(--brand-deep));
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  border-right: 1px solid color-mix(in srgb, var(--ink-inverse) 14%, transparent);
   transition: width 0.18s ease;
 }
 .sk-side.collapsed { width: 70px; }
@@ -112,22 +284,22 @@ body {
 .sk-brand { display: flex; align-items: center; gap: 11px; padding: 20px 18px 18px; text-decoration: none; }
 .sk-brand .sk-mark {
   width: 34px; height: 34px; border-radius: 9px;
-  background: linear-gradient(135deg, #14B8A6, #0f766e); color: #fff;
+  background: var(--accent); color: var(--brand-deep);
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px; flex-shrink: 0; box-shadow: 0 2px 6px rgba(15, 118, 110, 0.35);
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
 }
-.sk-brand .sk-nm { font-size: 15px; font-weight: 700; color: #F8FAFC; white-space: nowrap; }
+.sk-brand .sk-nm { font-size: 15px; font-weight: 700; color: var(--ink-inverse); white-space: nowrap; }
 .sk-side.collapsed .sk-brand .sk-nm { display: none; }
 .sk-side.collapsed .sk-brand { justify-content: center; padding: 20px 0 18px; }
 
-.sk-navlabel { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748B; padding: 6px 20px 6px; }
+.sk-navlabel { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in srgb, var(--ink-inverse) 50%, var(--brand-deep)); padding: 6px 20px 6px; }
 .sk-side.collapsed .sk-navlabel { text-align: center; padding: 6px 0; font-size: 8px; }
 
 .sk-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; }
 .sk-side.collapsed .sk-nav { padding: 0 10px; }
 .sk-item {
   display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 9px;
-  color: #CBD5E1; cursor: pointer; font-size: 13.5px; font-weight: 500; position: relative;
+  color: color-mix(in srgb, var(--ink-inverse) 78%, var(--brand-deep)); cursor: pointer; font-size: 13.5px; font-weight: 500; position: relative;
   text-decoration: none; transition: background 0.12s, color 0.12s; white-space: nowrap;
   background: none; border: none; width: 100%; font-family: inherit; text-align: left;
 }
@@ -136,44 +308,44 @@ body {
    sticks after a tap, leaving buttons looking pressed ("stuck"). Tap feedback
    comes from :active instead. */
 @media (hover: hover) {
-  .sk-item:hover { background: rgba(148, 163, 184, 0.10); color: #F1F5F9; }
+  .sk-item:hover { background: color-mix(in srgb, var(--ink-inverse) 10%, transparent); color: var(--ink-inverse); }
 }
-.sk-item:active { background: rgba(148, 163, 184, 0.18); }
-.sk-item.active { background: rgba(148, 163, 184, 0.14); color: #fff; font-weight: 600; }
-.sk-item.section { color: #F1F5F9; }
+.sk-item:active { background: color-mix(in srgb, var(--ink-inverse) 18%, transparent); }
+.sk-item.active { background: color-mix(in srgb, var(--ink-inverse) 14%, transparent); color: var(--ink-inverse); font-weight: 600; }
+.sk-item.section { color: var(--ink-inverse); }
 .sk-item.active::before {
   content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
-  width: 3px; height: 22px; border-radius: 0 3px 3px 0; background: #2DD4BF;
+  width: 3px; height: 22px; border-radius: 0 3px 3px 0; background: var(--accent);
 }
 .sk-item .sk-lbl { min-width: 0; }
 .sk-side.collapsed .sk-item { justify-content: center; padding: 11px 0; }
 .sk-side.collapsed .sk-item .sk-lbl, .sk-side.collapsed .sk-chev { display: none; }
 
-.sk-chev { margin-left: auto; width: 16px; height: 16px; stroke: #94A3B8; transition: transform 0.2s; flex-shrink: 0; padding: 2px; border-radius: 5px; }
-@media (hover: hover) { .sk-chev:hover { background: rgba(148, 163, 184, 0.15); } }
+.sk-chev { margin-left: auto; width: 16px; height: 16px; stroke: color-mix(in srgb, var(--ink-inverse) 60%, var(--brand-deep)); transition: transform 0.2s; flex-shrink: 0; padding: 2px; border-radius: 5px; }
+@media (hover: hover) { .sk-chev:hover { background: color-mix(in srgb, var(--ink-inverse) 15%, transparent); } }
 .sk-chev.closed { transform: rotate(-90deg); }
 
 .sk-subnav { max-height: 0; overflow: hidden; transition: max-height 0.2s ease; }
 .sk-subnav.open { max-height: 260px; }
-.sk-subwrap { margin: 2px 0 4px 27px; padding-left: 8px; border-left: 1px solid rgba(148, 163, 184, 0.20); display: flex; flex-direction: column; gap: 1px; }
-.sk-subitem { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; color: #94A3B8; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.sk-subwrap { margin: 2px 0 4px 27px; padding-left: 8px; border-left: 1px solid color-mix(in srgb, var(--ink-inverse) 20%, transparent); display: flex; flex-direction: column; gap: 1px; }
+.sk-subitem { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; color: color-mix(in srgb, var(--ink-inverse) 60%, var(--brand-deep)); cursor: pointer; white-space: nowrap; text-decoration: none; }
 .sk-subitem .sk-sdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; flex-shrink: 0; }
-@media (hover: hover) { .sk-subitem:hover { background: rgba(148, 163, 184, 0.10); color: #E2E8F0; } }
-.sk-subitem:active { background: rgba(148, 163, 184, 0.18); }
-.sk-subitem.active { color: #fff; background: rgba(148, 163, 184, 0.14); font-weight: 600; }
+@media (hover: hover) { .sk-subitem:hover { background: color-mix(in srgb, var(--ink-inverse) 10%, transparent); color: var(--ink-inverse); } }
+.sk-subitem:active { background: color-mix(in srgb, var(--ink-inverse) 18%, transparent); }
+.sk-subitem.active { color: var(--ink-inverse); background: color-mix(in srgb, var(--ink-inverse) 14%, transparent); font-weight: 600; }
 .sk-side.collapsed .sk-subnav { display: none; }
 
 .sk-spring { flex: 1; }
 
-.sk-foot { border-top: 1px solid rgba(148, 163, 184, 0.12); padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+.sk-foot { border-top: 1px solid color-mix(in srgb, var(--ink-inverse) 12%, transparent); padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
 .sk-foot-actions { display: flex; gap: 6px; }
 .sk-fbtn {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px; border-radius: 8px;
-  background: rgba(148, 163, 184, 0.08); color: #94A3B8; cursor: pointer; font-size: 12px; font-weight: 600;
+  background: color-mix(in srgb, var(--ink-inverse) 8%, transparent); color: color-mix(in srgb, var(--ink-inverse) 60%, var(--brand-deep)); cursor: pointer; font-size: 12px; font-weight: 600;
   border: none; font-family: inherit; text-decoration: none;
 }
-@media (hover: hover) { .sk-fbtn:hover { background: rgba(148, 163, 184, 0.16); color: #E2E8F0; } }
-.sk-fbtn:active { background: rgba(148, 163, 184, 0.22); }
+@media (hover: hover) { .sk-fbtn:hover { background: color-mix(in srgb, var(--ink-inverse) 16%, transparent); color: var(--ink-inverse); } }
+.sk-fbtn:active { background: color-mix(in srgb, var(--ink-inverse) 22%, transparent); }
 .sk-fbtn svg { width: 16px; height: 16px; stroke: currentColor; }
 .sk-side.collapsed .sk-fbtn .sk-fl { display: none; }
 .sk-side.collapsed .sk-foot-actions { flex-direction: column; }
@@ -191,13 +363,13 @@ body {
   .sk-mobilebar {
     display: flex; align-items: center; justify-content: space-between;
     position: fixed; top: 0; left: 0; right: 0; height: 54px; z-index: 60;
-    background: linear-gradient(180deg, #1E293B 0%, #16202f 100%);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    background: var(--brand-deep);
+    border-bottom: 1px solid color-mix(in srgb, var(--ink-inverse) 12%, transparent);
     padding-right: 6px;
   }
   .sk-mobilebar .sk-brand { padding: 0 14px; }
   .sk-burger {
-    background: none; border: none; color: #CBD5E1; cursor: pointer;
+    background: none; border: none; color: var(--ink-inverse); cursor: pointer;
     width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
   }
   .sk-burger svg { width: 24px; height: 24px; stroke: currentColor; }
@@ -207,7 +379,7 @@ body {
 
   .sk-scrim {
     display: block; position: fixed; inset: 0; z-index: 65;
-    background: rgba(15, 23, 42, 0.55);
+    background: color-mix(in srgb, var(--brand-deep) 60%, transparent);
   }
 
   /* Rail hidden; reappears as a drawer when opened. Full labels + subnavs. */
@@ -215,7 +387,7 @@ body {
   .sk-side.mobile-open {
     display: flex; position: fixed; top: 0; bottom: 0; left: 0; z-index: 70;
     width: min(300px, 85vw);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
+    border-right: 1px solid color-mix(in srgb, var(--ink-inverse) 18%, transparent);
     overflow-y: auto;
   }
   /* The manual desktop collapse state never applies inside the drawer. */

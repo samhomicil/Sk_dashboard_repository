@@ -78,8 +78,8 @@ export default function OrderGuidePage() {
       <div className="flex flex-wrap items-center justify-between gap-2 -mt-2">
         <p className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
           <span>On-hand as of {data.onHandAsOf ?? '—'} · usage week {data.usageWeekStart} → {data.usageWeekEnd} · demand from Brink POS, usage count-based from NetChef</span>
-          {data.weatherLift > 1.02 && <span className="pill pill-yellow">🔥 heat +{Math.round((data.weatherLift - 1) * 100)}% demand</span>}
-          {data.holidays?.length > 0 && <span className="pill pill-teal">🎉 {data.holidays.join(', ')}</span>}
+          {data.weatherLift > 1.02 && <span className="pill pill-yellow">Heat +{Math.round((data.weatherLift - 1) * 100)}% demand</span>}
+          {data.holidays?.length > 0 && <span className="pill pill-teal">{data.holidays.join(', ')}</span>}
         </p>
         <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
           {STORE_TABS.map(t => (
@@ -95,7 +95,7 @@ export default function OrderGuidePage() {
       {truck && (
         <div className="card border-l-[3px] border-l-teal-500 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🚚</span>
+            
             <div>
               <div className="text-sm font-bold text-slate-700">Next truck — {wdmd(truck.delivery)}</div>
               <div className="text-xs text-slate-500">Place this order by <b className="text-slate-700">{wdmd(truck.orderBy)}</b>{truck.following && <> · following truck {wdmd(truck.following)}</>}</div>

@@ -545,7 +545,7 @@ function RecognitionCard({ items }: {
       <div className="flex flex-wrap gap-2">
         {items.map((it, i) => (
           <div key={i} className="flex items-baseline gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-50 text-xs">
-            <span>{it.kind === 'birthday' ? '🎂' : '⭐'}</span>
+            <span className="sk-dot" style={{ background: it.kind === 'birthday' ? 'var(--accent)' : 'var(--brand)' }} />
             <span className="font-semibold text-slate-700">{it.employee}</span>
             <span className="text-slate-400">
               {it.kind === 'anniversary' && it.years ? `${it.years}yr · ` : ''}

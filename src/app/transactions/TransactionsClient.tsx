@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const STORE_COLORS: Record<string, string> = { margate: '#3B82F6', miramar: '#F59E0B', pines: '#10B981' };
+const STORE_COLORS: Record<string, string> = { margate: 'var(--ramp-sequential-4)', miramar: 'var(--status-warn)', pines: 'var(--status-good)' };
 const NAME: Record<string, string> = { margate: 'Margate', miramar: 'Miramar', pines: 'Pines' };
 const STORES = ['All', 'Margate', 'Miramar', 'Pines'] as const;
 type StoreFilter = (typeof STORES)[number];
@@ -128,7 +128,7 @@ export default function TransactionsClient() {
               return (
                 <button key={s} onClick={() => setStore(s)}
                   className="rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors"
-                  style={on ? { background: s === 'All' ? '#0F172A' : STORE_COLORS[s.toLowerCase()], color: '#fff' } : { color: '#64748B' }}>
+                  style={on ? { background: s === 'All' ? 'var(--ink)' : STORE_COLORS[s.toLowerCase()], color: 'var(--surface)' } : { color: 'var(--ink-muted)' }}>
                   {s}
                 </button>
               );
@@ -178,10 +178,10 @@ export default function TransactionsClient() {
               {/* Summary strip */}
               <div className="grid grid-cols-4 border-b border-slate-100 bg-slate-50">
                 {[
-                  { l: 'Transactions', v: loading ? '—' : String(filtered.length), c: '#0F172A' },
-                  { l: 'Money in', v: loading ? '—' : '+' + $f(income), c: '#059669' },
-                  { l: 'Money out', v: loading ? '—' : '−' + $f(expenses), c: '#DC2626' },
-                  { l: 'Net', v: loading ? '—' : (net >= 0 ? '+' : '−') + $f(net), c: net >= 0 ? '#059669' : '#DC2626' },
+                  { l: 'Transactions', v: loading ? '—' : String(filtered.length), c: 'var(--ink)' },
+                  { l: 'Money in', v: loading ? '—' : '+' + $f(income), c: 'var(--status-good)' },
+                  { l: 'Money out', v: loading ? '—' : '−' + $f(expenses), c: 'var(--status-bad)' },
+                  { l: 'Net', v: loading ? '—' : (net >= 0 ? '+' : '−') + $f(net), c: net >= 0 ? 'var(--status-good)' : 'var(--status-bad)' },
                 ].map((s, i) => (
                   <div key={s.l} className={`px-5 py-3 ${i > 0 ? 'border-l border-slate-100' : ''}`}>
                     <div className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.05em] text-slate-400">{s.l}</div>

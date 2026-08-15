@@ -12,8 +12,8 @@ interface Payload {
   bucketOrder: string[]; variable: string[]; stores: StoreData[]
 }
 
-const COLOR: Record<string, string> = { Margate: '#2a78d6', Miramar: '#00832f', Pines: '#cf5a92' }
-const TINT: Record<string, string> = { Margate: '#eaf2fb', Miramar: '#e4f3e9', Pines: '#fbe9f1' }
+const COLOR: Record<string, string> = { Margate: 'var(--store-margate)', Miramar: 'var(--store-miramar)', Pines: 'var(--store-pines)' }
+const TINT: Record<string, string> = { Margate: 'color-mix(in srgb, var(--brand) 10%, var(--surface))', Miramar: 'color-mix(in srgb, var(--status-good) 14%, var(--surface))', Pines: 'color-mix(in srgb, var(--store-pines) 22%, var(--surface))' }
 const BUCKET_LABEL: Record<string, string> = {
   Food: 'Food', Labor: 'Labor', Franchise: 'Franchise & corporate', Occupancy: 'Rent / occupancy',
   Debt: 'Debt service', Utilities: 'Utilities', Insurance: 'Insurance', Operating: 'Operating & admin', 'Sales tax': 'Sales tax',
@@ -296,29 +296,33 @@ function Shell({ children, store }: { children: React.ReactNode; store?: string 
 function Style() {
   return (
     <style>{`
-    .fin{--bg:#f3f5f8;--surface:#fff;--elev:#f9fbfe;--ink:#182231;--muted:#586376;--faint:#8a95a6;--line:#e5e9ef;--line2:#eef1f5;
-      --good:#137a4c;--good-bg:#e5f3ea;--warn:#b9770e;--warn-bg:#fbf1de;--crit:#c5352f;--crit-bg:#fbe6e5;--pos:#137a4c;--neg:#c5352f;
-      --cert:#465468;--store:#2a78d6;--store-tint:#eaf2fb;--shadow:0 1px 2px rgba(24,34,49,.05),0 8px 22px rgba(24,34,49,.06);
+    /* This screen carries its own variable set, written before the design tokens
+       existed. Rather than rewrite every rule below, the variables now RESOLVE to
+       the tokens — one indirection, and the whole panel is on the system's
+       palette. --shadow becomes none because the system has no drop shadows. */
+    .fin{--bg:var(--ground);--surface:var(--surface);--elev:var(--surface);--ink:var(--ink);--muted:var(--ink-muted);--faint:var(--ink-muted);--line:var(--border);--line2:var(--border-subtle);
+      --good:var(--status-good);--good-bg:color-mix(in srgb,var(--status-good) 12%,var(--surface));--warn:var(--status-warn);--warn-bg:color-mix(in srgb,var(--status-warn) 14%,var(--surface));--crit:var(--status-bad);--crit-bg:color-mix(in srgb,var(--status-bad) 10%,var(--surface));--pos:var(--status-good);--neg:var(--status-bad);
+      --cert:var(--store-miramar);--store:var(--brand);--store-tint:color-mix(in srgb,var(--brand) 10%,var(--surface));--shadow:none;
       background:var(--bg);color:var(--ink);min-height:100vh;padding:24px 20px 60px;font:14px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
     .fin *{box-sizing:border-box;} .fin table{font-variant-numeric:tabular-nums;} .fin .val,.mval,.sumv,.netv,.amt,.wd,.subpct{font-variant-numeric:tabular-nums;}
     .fin .muted{color:var(--muted);} .eyebrow{text-transform:uppercase;letter-spacing:.09em;font-size:10.5px;font-weight:700;color:var(--faint);}
     .fin-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px;max-width:1080px;}
     .fin h1{font-size:21px;font-weight:680;margin:2px 0 3px;letter-spacing:-.01em;} .fin .sub{color:var(--muted);font-size:13px;}
     .tabs{display:flex;gap:6px;} .tab{border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 13px/1 inherit;padding:9px 15px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:8px;}
-    @media (hover:hover){.tab:hover{color:var(--ink);}} .tab .dot{width:9px;height:9px;border-radius:50%;} .tab[aria-selected="true"]{color:var(--ink);border-color:var(--store);background:var(--store-tint);box-shadow:inset 0 -2px 0 var(--store);}
-    .take{display:flex;align-items:center;gap:12px;margin:14px 0 20px;padding:12px 15px;border-radius:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--store);box-shadow:var(--shadow);max-width:1080px;flex-wrap:wrap;}
+    @media (hover:hover){.tab:hover{color:var(--ink);}} .tab .dot{width:6px;height:6px;border-radius:50%;} .tab[aria-selected="true"]{color:var(--ink);border-color:var(--store);background:var(--store-tint);box-shadow:inset 0 -2px 0 var(--store);}
+    .take{display:flex;align-items:center;gap:12px;margin:14px 0 20px;padding:12px 15px;border-radius:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--store);max-width:1080px;flex-wrap:wrap;}
     .take .big{font-weight:680;} .take .lede{color:var(--muted);font-size:13px;}
     .pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;} .pill.good{background:var(--good-bg);color:var(--good);} .pill.warn{background:var(--warn-bg);color:var(--warn);} .pill.crit{background:var(--crit-bg);color:var(--crit);}
     .dials{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;max-width:1080px;}
-    .dial{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px 14px;box-shadow:var(--shadow);}
-    .dial.hero{border:1px solid var(--store);box-shadow:inset 0 0 0 1px var(--store),var(--shadow);background:linear-gradient(180deg,var(--store-tint),var(--surface) 60%);}
+    .dial{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px 14px;}
+    .dial.hero{border:1px solid var(--store);background:var(--surface);}
     .dial.hero .nm{font-size:13.5px;font-weight:700;} .dial.hero .val{font-size:32px;}
     .dial .dh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;} .dial .nm{font-weight:640;font-size:12.5px;}
     .dial .val{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1;margin:2px 0 3px;} .val.good{color:var(--good);} .val.warn{color:var(--warn);} .val.crit{color:var(--crit);} .val.neg{color:var(--neg);}
     .dial .meta{font-size:11.5px;color:var(--muted);margin-bottom:10px;min-height:15px;}
     .meter{position:relative;height:7px;border-radius:5px;background:var(--line2);} .meter .fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;} .fill.good{background:var(--good);} .fill.warn{background:var(--warn);} .fill.crit{background:var(--crit);}
     .meter .tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.5;border-radius:2px;} .meter .ticklab{position:absolute;top:10px;font-size:9.5px;color:var(--faint);transform:translateX(-50%);white-space:nowrap;}
-    .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:22px;max-width:1080px;}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:22px;max-width:1080px;}
     .cap{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 16px 11px;border-bottom:1px solid var(--line2);flex-wrap:wrap;} .cap .t{font-weight:660;font-size:14px;} .tag{font-size:9.5px;color:var(--faint);font-weight:600;margin-left:6px;}
     .legend{display:flex;gap:13px;font-size:11px;color:var(--muted);align-items:center;} .lg{display:inline-flex;align-items:center;gap:5px;}
     .sw{width:15px;height:8px;border-radius:2px;background:var(--cert);display:inline-block;} .sw.c{opacity:.45;} .sw.f{background:transparent;background-image:repeating-linear-gradient(45deg,var(--cert) 0 1.5px,transparent 1.5px 4px);opacity:.6;}
@@ -335,7 +339,7 @@ function Style() {
     tr.item{background:var(--elev);} tr.item .rowlab{background:var(--elev);font-weight:500;color:var(--muted);padding:5px 12px 5px 34px;font-size:12.5px;border-top:1px solid var(--line2);} tr.item td.cell{padding:5px 11px;border-top:1px solid var(--line2);} tr.item .mval{font-weight:500;font-size:12px;color:var(--muted);}
     tr.item.ctx .rowlab,tr.item.ctx .mval{color:var(--faint);font-style:italic;}
     .cur-col{background:var(--store-tint)!important;box-shadow:inset 1px 0 0 var(--store),inset -1px 0 0 var(--store);} .hist .mval,.hist.rowlab{color:var(--muted);}
-    tr.sum .rowlab{padding:11px 12px;border-top:2px solid #d5dae2;font-weight:700;} tr.sum td.cell{border-top:2px solid #d5dae2;} .sumv{font-weight:700;font-size:13px;}
+    tr.sum .rowlab{padding:11px 12px;border-top:2px solid var(--border);font-weight:700;} tr.sum td.cell{border-top:2px solid var(--border);} .sumv{font-weight:700;font-size:13px;}
     tr.plan .rowlab{padding:9px 12px;border-top:1px dashed var(--line);font-weight:600;color:var(--muted);} tr.plan td.cell{border-top:1px dashed var(--line);} .planv{font-weight:600;font-size:12.5px;color:var(--muted);}
     tr.net .rowlab,tr.net td{border-top:1px solid var(--line);} .netv{font-weight:700;font-size:13.5px;} .netv.pos{color:var(--pos);} .netv.neg{color:var(--neg);}
     tr.pass .rowlab{padding:8px 12px;color:var(--faint);font-weight:500;font-style:italic;} tr.pass td .mval{color:var(--faint);font-weight:500;font-size:12px;}

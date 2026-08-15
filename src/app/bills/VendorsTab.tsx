@@ -279,7 +279,7 @@ function CatFilter({ cats, selected, onChange }: {
         </span>
         {selected.size > 0 && (
           <span
-            style={{ fontSize: 10, background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontWeight: 700 }}
+            style={{ fontSize: 10, background: 'var(--accent)', color: 'var(--surface)', borderRadius: 10, padding: '1px 6px', fontWeight: 700 }}
             onClick={(e) => { e.stopPropagation(); onChange(new Set()); }}
           >
             ✕
@@ -295,7 +295,7 @@ function CatFilter({ cats, selected, onChange }: {
           minWidth: 210, padding: '6px 0', maxHeight: 300, overflowY: 'auto',
         }}>
           {cats.map((c) => (
-            <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px', fontSize: 13, cursor: 'pointer', userSelect: 'none', background: selected.has(c) ? 'var(--accent-faint, #f0f4ff)' : 'none' }}>
+            <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px', fontSize: 13, cursor: 'pointer', userSelect: 'none', background: selected.has(c) ? 'var(--accent-faint, color-mix(in srgb, var(--brand) 8%, var(--surface)))' : 'none' }}>
               <input
                 type="checkbox"
                 checked={selected.has(c)}
@@ -785,7 +785,7 @@ function BillRow({
           </span>
         ) : (
           <span className="vk-badge b-manual">
-            ✋ Manual
+            Manual
           </span>
         )}
       </td>
@@ -823,7 +823,7 @@ function BillRow({
           <span style={{ color: 'var(--faint)', fontSize: 12 }}>—</span>
         ) : isPaid ? (
           isAuto ? (
-            <span className="vk-badge" style={{ background: '#16a34a22', color: '#16a34a', fontSize: 11 }}>
+            <span className="vk-badge" style={{ background: 'var(--status-good)22', color: 'var(--status-good)', fontSize: 11 }}>
               ✓ Paid
             </span>
           ) : (
@@ -832,14 +832,14 @@ function BillRow({
               disabled={toggling}
               onClick={togglePaid}
               title="Click to mark unpaid"
-              style={{ color: '#16a34a', fontWeight: 600, opacity: toggling ? 0.5 : 1 }}
+              style={{ color: 'var(--status-good)', fontWeight: 600, opacity: toggling ? 0.5 : 1 }}
             >
               ✓ Paid
             </button>
           )
         ) : (
           isAuto ? (
-            <span className="vk-badge" style={{ background: '#f97316', color: '#fff', fontSize: 11 }}>
+            <span className="vk-badge" style={{ background: 'var(--status-warn)', color: 'var(--surface)', fontSize: 11 }}>
               Pending
             </span>
           ) : (

@@ -18,7 +18,8 @@ interface PnlTrendResult {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
-const STORE_COLORS: Record<string, string> = { margate: '#3B82F6', miramar: '#F59E0B', pines: '#10B981' };
+// Tints of one indigo hue; the company name is printed beside every swatch.
+const STORE_COLORS: Record<string, string> = { margate: 'var(--store-margate)', miramar: 'var(--store-miramar)', pines: 'var(--store-pines)' };
 
 function $f(n: number | null) {
   if (n === null) return '—';
@@ -351,7 +352,9 @@ function buildBridge(revenue: number, gp: number, opex: number, ni: number): Bri
   return steps;
 }
 
-const BRIDGE_COLOR: Record<string, string> = { revenue: '#334155', cogs: '#FB7185', gp: '#6366F1', opex: '#FB7185', other: '#F59E0B' };
+// Revenue and gross profit are magnitudes on one hue; cost bars are the status
+// red they earn. `--ink` here painted a near-black slab that swamped the panel.
+const BRIDGE_COLOR: Record<string, string> = { revenue: 'var(--brand)', cogs: 'var(--status-bad)', gp: 'var(--ramp-sequential-4)', opex: 'var(--status-bad)', other: 'var(--status-warn)' };
 
 function PnlBridge({ steps }: { steps: BridgeStep[] }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
@@ -380,7 +383,7 @@ function PnlBridge({ steps }: { steps: BridgeStep[] }) {
   const zeroY = yOf(0);
   const xOf = (i: number) => PAD.l + i * (barW + gap);
 
-  const colorFor = (key: string, value: number) => key === 'ni' ? (value >= 0 ? '#059669' : '#DC2626') : (BRIDGE_COLOR[key] ?? '#94A3B8');
+  const colorFor = (key: string, value: number) => key === 'ni' ? (value >= 0 ? 'var(--status-good)' : 'var(--status-bad)') : (BRIDGE_COLOR[key] ?? 'var(--ink-muted)');
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -390,11 +393,11 @@ function PnlBridge({ steps }: { steps: BridgeStep[] }) {
       </div>
       <div className="relative px-3 pb-2 pt-3">
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-          <line x1={PAD.l} y1={zeroY} x2={W - PAD.r} y2={zeroY} stroke="#E2E8F0" strokeWidth={1} />
+          <line x1={PAD.l} y1={zeroY} x2={W - PAD.r} y2={zeroY} stroke="var(--border)" strokeWidth={1} />
           {bars.map((b, i) => i < n - 1 && (
             <line key={'c' + i}
               x1={xOf(i) + barW} y1={yOf(b.to)} x2={xOf(i + 1)} y2={yOf(bars[i + 1].from)}
-              stroke="#CBD5E1" strokeWidth={1} strokeDasharray="3 3" />
+              stroke="var(--border)" strokeWidth={1} strokeDasharray="3 3" />
           ))}
           {bars.map((b, i) => {
             const top = yOf(Math.max(b.from, b.to));
@@ -407,8 +410,8 @@ function PnlBridge({ steps }: { steps: BridgeStep[] }) {
                 opacity={hoverIdx === null || hoverIdx === i ? 1 : 0.55} style={{ transition: 'opacity .12s' }}
               >
                 <rect x={xOf(i)} y={top} width={barW} height={h} rx={4} fill={col} />
-                <text x={xOf(i) + barW / 2} y={top - 8} textAnchor="middle" fontSize="11" fontWeight="700" fontFamily="JetBrains Mono, monospace" fill="#334155">{valueLabel}</text>
-                <text x={xOf(i) + barW / 2} y={H - 12} textAnchor="middle" fontSize="10.5" fontWeight="600" fontFamily="Inter, sans-serif" fill="#94A3B8">{b.label}</text>
+                <text x={xOf(i) + barW / 2} y={top - 8} textAnchor="middle" fontSize="11" fontWeight="700" fontFamily="JetBrains Mono, monospace" fill="var(--ink)">{valueLabel}</text>
+                <text x={xOf(i) + barW / 2} y={H - 12} textAnchor="middle" fontSize="10.5" fontWeight="600" fontFamily="Inter, sans-serif" fill="var(--ink-muted)">{b.label}</text>
               </g>
             );
           })}
@@ -467,7 +470,7 @@ function TrendChart({ trendResults, metric }: { trendResults: PnlTrendResult[]; 
   for (let t = 0; t <= yTicks; t++) {
     const v = yMin + (yRange * t) / yTicks;
     const y = yOf(v);
-    gridLines.push(`<line x1="${PAD.left}" y1="${y.toFixed(1)}" x2="${(W - PAD.right).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#F1F5F9" stroke-width="1"/>`);
+    gridLines.push(`<line x1="${PAD.left}" y1="${y.toFixed(1)}" x2="${(W - PAD.right).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--ground)" stroke-width="1"/>`);
     const abs = Math.abs(v);
     const lbl = abs >= 10000 ? `${v < 0 ? '-' : ''}$${Math.round(abs / 1000)}k`
               : abs >= 1000  ? `${v < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`
@@ -476,23 +479,26 @@ function TrendChart({ trendResults, metric }: { trendResults: PnlTrendResult[]; 
   }
 
   // Zero line
-  const zeroLine = `<line x1="${PAD.left}" y1="${zeroY.toFixed(1)}" x2="${(W - PAD.right).toFixed(1)}" y2="${zeroY.toFixed(1)}" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  const zeroLine = `<line x1="${PAD.left}" y1="${zeroY.toFixed(1)}" x2="${(W - PAD.right).toFixed(1)}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
 
   // Store lines + area fills
   let paths = '';
   stores.forEach(({ company, trend }) => {
-    const col = STORE_COLORS[company] ?? '#6366F1';
+    const col = STORE_COLORS[company] ?? 'var(--brand)';
     const pts = trend.map((p, i) => ({ x: xOf(i), y: yOf(valueOf(p)) }));
     const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
     const fillPts = [...pts, { x: pts[pts.length - 1].x, y: zeroY }, { x: pts[0].x, y: zeroY }];
     const fillPath = fillPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + 'Z';
-    const colHex = col.replace('#', '');
+    // The gradient id is derived from the COMPANY, not the colour. It used to strip
+    // a '#' off a hex; now that colours are `var(--store-margate)` that produced an
+    // id full of parens, an unresolvable url(#...), and an area filled solid black.
+    const colHex = company.replace(/[^a-z0-9]/gi, '');
     paths += `<defs><linearGradient id="pnl-${colHex}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity=".14"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>`;
     paths += `<path d="${fillPath}" fill="url(#pnl-${colHex})"/>`;
     paths += `<path d="${linePath}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
     pts.forEach((p, i) => {
       const isLast = i === pts.length - 1;
-      paths += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 5 : 4}" fill="${col}" stroke="white" stroke-width="2"/>`;
+      paths += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 5 : 4}" fill="${col}" stroke="var(--surface)" stroke-width="2"/>`;
     });
   });
 
@@ -502,7 +508,7 @@ function TrendChart({ trendResults, metric }: { trendResults: PnlTrendResult[]; 
     const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
     // Show abbreviated label (e.g. "Jan" instead of "Jan 2026") if more than 8 months
     const lbl = n > 8 ? m.label.split(' ')[0] : m.label;
-    return `<text x="${x.toFixed(1)}" y="${(H - 6).toFixed(1)}" font-size="11" fill="#64748B" text-anchor="${anchor}" font-family="Inter,system-ui,sans-serif" font-weight="500">${lbl}</text>`;
+    return `<text x="${x.toFixed(1)}" y="${(H - 6).toFixed(1)}" font-size="11" fill="var(--ink-muted)" text-anchor="${anchor}" font-family="Inter,system-ui,sans-serif" font-weight="500">${lbl}</text>`;
   }).join('');
 
   const svgContent = [
@@ -511,7 +517,7 @@ function TrendChart({ trendResults, metric }: { trendResults: PnlTrendResult[]; 
     paths,
     xAxisLabels,
     yLabels.map(({ y, label }) =>
-      `<text x="${(PAD.left - 8).toFixed(1)}" y="${(y + 4).toFixed(1)}" font-size="11" fill="#64748B" text-anchor="end" font-family="Inter,system-ui,sans-serif">${label}</text>`
+      `<text x="${(PAD.left - 8).toFixed(1)}" y="${(y + 4).toFixed(1)}" font-size="11" fill="var(--ink-muted)" text-anchor="end" font-family="Inter,system-ui,sans-serif">${label}</text>`
     ).join(''),
   ].join('\n');
 
@@ -731,8 +737,8 @@ export default function PnlClient() {
                   <button key={s} onClick={() => setStore(s)}
                     className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
                     style={store === s
-                      ? { background: s === 'All' ? '#0F172A' : STORE_COLORS[s.toLowerCase()], color: '#fff' }
-                      : { color: '#64748b' }}>
+                      ? { background: s === 'All' ? 'var(--ink)' : STORE_COLORS[s.toLowerCase()], color: 'var(--surface)' }
+                      : { color: 'var(--ink-muted)' }}>
                     {s}
                   </button>
                 ))}
@@ -743,7 +749,7 @@ export default function PnlClient() {
                 {PERIOD_MODES.map(md => (
                   <button key={md} onClick={() => setPeriod(p => ({ ...p, mode: md }))}
                     className="rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
-                    style={period.mode === md ? { background: '#fff', color: '#0F172A', boxShadow: '0 1px 2px rgba(0,0,0,.06)' } : { color: '#64748b' }}>
+                    style={period.mode === md ? { background: 'var(--surface)', color: 'var(--ink)', boxShadow: 'inset 0 0 0 1px var(--border)' } : { color: 'var(--ink-muted)' }}>
                     {MODE_LABEL[md]}
                   </button>
                 ))}
@@ -780,7 +786,7 @@ export default function PnlClient() {
                 {(['Accrual', 'Cash'] as const).map(b => (
                   <button key={b} onClick={() => setBasis(b)}
                     className="rounded-md px-2 py-0.5 text-[10.5px] font-medium transition-colors"
-                    style={basis === b ? { background: '#fff', color: '#0F172A', boxShadow: '0 1px 2px rgba(0,0,0,.06)' } : { color: '#94a3b8' }}>
+                    style={basis === b ? { background: 'var(--surface)', color: 'var(--ink)', boxShadow: 'inset 0 0 0 1px var(--border)' } : { color: 'var(--ink-muted)' }}>
                     {b}
                   </button>
                 ))}
@@ -900,16 +906,16 @@ const SPECIAL_STYLE: Record<string, string> = {
 // section names (Income / Cost of Goods Sold / Expenses / Other Income / Other
 // Expenses), purely cosmetic so an unrecognized label just falls back to grey.
 function sectionAccent(label: string): string {
-  if (/other income/i.test(label)) return '#10B981';
-  if (/other expense/i.test(label)) return '#F43F5E';
-  if (/cost of goods|cogs/i.test(label)) return '#F59E0B';
-  if (/income/i.test(label)) return '#3B82F6';
-  if (/expense/i.test(label)) return '#64748B';
-  return '#94A3B8';
+  if (/other income/i.test(label)) return 'var(--status-good)';
+  if (/other expense/i.test(label)) return 'var(--status-bad)';
+  if (/cost of goods|cogs/i.test(label)) return 'var(--status-warn)';
+  if (/income/i.test(label)) return 'var(--ramp-sequential-4)';
+  if (/expense/i.test(label)) return 'var(--ink-muted)';
+  return 'var(--ink-muted)';
 }
 
 function PnlStatement({ results }: { results: PnlStoreResult[] }) {
-  const stores = results.map(r => ({ key: r.company, name: r.name, color: STORE_COLORS[r.company] ?? '#64748B', rows: r.report?.rows ?? [] }));
+  const stores = results.map(r => ({ key: r.company, name: r.name, color: STORE_COLORS[r.company] ?? 'var(--ink-muted)', rows: r.report?.rows ?? [] }));
   const parsed = Object.fromEntries(stores.map(s => [s.key, parseStore(s.rows)]));
   const incomeTotals: Record<string, number> = Object.fromEntries(stores.map(s => [s.key, parsed[s.key].incomeTotal || 0]));
 

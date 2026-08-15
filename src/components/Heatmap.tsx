@@ -32,15 +32,15 @@ const HOURS = Array.from({ length: 15 }, (_, i) => {
 const STORE_TARGETS = STORE_UPH
 
 function heatBg(v: number, target: number): string {
-  if (!v)                   return '#f8fafc'
-  if (v < target * 0.78)    return '#dbeafe' // overstaffed
-  if (v <= target * 1.22)   return '#0d9488' // optimal
-  if (v <= target * 1.55)   return '#f59e0b' // understaffed
-  return '#ef4444'                            // critically understaffed
+  if (!v)                   return 'var(--surface)'
+  if (v < target * 0.78)    return 'var(--ramp-sequential-2)' // overstaffed
+  if (v <= target * 1.22)   return 'var(--brand)' // optimal
+  if (v <= target * 1.55)   return 'var(--status-warn)' // understaffed
+  return 'var(--status-bad)'                            // critically understaffed
 }
 function heatFg(v: number, target: number): string {
-  if (!v || v < target * 0.78) return '#93c5fd'
-  return '#fff'
+  if (!v || v < target * 0.78) return 'var(--ramp-sequential-3)'
+  return 'var(--surface)'
 }
 
 function StoreGrid({ name, target, cells, compact, showEmployees }: { name: string; target: number; cells: StaffingCell[]; compact: boolean; showEmployees: boolean }) {
@@ -222,16 +222,16 @@ export default function Heatmap({ data, store, period, dates, unitsWindow, loadi
           {isAll ? (
             <div className="text-xs text-slate-400 mt-0.5">
               Targets — <span className="font-bold text-slate-600">Pines {STORE_TARGETS.pines}</span> · <span className="font-bold text-slate-600">Miramar {STORE_TARGETS.miramar}</span> · <span className="font-bold text-slate-600">Margate {STORE_TARGETS.margate}</span> UPLH &nbsp;·&nbsp;
-              <span className="font-semibold text-blue-400">Blue</span> below target (overstaffed) &nbsp;·&nbsp;
-              <span className="font-semibold text-teal-600">Teal</span> at target (optimal) &nbsp;·&nbsp;
+              <span className="font-semibold text-blue-400">Pale</span> below target (overstaffed) &nbsp;·&nbsp;
+              <span className="font-semibold text-teal-600">Indigo</span> at target (optimal) &nbsp;·&nbsp;
               <span className="font-semibold text-amber-500">Amber/Red</span> above target (understaffed)
               {showEmployees ? ' · hover for names' : ' · switch to weekly to see employees'}
             </div>
           ) : (
             <div className="text-xs text-slate-400 mt-0.5">
               Target {singleTarget} UPLH &nbsp;·&nbsp;
-              <span className="font-semibold text-blue-400">Blue &lt;{(singleTarget! * 0.78).toFixed(1)}</span> overstaffed &nbsp;·&nbsp;
-              <span className="font-semibold text-teal-600">Teal {(singleTarget! * 0.78).toFixed(1)}–{(singleTarget! * 1.22).toFixed(1)}</span> optimal &nbsp;·&nbsp;
+              <span className="font-semibold text-blue-400">Pale &lt;{(singleTarget! * 0.78).toFixed(1)}</span> overstaffed &nbsp;·&nbsp;
+              <span className="font-semibold text-teal-600">Indigo {(singleTarget! * 0.78).toFixed(1)}–{(singleTarget! * 1.22).toFixed(1)}</span> optimal &nbsp;·&nbsp;
               <span className="font-semibold text-amber-500">Amber/Red &gt;{(singleTarget! * 1.22).toFixed(1)}</span> understaffed
               {showEmployees ? ' · hover for names' : ' · switch to weekly to see employees'}
             </div>
@@ -240,10 +240,14 @@ export default function Heatmap({ data, store, period, dates, unitsWindow, loadi
       </div>
 
       {isAll ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {visibleStores.map(s => (
-            <StoreGrid key={s.key} name={s.label} target={STORE_TARGETS[s.key]} cells={data[s.key]} compact={true} showEmployees={showEmployees} />
-          ))}
+        /* Scrolls rather than clipping: three week grids side by side cut Saturday
+           off the right edge, and a missing day reads as a closed day. */
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-w-max md:min-w-0">
+            {visibleStores.map(s => (
+              <StoreGrid key={s.key} name={s.label} target={STORE_TARGETS[s.key]} cells={data[s.key]} compact={true} showEmployees={showEmployees} />
+            ))}
+          </div>
         </div>
       ) : (
         <StoreGrid name={visibleStores[0]?.label ?? ''} target={singleTarget ?? 18} cells={data[visibleStores[0]?.key ?? 'pines']} compact={false} showEmployees={showEmployees} />

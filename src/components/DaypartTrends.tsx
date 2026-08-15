@@ -8,17 +8,17 @@ import { parseSize, parseFlavor } from '@/lib/menuMixUtils'
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const CAT_DOT: Record<string, string> = {
-  'Smoothies':       '#14b8a6',
-  'Smoothie Bowls':  '#8b5cf6',
-  'Food':            '#f59e0b',
-  'Retail Products': '#38bdf8',
-  'Retail Goods':    '#94a3b8',
+  'Smoothies':       'var(--brand)',
+  'Smoothie Bowls':  'var(--owner-only)',
+  'Food':            'var(--status-warn)',
+  'Retail Products': 'var(--ramp-sequential-3)',
+  'Retail Goods':    'var(--ink-muted)',
 }
 
 const STORE_COLOR: Record<'pines' | 'miramar' | 'margate', string> = {
-  pines:   '#0d9488',
-  miramar: '#6366f1',
-  margate: '#f59e0b',
+  pines:   'var(--brand)',
+  miramar: 'var(--brand)',
+  margate: 'var(--status-warn)',
 }
 const STORE_LABEL: Record<'pines' | 'miramar' | 'margate', string> = {
   pines: 'Pines', miramar: 'Miramar', margate: 'Margate',
@@ -106,7 +106,7 @@ export default function DaypartTrends({ store }: { store: string }) {
 
   if (!data) {
     return (
-      <div className="card border-2 border-dashed border-slate-200" style={{ boxShadow: 'none', background: '#f8fafc' }}>
+      <div className="card border-2 border-dashed border-slate-200" style={{ boxShadow: 'none', background: 'var(--surface)' }}>
         <div className="flex items-start gap-3">
           <svg className="w-5 h-5 text-slate-300 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
@@ -179,9 +179,9 @@ export default function DaypartTrends({ store }: { store: string }) {
           <div className="text-xs text-slate-400 mb-3">{data.windowStart} – {data.windowEnd} · click a bar for detail</div>
           <ResponsiveContainer width="100%" height={150}>
             <BarChart data={dpRows} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--ink-muted)' }} axisLine={false} tickLine={false} />
               <YAxis hide />
-              <Tooltip content={<DaypartTooltip />} cursor={{ fill: '#f1f5f9' }} />
+              <Tooltip content={<DaypartTooltip />} cursor={{ fill: 'var(--ground)' }} />
               <Bar
                 dataKey="sales"
                 radius={[4, 4, 0, 0]}
@@ -190,7 +190,7 @@ export default function DaypartTrends({ store }: { store: string }) {
                 onClick={(d: any) => setSelectedDaypart(prev => prev === d.name ? null : d.name)}
               >
                 {dpRows.map(d => (
-                  <Cell key={d.name} fill={d.name === selectedDaypart ? '#0d9488' : '#14b8a6'} />
+                  <Cell key={d.name} fill={d.name === selectedDaypart ? 'var(--brand)' : 'var(--brand)'} />
                 ))}
               </Bar>
             </BarChart>
@@ -240,20 +240,20 @@ export default function DaypartTrends({ store }: { store: string }) {
           <ResponsiveContainer width="100%" height={150}>
             {isGrouped ? (
               <BarChart data={groupedRows} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--ink-muted)' }} axisLine={false} tickLine={false} />
                 <YAxis hide />
-                <Tooltip content={<GroupedWeekdayTooltip metric={metric} />} cursor={{ fill: '#f1f5f9' }} />
+                <Tooltip content={<GroupedWeekdayTooltip metric={metric} />} cursor={{ fill: 'var(--ground)' }} />
                 {STORE_KEYS.map(s => (
                   <Bar key={s} dataKey={s} fill={STORE_COLOR[s]} radius={[3, 3, 0, 0]} maxBarSize={14} />
                 ))}
               </BarChart>
             ) : (
               <BarChart data={wdRows} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--ink-muted)' }} axisLine={false} tickLine={false} />
                 <YAxis hide />
-                <Tooltip content={<WeekdayTooltip metric={metric} />} cursor={{ fill: '#f1f5f9' }} />
+                <Tooltip content={<WeekdayTooltip metric={metric} />} cursor={{ fill: 'var(--ground)' }} />
                 <Bar dataKey={metric === 'sales' ? 'avgSales' : metric === 'qty' ? 'avgQty' : 'eePct'} radius={[4, 4, 0, 0]} maxBarSize={36}>
-                  {wdRows.map(r => <Cell key={r.dow} fill={r.dow === peakDow ? '#0d9488' : '#5eead4'} />)}
+                  {wdRows.map(r => <Cell key={r.dow} fill={r.dow === peakDow ? 'var(--brand)' : 'var(--ramp-sequential-3)'} />)}
                 </Bar>
               </BarChart>
             )}
@@ -293,13 +293,13 @@ export default function DaypartTrends({ store }: { store: string }) {
                   <div key={c.subcategory} className="mb-2.5">
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-slate-600">
-                        <span className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style={{ background: CAT_DOT[c.subcategory] ?? '#94a3b8' }} />
+                        <span className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style={{ background: CAT_DOT[c.subcategory] ?? 'var(--ink-muted)' }} />
                         {c.subcategory}
                       </span>
                       <span className="font-medium text-slate-700 tabular-nums">{pct(share)}</span>
                     </div>
                     <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${share * 100}%`, background: CAT_DOT[c.subcategory] ?? '#94a3b8' }} />
+                      <div className="h-full rounded-full" style={{ width: `${share * 100}%`, background: CAT_DOT[c.subcategory] ?? 'var(--ink-muted)' }} />
                     </div>
                   </div>
                 )
@@ -322,7 +322,7 @@ export default function DaypartTrends({ store }: { store: string }) {
                       <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
                         <td className="py-1.5 text-slate-300 tabular-nums">{i + 1}</td>
                         <td className="py-1.5 pr-2 font-medium text-slate-700 max-w-[220px] truncate" title={p.product}>
-                          <span className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style={{ background: CAT_DOT[p.subcategory] ?? '#94a3b8' }} />
+                          <span className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style={{ background: CAT_DOT[p.subcategory] ?? 'var(--ink-muted)' }} />
                           {displayName(p)}
                         </td>
                         <td className="py-1.5 text-right tabular-nums text-slate-600">{p.qty.toLocaleString()}</td>

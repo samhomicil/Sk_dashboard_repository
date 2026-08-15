@@ -95,7 +95,13 @@ function checkFile(path) {
     }
 
     // ---- emoji -------------------------------------------------------------
-    if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(raw)) {
+    // NARROWED from the handoff's original range. U+2600-27BF also covers the
+    // typographic dingbats — check, cross, warning sign, star — and the kit's own
+    // reference implementation prints "✓ 10% tgt" on the Overview, so the rule as
+    // shipped flagged the design it exists to enforce. It now catches pictographic
+    // emoji and anything carrying the emoji variation selector (U+FE0F), which is
+    // what actually renders as a colour glyph and differs per platform.
+    if (/[\u{1F300}-\u{1FAFF}\u{FE0F}]/u.test(raw)) {
       add(rel, n, 'no-emoji', 'Emoji are not part of this brand.', raw);
     }
 

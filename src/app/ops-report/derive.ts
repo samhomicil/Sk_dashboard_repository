@@ -12,7 +12,7 @@
  */
 
 /* ---------- contract types ---------- */
-export interface WxDay { icon: string; temp: string; condition: string }
+export interface WxDay { temp: string; condition: string }
 export interface WeekDay { day: string; date: string; type: 'ACTUAL' | 'PROJ'; weather: WxDay }
 export interface OrderSplit { day: string; covers: string; target: number }
 export interface StoreData {

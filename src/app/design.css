@@ -655,6 +655,15 @@
 .sk-callouts .sk-flag { border-bottom: 1px solid var(--border-subtle); }
 .sk-callouts .sk-flag:last-child { border-bottom: none; }
 
+/* An inline annotation on a row label — "in progress", "forecast", "upcoming".
+   Mono and muted, so it reads as a state and not part of the name. */
+.sk-note {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
 /* ── Mix list items ─────────────────────────────────────────────────────── */
 .sk-mixitem {
   display: flex;

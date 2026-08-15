@@ -3,20 +3,23 @@
 import { TARGETS } from '@/lib/config'
 import type { DailyRangeData, DailyRow } from '@/lib/types'
 import LaborTooltip from './LaborTooltip'
+import { UnknownValue } from '@/components/design/states'
 
 function pct(n: number, d = 1) { return `${(n * 100).toFixed(d)}%` }
 function dol(n: number)        { return `$${Math.round(n).toLocaleString()}` }
 
+/** Signed delta against the same date a year ago. Absent PY is unknown, not zero. */
 function VsPY({ cur, py, lowerBetter = false }: { cur: number | null; py: number | null; lowerBetter?: boolean }) {
-  if (cur == null || py == null || py === 0) return <span className="text-slate-300">—</span>
+  if (cur == null || py == null || py === 0) return <UnknownValue reason="No prior-year figure for this date." label="—" />
   const delta = (cur - py) / py
   const good  = lowerBetter ? delta <= 0 : delta >= 0
-  return (
-    <span className={`font-semibold ${good ? 'text-emerald-600' : 'text-red-500'}`}>
-      {delta >= 0 ? '▲' : '▼'}{Math.abs(delta * 100).toFixed(1)}%
-    </span>
-  )
+  return <Toned tone={good ? 'good' : 'bad'}>{delta >= 0 ? '+' : '-'}{Math.abs(delta * 100).toFixed(1)}%</Toned>
 }
+
+function Toned({ tone, children }: { tone: 'good' | 'warn' | 'bad'; children: React.ReactNode }) {
+  return <span className={`sk-tone-${tone}`} style={{ color: 'var(--tone)', fontWeight: 600 }}>{children}</span>
+}
+const gap = (why: string) => <UnknownValue reason={why} label="—" />
 
 interface Props {
   data:    DailyRangeData | null
@@ -25,22 +28,11 @@ interface Props {
 
 export default function DailyTable({ data, loading }: Props) {
   if (loading) {
-    return (
-      <div className="card">
-        <div className="skeleton h-6 w-32 mb-4" />
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton h-8 w-full" />)}
-        </div>
-      </div>
-    )
+    return <div className="sk-card"><div className="skeleton" style={{ height: 160 }} /></div>
   }
 
   if (!data || data.current.length === 0) {
-    return (
-      <div className="card text-sm text-slate-400 italic">
-        No daily data for this range — try refreshing.
-      </div>
-    )
+    return <div className="sk-card"><p className="sk-flags-empty">No daily data for this range — try refreshing.</p></div>
   }
 
   const { current, py } = data
@@ -57,112 +49,93 @@ export default function DailyTable({ data, loading }: Props) {
   const avgVoid  = (() => { const r = current.filter(r => r.voidPct  != null); return r.length ? r.reduce((s,r)=>s+r.voidPct!,0)/r.length : null })()
 
   return (
-    <div className="card overflow-x-auto">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-bold text-slate-700">Daily Activity</div>
-        {py.length > 0 && (
-          <div className="text-xs text-slate-400">vs PY = same dates one year ago</div>
-        )}
+    <div className="sk-card">
+      <div className="sk-sechead" style={{ marginBottom: 12 }}>
+        <h3 className="sk-card-title">Daily activity</h3>
+        {py.length > 0 && <span className="sk-meta">vs PY = same dates one year ago</span>}
       </div>
 
-      <table className="w-full text-xs min-w-[640px]">
-        <thead>
-          <tr className="border-b border-slate-100 text-slate-400 text-left">
-            <th className="pb-2 w-16 font-medium">Date</th>
-            <th className="pb-2 w-10 font-medium">Day</th>
-            <th className="pb-2 text-right w-20 font-medium">Sales</th>
-            <th className="pb-2 text-right w-16 font-medium">vs PY</th>
-            <th className="pb-2 text-right w-16 font-medium">Orders</th>
-            <th className="pb-2 text-right w-16 font-medium">vs PY</th>
-            <th className="pb-2 text-right w-16 font-medium">ATV</th>
-            <th className="pb-2 text-right w-14 font-medium">EE%</th>
-            <th className="pb-2 text-right w-16 font-medium">Labor%</th>
-            <th className="pb-2 text-right w-14 font-medium">Void%</th>
-          </tr>
-        </thead>
-        <tbody>
-          {current.map((row: DailyRow, i: number) => {
-            const pyRow = py[i] ?? null
-            return (
-              <tr key={row.date} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                <td className="py-1.5 text-slate-500">{row.date.slice(5).replace('-', '/')}</td>
-                <td className="py-1.5 text-slate-400">{row.day}</td>
-                <td className="py-1.5 text-right font-semibold text-slate-800">
-                  {row.sales != null ? dol(row.sales) : <span className="text-slate-300">—</span>}
-                </td>
-                <td className="py-1.5 text-right">
-                  <VsPY cur={row.sales} py={pyRow?.sales ?? null} />
-                </td>
-                <td className="py-1.5 text-right text-slate-700">
-                  {row.orders != null ? row.orders.toLocaleString() : <span className="text-slate-300">—</span>}
-                </td>
-                <td className="py-1.5 text-right">
-                  <VsPY cur={row.orders} py={pyRow?.orders ?? null} />
-                </td>
-                <td className="py-1.5 text-right text-slate-600">
-                  {row.atv != null ? `$${row.atv.toFixed(2)}` : <span className="text-slate-300">—</span>}
-                </td>
-                <td className="py-1.5 text-right">
-                  {row.eePct != null ? (
-                    <span className={row.eePct >= TARGETS.eePct ? 'text-emerald-600 font-semibold' : row.eePct >= TARGETS.eePct * 0.75 ? 'text-amber-600' : 'text-red-500'}>
-                      {pct(row.eePct, 0)}
-                    </span>
-                  ) : <span className="text-slate-300">—</span>}
-                </td>
-                <td className="py-1.5 text-right">
-                  {row.laborPct != null ? (
-                    <LaborTooltip labor={row.laborCost} hours={row.laborHours}>
-                      <span className={row.laborPct <= TARGETS.laborPct ? 'text-emerald-600' : 'text-red-500'}>
-                        {pct(row.laborPct)}
-                      </span>
-                    </LaborTooltip>
-                  ) : <span className="text-slate-300">—</span>}
-                </td>
-                <td className="py-1.5 text-right">
-                  {row.voidPct != null ? (
-                    <span className={row.voidPct <= TARGETS.voidPct ? 'text-slate-600' : 'text-red-500'}>
-                      {pct(row.voidPct)}
-                    </span>
-                  ) : <span className="text-slate-300">—</span>}
-                </td>
-              </tr>
-            )
-          })}
+      <div className="sk-table-wrap">
+        <table className="sk-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Day</th>
+              <th className="num" scope="col">Sales</th>
+              <th className="num" scope="col">vs PY</th>
+              <th className="num" scope="col">Orders</th>
+              <th className="num" scope="col">vs PY</th>
+              <th className="num" scope="col">ATV</th>
+              <th className="num" scope="col">EE %</th>
+              <th className="num" scope="col">Labor %</th>
+              <th className="num" scope="col">Void %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {current.map((row: DailyRow, i: number) => {
+              const pyRow = py[i] ?? null
+              return (
+                <tr key={row.date}>
+                  <td className="nowrap" style={{ color: 'var(--ink-muted)' }}>{row.date.slice(5).replace('-', '/')}</td>
+                  <td style={{ color: 'var(--ink-muted)' }}>{row.day}</td>
+                  <td className="num" style={{ fontWeight: 600 }}>
+                    {row.sales != null ? dol(row.sales) : gap('No sales recorded for this date.')}
+                  </td>
+                  <td className="num"><VsPY cur={row.sales} py={pyRow?.sales ?? null} /></td>
+                  <td className="num">{row.orders != null ? row.orders.toLocaleString() : gap('No orders recorded.')}</td>
+                  <td className="num"><VsPY cur={row.orders} py={pyRow?.orders ?? null} /></td>
+                  <td className="num">{row.atv != null ? `$${row.atv.toFixed(2)}` : gap('No ATV — no orders to divide by.')}</td>
+                  <td className="num">
+                    {row.eePct != null
+                      ? <Toned tone={row.eePct >= TARGETS.eePct ? 'good' : row.eePct >= TARGETS.eePct * 0.75 ? 'warn' : 'bad'}>{pct(row.eePct, 0)}</Toned>
+                      : gap('No enhancer attachment recorded.')}
+                  </td>
+                  <td className="num">
+                    {row.laborPct != null
+                      ? <LaborTooltip labor={row.laborCost} hours={row.laborHours}>
+                          <Toned tone={row.laborPct <= TARGETS.laborPct ? 'good' : 'bad'}>{pct(row.laborPct)}</Toned>
+                        </LaborTooltip>
+                      : gap('No labor recorded for this date.')}
+                  </td>
+                  <td className="num">
+                    {row.voidPct != null
+                      ? (row.voidPct <= TARGETS.voidPct
+                          ? pct(row.voidPct)
+                          : <Toned tone="bad">{pct(row.voidPct)}</Toned>)
+                      : gap('No voids recorded.')}
+                  </td>
+                </tr>
+              )
+            })}
 
-          {/* Summary row */}
-          <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold text-xs">
-            <td colSpan={2} className="py-2 text-slate-500">Total / Avg</td>
-            <td className="py-2 text-right text-slate-800">{totSales > 0 ? dol(totSales) : '—'}</td>
-            <td className="py-2 text-right">
-              <VsPY cur={totSales} py={totPySales > 0 ? totPySales : null} />
-            </td>
-            <td className="py-2 text-right text-slate-700">{totOrders > 0 ? totOrders.toLocaleString() : '—'}</td>
-            <td className="py-2 text-right">
-              <VsPY cur={totOrders} py={totPyOrders > 0 ? totPyOrders : null} />
-            </td>
-            <td className="py-2 text-right text-slate-600">
-              {totSales > 0 && totOrders > 0 ? `$${(totSales / totOrders).toFixed(2)}` : '—'}
-            </td>
-            <td className="py-2 text-right">
-              {avgEE != null ? (
-                <span className={avgEE >= TARGETS.eePct ? 'text-emerald-600' : 'text-red-500'}>{pct(avgEE, 0)}</span>
-              ) : <span className="text-slate-300">—</span>}
-            </td>
-            <td className="py-2 text-right">
-              {avgLabor != null ? (
-                <LaborTooltip labor={totLaborCost > 0 ? totLaborCost : null} hours={totLaborHrs > 0 ? totLaborHrs : null}>
-                  <span className={avgLabor <= TARGETS.laborPct ? 'text-emerald-600' : 'text-red-500'}>{pct(avgLabor)}</span>
-                </LaborTooltip>
-              ) : <span className="text-slate-300">—</span>}
-            </td>
-            <td className="py-2 text-right">
-              {avgVoid != null ? (
-                <span className={avgVoid <= TARGETS.voidPct ? 'text-slate-600' : 'text-red-500'}>{pct(avgVoid)}</span>
-              ) : <span className="text-slate-300">—</span>}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            <tr className="total">
+              <td colSpan={2}>Total / avg</td>
+              <td className="num">{totSales > 0 ? dol(totSales) : gap('No sales in range.')}</td>
+              <td className="num"><VsPY cur={totSales} py={totPySales > 0 ? totPySales : null} /></td>
+              <td className="num">{totOrders > 0 ? totOrders.toLocaleString() : gap('No orders in range.')}</td>
+              <td className="num"><VsPY cur={totOrders} py={totPyOrders > 0 ? totPyOrders : null} /></td>
+              <td className="num">{totSales > 0 && totOrders > 0 ? `$${(totSales / totOrders).toFixed(2)}` : gap('No ATV — no orders in range.')}</td>
+              <td className="num">
+                {avgEE != null
+                  ? <Toned tone={avgEE >= TARGETS.eePct ? 'good' : 'bad'}>{pct(avgEE, 0)}</Toned>
+                  : gap('No enhancer attachment in range.')}
+              </td>
+              <td className="num">
+                {avgLabor != null
+                  ? <LaborTooltip labor={totLaborCost > 0 ? totLaborCost : null} hours={totLaborHrs > 0 ? totLaborHrs : null}>
+                      <Toned tone={avgLabor <= TARGETS.laborPct ? 'good' : 'bad'}>{pct(avgLabor)}</Toned>
+                    </LaborTooltip>
+                  : gap('No labor in range.')}
+              </td>
+              <td className="num">
+                {avgVoid != null
+                  ? (avgVoid <= TARGETS.voidPct ? pct(avgVoid) : <Toned tone="bad">{pct(avgVoid)}</Toned>)
+                  : gap('No voids in range.')}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

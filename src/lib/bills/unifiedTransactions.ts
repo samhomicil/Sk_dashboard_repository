@@ -105,7 +105,18 @@ export async function getUnifiedTransactions(start: string, end: string): Promis
 
   if (await isConnected()) {
     try {
-      const obTxns = await searchAllTransactions({ startDate: start, endDate: end });
+      // Scoped to the explicit ACCOUNTS allowlist, not every account on the
+      // connection. Two reasons: (1) any account Sam links to OpenBudget for
+      // personal use — or any other account not yet mapped to a store — must
+      // never reach this app at all, not just get excluded from balances the
+      // way the untraced ••1151 savings account already is; and (2) that
+      // account's own transactions were leaking onto /transactions today,
+      // unattributed but visible, since nothing here filtered by account
+      // before now. Business account IDs only.
+      const obTxns = await searchAllTransactions({
+        startDate: start, endDate: end,
+        accountIds: ACCOUNTS.map((a) => a.id),
+      });
       for (const t of obTxns) rows.push(fromOpenBudget(t, rules, billVendorById));
     } catch (e) {
       openBudgetOk = false;

@@ -29,6 +29,20 @@ export type Col = {
   /** Starts a grouped set — draws the divider rule to its left. */
   divider?: boolean
   /**
+   * Names the column group this belongs to. Any group at all switches the header
+   * to two tiers: the grouping on top, the column names under it. Without it, a
+   * reader facing "Plan / Act / Var / Plan / Act / Var" has to guess which pair of
+   * measures they belong to.
+   */
+  group?: string
+  /**
+   * Keep this column on one line. For a narrative column that would otherwise wrap
+   * to three lines and drag the whole row's height with it — on a phone the wrapping
+   * cell is often scrolled out of view, so the row looks arbitrarily tall for no
+   * visible reason. The table scrolls instead, which is the rule anyway.
+   */
+  nowrap?: boolean
+  /**
    * How a parent cell relates to its children. Numeric columns are expected to
    * sum by default; set 'none' where the parent genuinely is not the sum (a rate,
    * a max, a closing balance) so the exception is visible in the source rather
@@ -51,6 +65,8 @@ export type Row = Cell & {
   muted?: boolean
   /** A totals row: heavier, ruled off above. */
   total?: boolean
+  /** A projected/forecast row — rendered so it can't be read as measured. */
+  proj?: boolean
 }
 
 /**
@@ -94,13 +110,38 @@ export function DataTable({ cols, rows, caption }: { cols: Col[]; rows: Row[]; c
   // group, so the caller's order holds.
   const rank = (r: Row) => (r.total ? 2 : r.muted ? 1 : 0)
   const ordered = [...rows].sort((a, b) => rank(a) - rank(b))
-  const cls = (c: Col) => `${c.num ? 'num' : ''}${c.divider ? ' divider' : ''}`.trim() || undefined
+  const cls = (c: Col) =>
+    `${c.num ? 'num' : ''}${c.divider ? ' divider' : ''}${c.nowrap ? ' nowrap' : ''}`.trim() || undefined
+
+  // Collapse consecutive columns sharing a group into one spanning header cell.
+  const groups = cols.some(c => c.group)
+    ? cols.reduce<{ name?: string; span: number; divider?: boolean }[]>((acc, c) => {
+        const last = acc[acc.length - 1]
+        if (last && last.name === c.group) last.span += 1
+        else acc.push({ name: c.group, span: 1, divider: c.divider })
+        return acc
+      }, [])
+    : null
 
   return (
     <div className="sk-table-wrap">
       <table className="sk-table">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead>
+          {groups ? (
+            <tr className="group">
+              {groups.map((g, i) => (
+                <th
+                  key={i}
+                  colSpan={g.span}
+                  scope="colgroup"
+                  className={`${g.name ? '' : 'spacer '}${g.divider ? 'divider' : ''}`.trim() || undefined}
+                >
+                  {g.name}
+                </th>
+              ))}
+            </tr>
+          ) : null}
           <tr>
             {cols.map(c => (
               <th key={c.key} className={cls(c)} scope="col">
@@ -113,7 +154,7 @@ export function DataTable({ cols, rows, caption }: { cols: Col[]; rows: Row[]; c
           {ordered.flatMap(row => {
             const expandable = !!row.children?.length
             const isOpen = expandable && open.has(row.key)
-            const rowCls = `${row.muted ? 'muted' : ''}${row.total ? ' total' : ''}`.trim()
+            const rowCls = `${row.muted ? 'muted' : ''}${row.total ? ' total' : ''}${row.proj ? ' proj' : ''}`.trim()
 
             return [
               <tr key={row.key} className={rowCls || undefined}>

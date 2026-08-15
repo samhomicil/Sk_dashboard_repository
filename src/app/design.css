@@ -267,6 +267,8 @@
    of compressing every label onto three lines. */
 .sk-table th.num,
 .sk-table td.num { width: 1%; white-space: nowrap; }
+.sk-table th.nowrap,
+.sk-table td.nowrap { white-space: nowrap; }
 
 /* A numeric column is right-aligned in BOTH rows. Aligning the header opposite
    its figures is the specificity bug that shipped once already — so the header
@@ -311,14 +313,117 @@
   padding-top: var(--space-3);
 }
 
+/* ── SegControl ──────────────────────────────────────────────────────────── */
+.sk-seg {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--ground);
+  border-radius: var(--card-radius);
+  padding: 3px;
+  flex: 0 0 auto;
+}
+.sk-seg.strong { padding: var(--space-1); border: 1px solid var(--border); }
+.sk-seg button {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--ink-muted);
+}
+.sk-seg.strong button {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+}
+.sk-seg button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.sk-seg.strong button[aria-pressed='true'] {
+  background: var(--brand);
+  color: var(--ink-inverse);
+  box-shadow: none;
+}
+.sk-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ── TargetBar ───────────────────────────────────────────────────────────── */
+.sk-targetbar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.sk-targetbar-head [data-tone] { color: var(--tone); }
+.sk-track {
+  position: relative;
+  height: 8px;
+  background: var(--ground);
+  border-radius: 4px;
+}
+.sk-track-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: var(--tone);
+}
+/* The target tick is brass — a marker, which is exactly what brass is for. */
+.sk-track-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--accent);
+}
+.sk-targetbar-detail {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
+
+/* ── Grouped table header ────────────────────────────────────────────────── */
+.sk-table thead tr.group th {
+  text-align: center;
+  border-bottom: none;
+  padding-bottom: var(--space-1);
+  color: var(--ink);
+}
+.sk-table thead tr.group th.spacer { border-left: none; }
+
+/* Forecast rows are visibly not measured. Today's schedule is not today's payroll. */
+.sk-table tbody tr.proj td { color: var(--ink-muted); font-style: italic; }
+.sk-table tbody tr.proj td:first-child { font-style: normal; }
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 /* MUST stay last in this file. These override equal-specificity base rules
    above, so source order is what decides — putting them earlier silently
    reverts the whole mobile pass, which is exactly how it went wrong before. */
 @media (max-width: 900px) {
   .sk-page { padding-left: var(--gutter-mobile); padding-right: var(--gutter-mobile); }
-  .sk-pagebar-right { align-items: flex-start; width: 100%; }
-  .sk-pagebar-filters { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
+  /* min-width:0 is what actually lets the filter row clip. Without it the flex
+     item sizes to its content and the whole page scrolls sideways instead. */
+  .sk-pagebar-right { align-items: flex-start; width: 100%; min-width: 0; }
+  .sk-pagebar-filters {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+  }
 }
 @media (max-width: 620px) {
   .sk-tiles { grid-template-columns: 1fr; }

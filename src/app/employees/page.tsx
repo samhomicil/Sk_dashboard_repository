@@ -7,6 +7,9 @@ import { resolveDateRange } from '@/lib/dates'
 import type { Period } from '@/lib/types'
 import Link from 'next/link'
 import { MINOR_RULE_LABEL, type MinorRule } from '@/lib/minorLabor'
+import Heatmap from '@/components/Heatmap'
+import EmployeeTable from '@/components/EmployeeTable'
+import type { StaffingData, EmployeeRow, Store } from '@/lib/types'
 
 type Productivity = {
   orders: number; guests: number; grossSales: number
@@ -123,6 +126,12 @@ function EmployeesInner() {
   const [err, setErr] = useState<string | null>(null)
   const [showInactive, setShowInactive] = useState(false)
   const [view, setView] = useState<View>('Productivity')
+  // The staffing grid and the pay table moved here from Overview: the kit puts
+  // labour on Labor & crew, and both answer "who worked, when, and what did it
+  // cost" — the question this page is already about.
+  const [staffing, setStaffing] = useState<StaffingData | null>(null)
+  const [unitsWindow, setUnitsWindow] = useState<{ start: string; end: string } | null>(null)
+  const [labor, setLabor] = useState<EmployeeRow[]>([])
   // Timeframe comes from the URL, same Period model as the inventory module and the
   // dashboard tabs, so a window is shareable and consistent across surfaces.
   const sp = useSearchParams()
@@ -137,6 +146,19 @@ function EmployeesInner() {
       .catch(e => setErr(String(e)))
       .finally(() => setLoading(false))
   }, [store, win.start, win.end])
+
+  useEffect(() => {
+    let stale = false
+    fetch(`/api/heatmap?period=${period}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => { if (!stale && d?.pines) { setStaffing(d); if (d.unitsWindowStart) setUnitsWindow({ start: d.unitsWindowStart, end: d.unitsWindowEnd }) } })
+      .catch(() => {})
+    fetch(`/api/employees?store=${store}&period=${period}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => { if (!stale && Array.isArray(d)) setLabor(d) })
+      .catch(() => {})
+    return () => { stale = true }
+  }, [store, period])
 
   const rows = useMemo(() => {
     if (!data) return []
@@ -400,6 +422,25 @@ function EmployeesInner() {
               </div>
             )}
           </div>
+
+          {/* ── Staffing and pay, moved here from Overview ──────────────────── */}
+          {staffing && (
+            <div className="mt-4">
+              <Heatmap
+                data={staffing}
+                store={store as Store}
+                period={period}
+                dates={{ start: win.start, end: win.end, pyStart: '', pyEnd: '' }}
+                unitsWindow={unitsWindow}
+                loading={false}
+              />
+            </div>
+          )}
+          {labor.length > 0 && (
+            <div className="mt-4">
+              <EmployeeTable employees={labor} loading={false} />
+            </div>
+          )}
         </>
       )}
     </div>

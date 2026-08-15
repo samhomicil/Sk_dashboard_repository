@@ -12,8 +12,6 @@ import OpsHealth    from './OpsHealth'
 import SupplySpend  from './SupplySpend'
 import Callouts     from './Callouts'
 import QuarterTable from './QuarterTable'
-import Heatmap      from './Heatmap'
-import EmployeeTable from './EmployeeTable'
 import MixRow       from './MixRow'
 import DailyTable   from './DailyTable'
 import { TARGETS }  from '@/lib/config'
@@ -103,7 +101,7 @@ export default function Dashboard() {
       setRefreshMsg('Failed — is the proxy running?')
     }
   }
-  const { kpis, trend, stores, employees, products, categories, channels, quarters, staffing, promotions, unitsWindow, daily, dailyRange, jolt, joltQuality, guestSat, soci, loading, refreshedAt } = data
+  const { kpis, stores, products, categories, channels, quarters, promotions, daily, dailyRange, jolt, joltQuality, guestSat, soci, loading, refreshedAt } = data
   const k = kpis as KpiData | null
   const isAll      = state.store === 'all'
   const isCustom   = state.period === 'custom'
@@ -257,82 +255,12 @@ export default function Dashboard() {
           <QuarterTable quarters={quarters} loading={loading} />
         )}
 
-        {/* COGS panel — hidden for custom */}
-        {!isCustom && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="card">
-            <div className="flex items-center justify-between mb-0.5">
-              <div className="text-sm font-bold text-slate-700">Food Cost (COGS)</div>
-              {k?.cogsActualAsOf && (
-                <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 rounded px-1.5 py-0.5 font-medium">
-                  last count: {k.cogsActualAsOf}
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-slate-400 mb-4">Actual vs {pct(TARGETS.cogsPct)} target · theoretical recipe usage from NetChef</div>
-            {loading ? (
-              <div className="skeleton h-32 w-full" />
-            ) : k?.cogsActualPct != null ? (
-              <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <div className="text-xs text-slate-400">
-                      Actual{k.cogsActualAsOf ? <span className="ml-1 text-amber-500">· thru {k.cogsActualAsOf}</span> : null}
-                    </div>
-                    <div className={`text-2xl font-bold ${k.cogsActualPct > TARGETS.cogsPct ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {pct(k.cogsActualPct)}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-slate-400">Target</div>
-                    <div className="text-2xl font-bold text-slate-600">{pct(TARGETS.cogsPct)}</div>
-                    {k.cogsTheoreticalPct != null && (
-                      <div className="text-[10px] text-slate-400">theo {pct(k.cogsTheoreticalPct)}</div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs text-slate-400 mb-1">
-                    <span>Variance vs target</span>
-                    <span className={k.cogsActualPct <= TARGETS.cogsPct ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'}>
-                      {k.cogsActualPct <= TARGETS.cogsPct ? '▼' : '▲'}{Math.abs((k.cogsActualPct - TARGETS.cogsPct) * 100).toFixed(1)}pts
-                      {k.cogsActualPct <= TARGETS.cogsPct ? ' (favorable)' : ' (over target)'}
-                    </span>
-                  </div>
-                  <div className="bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${k.cogsActualPct > TARGETS.cogsPct ? 'bg-red-400' : 'bg-emerald-400'}`}
-                      style={{ width: `${Math.min(100, (k.cogsActualPct / (TARGETS.cogsPct * 1.5)) * 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-slate-300 mt-1">
-                    <span>0%</span>
-                    <span className="text-slate-400">{pct(TARGETS.cogsPct)} target</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
-                  <div>
-                    <div className="text-xs text-slate-400">PFS Spend %</div>
-                    <div className="text-base font-semibold text-slate-700">{pct(k.pfsPct)}</div>
-                    <div className="text-xs text-slate-400">L4W {pct(k.pfsPctL4W)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400">Walmart %</div>
-                    <div className="text-base font-semibold text-slate-700">{pct(k.walmartPct)}</div>
-                    <div className="text-xs text-slate-400">L4W {pct(k.walmartPctL4W)}</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-xs text-slate-400 italic">No COGS data for this period</div>
-            )}
-          </div>
-        </div>}
-
-        {/* Staff Schedule — hidden for custom */}
-        {!isCustom && <Heatmap data={staffing} store={state.store} period={state.period} dates={state.dates} unitsWindow={unitsWindow} loading={loading} />}
-
-        {/* Employee Performance — hidden for custom */}
-        {!isCustom && <EmployeeTable employees={employees} loading={loading} />}
+        {/* Moved OFF this screen, deliberately:
+              - Food cost (COGS) panel: not in the kit at all. Food cost lives in
+                the COGS KPI tile and in supply spend, and the panel restated both.
+              - Staff schedule + employee pay table: the kit puts labour on
+                Labor & crew, and both answer "who worked, when, and what did it
+                cost" — which is what that page is already about. See /employees. */}
 
 
     </Page>

@@ -212,6 +212,79 @@ export function Tiles({ children }: { children: ReactNode }) {
   return <div className="sk-tiles">{children}</div>
 }
 
+/* ── Sections ─────────────────────────────────────────────────────────────── */
+
+/**
+ * A titled group of blocks. The kit groups a screen's content under brand-coloured
+ * eyebrows — "Summary · week to date", "Weekly detail", "Notes & actions" — rather
+ * than giving every card its own heading. `aside` is the right-hand slot on the
+ * header row, used for legends.
+ */
+export function Section({
+  label,
+  aside,
+  children,
+}: {
+  label: ReactNode
+  aside?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className="sk-section">
+      {aside ? (
+        <div className="sk-sechead">
+          <div className="sk-eyebrow sk-section-label">{label}</div>
+          {aside}
+        </div>
+      ) : (
+        <div className="sk-eyebrow sk-section-label">{label}</div>
+      )}
+      {children}
+    </section>
+  )
+}
+
+/**
+ * Stat — the summary card: label, figure with an inline qualifier, and the change
+ * beneath it. Four across, one row.
+ *
+ * `sub` is what the figure is measured against ("/ $21,079"); `delta` is the move,
+ * always signed. Both are the caller's to format, and `tone` is the caller's to
+ * decide — grading belongs to the screen, which reads core/targets.ts.
+ */
+export function Stat({
+  label,
+  value,
+  sub,
+  delta,
+  tone,
+}: {
+  label: ReactNode
+  value: ReactNode
+  sub?: ReactNode
+  delta?: ReactNode
+  tone?: Tone
+}) {
+  return (
+    <div className="sk-card tight">
+      <div className="sk-eyebrow">{label}</div>
+      <div className="sk-stat-value">
+        {value}
+        {sub ? <span className="sk-stat-sub"> {sub}</span> : null}
+      </div>
+      {delta ? <div className={`sk-delta ${tone ? toneClass(tone) : ''}`.trim()}>{delta}</div> : null}
+    </div>
+  )
+}
+
+export function Grid4({ children }: { children: ReactNode }) {
+  return <div className="sk-grid4">{children}</div>
+}
+/** Two equal panels. Collapses to one column below 900px. */
+export function Grid11({ children }: { children: ReactNode }) {
+  return <div className="sk-grid11">{children}</div>
+}
+
 /* ── Page frame ───────────────────────────────────────────────────────────── */
 
 /** Ground, max width, and the stack rhythm every screen shares. */

@@ -59,21 +59,22 @@ export function TargetBar({
   label,
   value,
   target,
-  max,
   tone,
   detail,
 }: {
   label: ReactNode
   value: number
   target: number
-  max: number
   /** How the screen grades this figure. Same grading as the tile above it. */
   tone: 'good' | 'warn' | 'bad'
   /** The dollars behind the percentage, and the target, in mono under the track. */
   detail?: ReactNode
 }) {
-  const pct = Math.min(100, Math.max(0, max > 0 ? (value / max) * 100 : 0))
-  const tick = Math.min(100, Math.max(0, max > 0 ? (target / max) * 100 : 0))
+  // The target tick sits at a fixed 62% of every track and the fill is scaled to
+  // it, so several bars with different targets read against one another: two
+  // thirds along always means "at target". Taken from the reference kit.
+  const TICK = 62
+  const pct = Math.min(100, target > 0 ? (value / target) * TICK : 0)
   return (
     <div className="sk-targetbar">
       <div className="sk-targetbar-head">
@@ -81,14 +82,14 @@ export function TargetBar({
         <span className="tabular-nums">
           <b>{value.toFixed(1)}%</b>{' '}
           <span className={`sk-tone-${tone}`} data-tone>
-            {value >= target ? '+' : '−'}
+            {value >= target ? '+' : '-'}
             {Math.abs(value - target).toFixed(1)} pts
           </span>
         </span>
       </div>
       <div className={`sk-track sk-tone-${tone}`}>
         <div className="sk-track-fill" style={{ width: `${pct}%` }} />
-        <div className="sk-track-tick" style={{ left: `${tick}%` }} title={`target ${target.toFixed(1)}%`} />
+        <div className="sk-track-tick" style={{ left: `${TICK}%` }} title={`target ${target.toFixed(1)}%`} />
       </div>
       {detail ? <div className="sk-targetbar-detail">{detail}</div> : null}
     </div>

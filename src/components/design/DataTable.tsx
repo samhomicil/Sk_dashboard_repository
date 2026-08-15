@@ -113,12 +113,17 @@ export function DataTable({ cols, rows, caption }: { cols: Col[]; rows: Row[]; c
   const cls = (c: Col) =>
     `${c.num ? 'num' : ''}${c.divider ? ' divider' : ''}${c.nowrap ? ' nowrap' : ''}`.trim() || undefined
 
-  // Collapse consecutive columns sharing a group into one spanning header cell.
-  const groups = cols.some(c => c.group)
-    ? cols.reduce<{ name?: string; span: number; divider?: boolean }[]>((acc, c) => {
+  // Two-tier header. Consecutive columns sharing a group collapse into one
+  // spanning cell on the top tier; an UNGROUPED column (Day, Weather, Action)
+  // spans both tiers with rowSpan=2 and is skipped on the lower one, which is the
+  // shape the reference kit uses and the only one that reads correctly — a blank
+  // spacer above "Day" implies Day belongs to some unnamed group.
+  const grouped = cols.some(c => c.group)
+  const groups = grouped
+    ? cols.reduce<{ name?: string; span: number; col: Col }[]>((acc, c) => {
         const last = acc[acc.length - 1]
-        if (last && last.name === c.group) last.span += 1
-        else acc.push({ name: c.group, span: 1, divider: c.divider })
+        if (last && c.group && last.name === c.group) last.span += 1
+        else acc.push({ name: c.group, span: 1, col: c })
         return acc
       }, [])
     : null
@@ -130,20 +135,21 @@ export function DataTable({ cols, rows, caption }: { cols: Col[]; rows: Row[]; c
         <thead>
           {groups ? (
             <tr className="group">
-              {groups.map((g, i) => (
-                <th
-                  key={i}
-                  colSpan={g.span}
-                  scope="colgroup"
-                  className={`${g.name ? '' : 'spacer '}${g.divider ? 'divider' : ''}`.trim() || undefined}
-                >
-                  {g.name}
-                </th>
-              ))}
+              {groups.map((g, i) =>
+                g.name ? (
+                  <th key={i} colSpan={g.span} scope="colgroup" className={`grp ${cls(g.col) ?? ''}`.trim()}>
+                    {g.name}
+                  </th>
+                ) : (
+                  <th key={i} rowSpan={2} scope="col" className={cls(g.col)}>
+                    {g.col.head}
+                  </th>
+                ),
+              )}
             </tr>
           ) : null}
           <tr>
-            {cols.map(c => (
+            {cols.filter(c => !grouped || c.group).map(c => (
               <th key={c.key} className={cls(c)} scope="col">
                 {c.head}
               </th>

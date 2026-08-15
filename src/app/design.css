@@ -236,73 +236,147 @@
 .sk-tile-value[data-tone] { color: var(--tone); }
 
 /* ── Tables ──────────────────────────────────────────────────────────────── */
+/* Measurements taken from the reference kit: 10px/12px cell padding, 40px row
+   height, first and last cells flush to the card edge, hairline row rules and a
+   heavier rule under the header. */
 .sk-table-wrap { overflow-x: auto; }
 .sk-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--text-table-cell);
-  line-height: var(--text-table-cell-lh);
 }
-.sk-table th,
-.sk-table td {
-  padding: var(--table-cell-padding);
-  height: var(--table-row-height);
-  border-bottom: 1px solid var(--border-subtle);
+.sk-table th {
   text-align: left;
-}
-.sk-table thead th {
   font-family: var(--font-mono);
   font-size: var(--text-eyebrow);
-  font-weight: var(--text-eyebrow-weight);
   letter-spacing: var(--text-eyebrow-tracking);
   text-transform: uppercase;
   color: var(--ink-muted);
+  font-weight: var(--text-eyebrow-weight);
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border);
-  white-space: nowrap;
 }
-/* Numeric columns take only the width their figures need, so the label column
-   absorbs the slack. Without this, table auto-layout spreads the last column
-   across half the card and the figures drift away from their row label. It also
-   makes a wide table OVERFLOW (and so scroll, and pin its first column) instead
-   of compressing every label onto three lines. */
+.sk-table td {
+  font-size: var(--text-table-cell);
+  line-height: var(--text-table-cell-lh);
+  padding: 10px 12px;
+  height: var(--table-row-height);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.sk-table th:first-child, .sk-table td:first-child { padding-left: 0; }
+.sk-table th:last-child,  .sk-table td:last-child  { padding-right: 0; }
+
+/* A numeric column is right-aligned in BOTH rows. Aligning a header opposite its
+   figures is the specificity bug that shipped once already, so the header and the
+   cell carry the same class and the same rule. */
 .sk-table th.num,
-.sk-table td.num { width: 1%; white-space: nowrap; }
+.sk-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sk-table th.nowrap,
 .sk-table td.nowrap { white-space: nowrap; }
 
-/* A numeric column is right-aligned in BOTH rows. Aligning the header opposite
-   its figures is the specificity bug that shipped once already — so the header
-   and the cell carry the same class and the same rule. */
-.sk-table th.num,
-.sk-table td.num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+/* Grouped column sets: a top tier naming the grouping, a divider where each set
+   begins. Ungrouped columns span both tiers. */
+.sk-table thead tr.group th.grp {
+  text-align: center;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--ink);
 }
-.sk-table td.divider,
-.sk-table th.divider { border-left: 1px solid var(--border); }
-.sk-table tbody tr.muted td { color: var(--ink-muted); }
-.sk-table tbody tr.child td { background: color-mix(in srgb, var(--ground) 45%, transparent); }
-/* Children read as belonging to the row above, not as peers of it. */
-.sk-table tbody tr.child td:first-child { padding-left: calc(var(--table-cell-padding) + 26px); }
-.sk-table tbody tr.total td { font-weight: 600; border-top: 1px solid var(--border); }
+.sk-table td.divider, .sk-table th.divider { border-left: 1px solid var(--border-subtle); }
+
+.sk-table tbody tr.total td { border-top: 1px solid var(--border); border-bottom: none; font-weight: 700; }
+.sk-table tbody tr.muted td { opacity: 0.45; }
+.sk-table tbody tr.child td {
+  background: var(--ground);
+  font-size: 12px;
+  color: var(--ink-muted);
+  height: 32px;
+  padding: 6px 12px;
+}
+.sk-table tbody tr.child td:first-child { padding-left: 26px; }
+
+/* A forecast row is shaded and italic — today's schedule is not today's payroll. */
+.sk-table tbody tr.proj { background: var(--ground); }
+.sk-table tbody tr.proj td { font-style: italic; color: var(--ink-muted); }
+.sk-table tbody tr.proj td:first-child { font-style: normal; }
 
 /* Expanders are a real control, so they get a real target. */
 .sk-expander {
-  background: none;
-  border: none;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--touch-min);
-  padding: 0;
-  text-align: left;
+  background: none; border: none; font: inherit; color: inherit; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: var(--touch-min); padding: 0; text-align: left;
 }
 .sk-expander:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sk-expander .caret { transition: transform 0.15s ease; color: var(--ink-muted); }
 .sk-expander[aria-expanded='true'] .caret { transform: rotate(90deg); }
+
+/* ── Section grouping ────────────────────────────────────────────────────── */
+/* Screens in the kit group their blocks under a brand-coloured eyebrow rather
+   than opening every card with its own title. */
+.sk-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.sk-section-label { color: var(--brand); }
+.sk-sechead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.sk-grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
+/* align-items:start — panels take their natural height. Stretching them to match
+   leaves a tall empty half whenever one has more to say than the other. */
+.sk-grid11 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--grid-gutter);
+  align-items: start;
+}
+
+/* ── Stat card ───────────────────────────────────────────────────────────── */
+.sk-card.tight { padding: var(--space-4); }
+.sk-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-top: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+.sk-stat-sub { font-size: 12px; font-weight: 400; color: var(--ink-muted); }
+.sk-delta {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: var(--space-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--tone, var(--ink-muted));
+}
+
+/* ── Dots & legend ───────────────────────────────────────────────────────── */
+.sk-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+.sk-dot.solid { background: var(--ink); }
+.sk-dot.hollow { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-muted); }
+.sk-legend {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+}
+.sk-legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ── Chips (per-order splits) ────────────────────────────────────────────── */
+.sk-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.sk-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: var(--ground);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+.sk-chip .covers { color: var(--ink-muted); }
 
 /* ── Basis footnote ──────────────────────────────────────────────────────── */
 .sk-basis {
@@ -376,6 +450,10 @@
   border-radius: 4px;
   background: var(--tone);
 }
+/* The target tick sits at a FIXED 62% of every track, so bars for different
+   metrics with different targets are still read against one another — a bar two
+   thirds along means "at target" whatever the target is. Brass, which is what
+   brass is for. */
 /* The target tick is brass — a marker, which is exactly what brass is for. */
 .sk-track-tick {
   position: absolute;
@@ -414,6 +492,9 @@
    above, so source order is what decides — putting them earlier silently
    reverts the whole mobile pass, which is exactly how it went wrong before. */
 @media (max-width: 900px) {
+  /* Side-by-side panels are unreadable at this width. */
+  .sk-grid11 { grid-template-columns: minmax(0, 1fr); }
+  .sk-grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sk-page { padding-left: var(--gutter-mobile); padding-right: var(--gutter-mobile); }
   /* min-width:0 is what actually lets the filter row clip. Without it the flex
      item sizes to its content and the whole page scrolls sideways instead. */
@@ -426,12 +507,29 @@
   }
 }
 @media (max-width: 620px) {
-  .sk-tiles { grid-template-columns: 1fr; }
+  .sk-tiles, .sk-grid4 { grid-template-columns: 1fr; }
+  .sk-card { padding: var(--space-4); }
+  /* Wide tables scroll under a pinned first column — the row label is what makes
+     the numbers mean anything, so it must not scroll away with them. */
+  .sk-table-wrap table { white-space: nowrap; }
   /* The row label is what makes the numbers mean anything, so it stays put. */
   .sk-table th:first-child,
   .sk-table td:first-child {
     position: sticky;
     left: 0;
+    z-index: 2;
     background: var(--surface);
+    /* The kit uses box-shadow here; a real border reads the same and keeps the
+       system's "1px borders only" rule literally true. Verified to render on a
+       sticky cell under border-collapse in this table. */
+    border-right: 1px solid var(--border-subtle);
+    padding-right: 12px;
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  .sk-table tbody tr.total > td:first-child,
+  .sk-table tbody tr.proj > td:first-child { background: var(--ground); }
+  /* colspan group headers aren't row labels — let them scroll */
+  .sk-table thead th[colspan]:first-child { position: static; box-shadow: none; }
 }

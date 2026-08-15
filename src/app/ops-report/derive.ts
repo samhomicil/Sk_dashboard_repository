@@ -128,6 +128,19 @@ export function actionFor(d: Day, targetPct: number, amberPct: number): string {
   return `Labor ${est.toFixed(0)}% — on target`
 }
 
+/**
+ * Bullet-bar band on the cost panel: good ≤ target, warn within 2 points of it,
+ * bad beyond. Verbatim from the old page's Bullet component, and the same band the
+ * reference kit's bullet() uses. Distinct from laborTone below, which grades a
+ * labor % against the payload's amber band — two different panels, two bands, both
+ * pre-existing.
+ */
+export function bulletTone(actual: number, target: number): 'good' | 'warn' | 'bad' {
+  if (actual <= target) return 'good'
+  if (actual <= target + 2) return 'warn'
+  return 'bad'
+}
+
 /** Labor-% band: good ≤ target, warn ≤ target+3pts, bad above (daily recap band). */
 export function laborTone(pctAct: number, targetPct: number, amberPct: number): 'good' | 'warn' | 'bad' {
   if (pctAct <= targetPct) return 'good'

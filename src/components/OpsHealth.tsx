@@ -19,6 +19,11 @@ function dol(n: number) { return n >= 0 ? `+$${Math.abs(Math.round(n))}` : `-$${
 
 // Same shape as the Void/Discount/Till metrics above: a sub-header naming the metric and
 // its target, then the dot and value. Detail lives in the tooltip.
+/**
+ * One measured metric: what it is and its threshold on top, then a dot beside the
+ * figure, then the comparison beneath. Same block shape for the ops metrics and the
+ * guest ones, so a reader learns it once.
+ */
 function VTile({ header, target, dot, value, unit, note, tip, tone, emphasis }: {
   header: string
   target?: string
@@ -30,22 +35,20 @@ function VTile({ header, target, dot, value, unit, note, tip, tone, emphasis }: 
   tone?: 'bad' | 'dim'
   emphasis?: boolean
 }) {
-  const cls = tone === 'bad' ? 'text-red-600' : tone === 'dim' ? 'text-slate-400' : 'text-slate-700'
+  const toneCls = tone === 'bad' ? 'sk-tone-bad' : dot === 'r' ? 'sk-tone-bad' : dot === 'y' ? 'sk-tone-warn' : ''
   return (
-    <div title={tip}>
-      <div className="text-xs font-medium text-slate-700 mb-0.5 truncate">
-        {header} {target && <span className="font-normal text-slate-400">{target}</span>}
+    <div className="sk-ops-metric tabular-nums" title={tip}>
+      <div className="sk-ops-head">
+        {header}
+        {target ? <span className="tgt">{target}</span> : null}
       </div>
-      <div className="flex items-center gap-2">
-        <span className={`dot-${dot}`} />
-        <span className={`text-lg font-bold ${cls}`}>
-          {value}{unit && <span className="text-xs font-normal text-slate-400"> {unit}</span>}
+      <div className="sk-ops-value">
+        <span className={`sk-dot sk-tone-${dot === 'g' ? 'good' : dot === 'y' ? 'warn' : 'bad'}`} style={{ background: 'var(--tone)' }} />
+        <span className={`v tabular-nums ${toneCls}`} style={toneCls ? { color: 'var(--tone)' } : undefined}>
+          {value}
+          {unit ? <span className="u"> {unit}</span> : null}
         </span>
-        {note && (
-          <span className={`text-xs truncate ${emphasis ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
-            {note}
-          </span>
-        )}
+        {note ? <span className={`n${emphasis ? ' em' : ''}`}>{note}</span> : null}
       </div>
     </div>
   )
@@ -125,20 +128,18 @@ function GuestVoiceRow(
 
   if (tiles.length === 0) return null
   return (
-    <div className="mt-3 pt-3 border-t border-slate-100">
-      <div className="text-xs text-slate-400 mb-2">
-        <Link href="/guest-voice" className="text-slate-500 hover:text-teal-600 font-medium">
-          Guest Voice →
-        </Link>
-        <span className="text-slate-300 ml-1">— {guest?.scope ?? 'Margate'} · SMG survey + SOCi reviews</span>
+    <div className="sk-ops-guest">
+      <div className="sk-eyebrow" style={{ marginBottom: 12 }}>
+        <Link href="/guest-voice">Guest Voice &rarr;</Link>
+        <span style={{ opacity: 0.7 }}> {guest?.scope ?? 'Margate'} · SMG survey + SOCi reviews</span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{tiles}</div>
+      <div className="sk-grid4">{tiles}</div>
     </div>
   )
 }
 
 export default function OpsHealth({ kpis, soci, guest, loading }: Props) {
-  if (loading) return <div className="card md:col-span-2"><div className="skeleton h-24 w-full" /></div>
+  if (loading) return <div className="sk-card"><p className="sk-flags-empty">Loading…</p></div>
   if (!kpis) return null
 
   const voidOk     = kpis.voidPct     <= TARGETS.voidPct
@@ -173,36 +174,47 @@ export default function OpsHealth({ kpis, soci, guest, loading }: Props) {
     },
   ]
 
+  const outside = metrics.filter(m => !m.ok)
+
   return (
-    <div className="card md:col-span-2 border border-slate-100">
-      <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-        Ops Health
-        <span className="ml-1 font-normal text-slate-300">— flagged only if outside threshold</span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="sk-card">
+      <h3 className="sk-card-title">Ops health</h3>
+      <p className="sk-subline" style={{ margin: '4px 0 20px' }}>Flagged only if outside threshold</p>
+
+      <div className="sk-grid3">
         {metrics.map(m => (
-          <div key={m.label} className="flex sm:block items-center gap-4 py-2 sm:py-0 border-b sm:border-b-0 border-slate-50 last:border-0">
-            <div className="w-28 sm:w-auto shrink-0">
-              <div className="text-xs text-slate-500 mb-0.5">
-                {m.label} <span className="text-slate-300">{m.target}</span>
-              </div>
-              <div className="text-xs text-slate-400">L4W: <span className="font-semibold text-slate-500">{m.l4w}</span></div>
+          <div key={m.label} className="sk-ops-metric tabular-nums">
+            <div className="sk-ops-head">
+              {m.label}<span className="tgt">{m.target}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={m.ok ? 'dot-g' : m.warn ? 'dot-y' : 'dot-r'} />
-              <span className={`text-lg font-bold ${m.ok ? 'text-slate-700' : m.warn ? 'text-amber-600' : 'text-red-600'}`}>
+            <div className="sk-ops-value">
+              <span className={`sk-dot sk-tone-${m.ok ? 'good' : m.warn ? 'warn' : 'bad'}`} style={{ background: 'var(--tone)' }} />
+              <span
+                className={`v tabular-nums ${m.ok ? '' : m.warn ? 'sk-tone-warn' : 'sk-tone-bad'}`}
+                style={m.ok ? undefined : { color: 'var(--tone)' }}
+              >
                 {m.value}
               </span>
             </div>
+            <div className="sk-ops-l4w">L4W {m.l4w}</div>
           </div>
         ))}
       </div>
-      <div className={`mt-3 text-xs px-3 py-2 rounded-lg ${allOk ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
-        {allOk
-          ? '✅ All ops metrics within target — no action needed'
-          : `⚠️ ${metrics.filter(m => !m.ok).map(m => m.label).join(', ')} outside target — review needed`
-        }
-      </div>
+
+      {/* Silence is a result. When everything is inside its threshold this says
+          nothing at all — the old green "all within target" banner was noise that
+          appeared on every good week and trained people to skip the panel. */}
+      {outside.length > 0 && (
+        <div className="sk-ops-flags">
+          {outside.map(m => (
+            <div key={m.label} className={`sk-flag sk-tone-${m.warn ? 'warn' : 'bad'}`}>
+              <span className="sk-flag-dot" />
+              <span>{m.label} outside target — review needed</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <GuestVoiceRow guest={guest} soci={soci} />
     </div>
   )

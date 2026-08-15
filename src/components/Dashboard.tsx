@@ -8,9 +8,9 @@ import { Page } from './design/shell'
 import SopCard from './SopCard'
 import JoltQualityCard from './JoltQualityCard'
 import ForecastBanner from './ForecastBanner'
-import TrendChart   from './TrendChart'
 import StoreBreakdown from './StoreBreakdown'
 import OpsHealth    from './OpsHealth'
+import SupplySpend  from './SupplySpend'
 import Callouts     from './Callouts'
 import QuarterTable from './QuarterTable'
 import Heatmap      from './Heatmap'
@@ -21,6 +21,11 @@ import { TARGETS }  from '@/lib/config'
 import type { KpiData, DailyRow } from '@/lib/types'
 
 function pct(n: number, decimals = 1)  { return `${(n * 100).toFixed(decimals)}%` }
+// "2026-08-12" -> "Aug 12". A raw ISO date in a KPI subline reads as debug output.
+function asOf(iso: string) {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`)
+  return isNaN(+d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
 function dol(n: number)                { return `$${Math.round(n).toLocaleString()}` }
 function pillVsPY(v: number, py: number): { text: string; color: 'green' | 'red' } {
   if (!py) return { text: '—', color: 'gray' as never }
@@ -140,7 +145,7 @@ export default function Dashboard() {
       key: 'sales', label: 'Sales', value: dol(k.sales),
       delta: k.salesPY ? signed(pillVsPY(k.sales, k.salesPY)) : undefined,
       tone: k.salesPY ? toneOf(k.sales >= k.salesPY * (1 + TARGETS.salesGrowthYoY) ? 'green' : k.sales >= k.salesPY ? 'yellow' : 'red') : undefined,
-      sub: k.salesTarget ? `${k.sales >= k.salesTarget ? 'at' : 'under'} the 10% target` : undefined,
+      sub: k.salesTarget ? `${k.sales >= k.salesTarget ? '✓' : '▼'} 10% tgt` : undefined,
       series: spark('sales'), fmt: money,
     },
     {
@@ -151,19 +156,19 @@ export default function Dashboard() {
     },
     {
       key: 'labor', label: 'Labor %', target: `tgt ${pct(TARGETS.laborPct)}`, value: pct(k.laborPct),
-      delta: `${k.laborPct <= TARGETS.laborPct ? '-' : '+'}${Math.abs((k.laborPct - TARGETS.laborPct) * 100).toFixed(1)} pts vs tgt`,
+      delta: `${k.laborPct <= TARGETS.laborPct ? '-' : '+'}${Math.abs((k.laborPct - TARGETS.laborPct) * 100).toFixed(1)}pts vs tgt`,
       tone: toneOf(dot(k.laborPct, TARGETS.laborPct, true)),
-      sub: `L4W ${pct(k.laborPctL4W)}`,
+      sub: `L4W: ${pct(k.laborPctL4W)}`,
       series: spark('laborPct'), fmt: pctAxis,
     },
     {
       key: 'cogs', label: 'COGS %', target: `tgt ${pct(TARGETS.cogsPct)}`,
       value: k.cogsActualPct != null ? pct(k.cogsActualPct) : '—',
       delta: k.cogsActualPct != null
-        ? `${k.cogsActualPct <= TARGETS.cogsPct ? '-' : '+'}${Math.abs((k.cogsActualPct - TARGETS.cogsPct) * 100).toFixed(1)} pts vs tgt`
+        ? `${k.cogsActualPct <= TARGETS.cogsPct ? '-' : '+'}${Math.abs((k.cogsActualPct - TARGETS.cogsPct) * 100).toFixed(1)}pts vs tgt`
         : undefined,
       tone: k.cogsActualPct != null ? toneOf(dot(k.cogsActualPct, TARGETS.cogsPct, true)) : undefined,
-      sub: k.cogsActualAsOf ? `as of ${k.cogsActualAsOf}` : undefined,
+      sub: k.cogsActualAsOf ? `as of ${asOf(k.cogsActualAsOf)}` : undefined,
     },
     {
       key: 'atv', label: 'ATV', value: `$${k.atv.toFixed(2)}`,
@@ -173,7 +178,7 @@ export default function Dashboard() {
     },
     {
       key: 'ee', label: 'EE %', target: `tgt ${pct(TARGETS.eePct)}`, value: pct(k.eePct),
-      delta: `${k.eePct >= TARGETS.eePct ? '+' : '-'}${Math.abs((k.eePct - TARGETS.eePct) * 100).toFixed(1)} pts vs tgt`,
+      delta: `${k.eePct >= TARGETS.eePct ? '+' : '-'}${Math.abs((k.eePct - TARGETS.eePct) * 100).toFixed(1)}pts vs tgt`,
       tone: toneOf(dot(k.eePct, TARGETS.eePct)),
       sub: k.eeInStorePct > 0 || k.eeDigitalPct > 0 ? `In-store ${pct(k.eeInStorePct, 0)} · Digital ${pct(k.eeDigitalPct, 0)}` : undefined,
       series: spark('eePct'), fmt: pctAxis,
@@ -217,48 +222,10 @@ export default function Dashboard() {
         </Kpis>
         {openTrend && <MetricTrend m={openTrend} onClose={() => setOpenMetric(null)} />}
 
-        {/* KPI Row 2 — Supply Spend + OpsHealth */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {/* Supply Spend — PFS, Walmart, Amazon combined */}
-          <div className="card">
-            {loading ? <div className="skeleton h-20 w-full" /> : (
-              <>
-                <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Supply Spend % of Sales</div>
-                <div className="space-y-2">
-                  {[
-                    { label: 'PFS',     pct: k?.pfsPct,     l4w: k?.pfsPctL4W },
-                    { label: 'Walmart', pct: k?.walmartPct, l4w: k?.walmartPctL4W },
-                    { label: 'Amazon',  pct: null,          l4w: null },
-                  ].map(row => (
-                    <div key={row.label} className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500 w-16">{row.label}</span>
-                      <span className="text-sm font-bold text-slate-800 w-14 text-right">
-                        {row.pct != null ? pct(row.pct) : <span className="text-slate-300">—</span>}
-                      </span>
-                      <span className="text-xs text-slate-400 w-20 text-right">
-                        {row.l4w != null ? `L4W ${pct(row.l4w)}` : <span className="text-slate-200">no data</span>}
-                      </span>
-                    </div>
-                  ))}
-                  {/* Total supply spend */}
-                  {k && (
-                    <div className="flex items-center justify-between border-t border-slate-200 pt-2 mt-1">
-                      <span className="text-xs font-bold text-slate-600 w-16">Total</span>
-                      <span className="text-sm font-bold text-slate-900 w-14 text-right">
-                        {pct(k.pfsPct + k.walmartPct)}
-                      </span>
-                      <span className="text-xs text-slate-400 w-20 text-right">
-                        {`L4W ${pct(k.pfsPctL4W + k.walmartPctL4W)}`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-          <div className="md:col-span-3">
-            <OpsHealth kpis={k} soci={soci} guest={guestSat} loading={loading} />
-          </div>
+        {/* Supply spend beside ops health — the kit's narrow/wide pair. */}
+        <div className="sk-row4">
+          <SupplySpend kpis={k} loading={loading} />
+          <OpsHealth kpis={k} soci={soci} guest={guestSat} loading={loading} />
         </div>
 
         {/* SOP Compliance — Jolt checklists, rolling 7 days, by list + total */}
@@ -272,15 +239,15 @@ export default function Dashboard() {
           <DailyTable data={dailyRange} loading={loading} />
         )}
 
-        {/* Store breakdown + Trend — hidden for custom */}
+        {/* Store breakdown beside the callouts, as the kit pairs them. There is no
+            separate trend panel here any more: selecting a KPI tile opens the trend
+            for THAT metric, so a second chart restating one of them is redundant. */}
         {!isCustom && (
-          <div className={`grid grid-cols-1 ${isAll ? 'md:grid-cols-3' : ''} gap-4`}>
-            {isAll && (
-              <StoreBreakdown stores={stores} kpis={k} period={state.period} loading={loading} />
-            )}
-            <div className={isAll ? 'md:col-span-2' : ''}>
-              <TrendChart data={trend} loading={loading} isWeekly={state.period === 'weekly'} />
-            </div>
+          <div className="sk-grid11">
+            {isAll
+              ? <StoreBreakdown stores={stores} kpis={k} period={state.period} loading={loading} />
+              : <div />}
+            <Callouts kpis={k} loading={loading} period={state.period} promotions={promotions} />
           </div>
         )}
 
@@ -289,9 +256,8 @@ export default function Dashboard() {
           <QuarterTable quarters={quarters} loading={loading} />
         )}
 
-        {/* Callouts + COGS panel — hidden for custom */}
+        {/* COGS panel — hidden for custom */}
         {!isCustom && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Callouts kpis={k} loading={loading} period={state.period} promotions={promotions} />
           <div className="card">
             <div className="flex items-center justify-between mb-0.5">
               <div className="text-sm font-bold text-slate-700">Food Cost (COGS)</div>

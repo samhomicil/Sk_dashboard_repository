@@ -614,6 +614,42 @@
 .sk-chart-scroll { overflow-x: auto; }
 .sk-chart-scroll > svg { min-width: 460px; max-width: 860px; }
 
+/* ── Supply spend rows ──────────────────────────────────────────────────── */
+.sk-spend-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: 7px 0;
+  font-size: 13px;
+}
+.sk-spend-row .label { color: var(--ink); }
+.sk-spend-row .value { font-weight: 700; }
+.sk-spend-row .l4w { color: var(--ink-muted); font-family: var(--font-mono); font-size: var(--text-eyebrow); }
+.sk-spend-row.total {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+}
+
+/* ── Ops health ──────────────────────────────────────────────────────────── */
+.sk-ops-head { font-family: var(--font-mono); font-size: 12px; color: var(--ink); }
+.sk-ops-head .tgt { color: var(--ink-muted); margin-left: 6px; }
+.sk-ops-value { display: flex; align-items: baseline; gap: var(--space-2); margin-top: 6px; }
+.sk-ops-value .v { font-size: 20px; font-weight: 700; line-height: 1.1; }
+.sk-ops-value .u { font-size: 12px; font-weight: 400; color: var(--ink-muted); }
+.sk-ops-value .n { font-size: 12px; color: var(--ink-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sk-ops-value .n.em { color: var(--status-good); font-weight: 600; }
+.sk-ops-l4w { font-family: var(--font-mono); font-size: var(--text-eyebrow); color: var(--ink-muted); margin-top: 6px; }
+.sk-ops-flags { margin-top: var(--space-4); }
+.sk-ops-guest {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+.sk-ops-guest a { color: var(--ink-muted); text-decoration: underline; text-underline-offset: 3px; }
+@media (hover: hover) { .sk-ops-guest a:hover { color: var(--ink); } }
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 /* MUST stay last in this file. These override equal-specificity base rules
    above, so source order is what decides — putting them earlier silently

@@ -1,8 +1,8 @@
 {
-  "no-emoji": 49,
-  "hardcoded-color": 167,
-  "no-shadow": 13,
+  "no-emoji": 48,
+  "hardcoded-color": 148,
+  "no-shadow": 12,
   "touch-target": 2,
   "missing-take": 10,
-  "no-gradient": 7
+  "no-gradient": 6
 }

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useDashboard } from './useDashboard'
-import Header       from './Header'
-import KpiCard, { type SparkPoint } from './KpiCard'
+import OverviewBar  from './OverviewBar'
+import { Kpis, KpiTile, MetricTrend, type Metric, type Series } from './design/Kpi'
+import { Page } from './design/shell'
 import SopCard from './SopCard'
 import JoltQualityCard from './JoltQualityCard'
 import ForecastBanner from './ForecastBanner'
@@ -31,6 +32,14 @@ function dot(val: number, target: number, lowerBetter = false): 'green' | 'yello
   const warn = lowerBetter ? val <= target * 1.1   : val >= target * 0.85
   return ok ? 'green' : warn ? 'yellow' : 'red'
 }
+// The same three bands, named the way the design system names them. No new rule —
+// the old KPI card carried a coloured dot AND a coloured pill for one judgement;
+// the kit carries it once, on the delta.
+const TONE = { green: 'good', yellow: 'warn', red: 'bad' } as const
+const toneOf = (d: 'green' | 'yellow' | 'red' | 'none') => (d === 'none' ? undefined : TONE[d])
+// "▲3.2% vs PY" -> a signed delta, which is the system's convention.
+const signed = (p?: { text: string; color: 'green' | 'red' }) =>
+  p ? p.text.replace('▲', '+').replace('▼', '-') : undefined
 
 export default function Dashboard() {
   const { state, data, setStore, setPeriod, setCustomRange, reload } = useDashboard()
@@ -98,31 +107,84 @@ export default function Dashboard() {
 
   // Build per-metric daily sparklines aligned Sun→Sat by day-of-week
   const DOW_ORDER = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  function buildSpark(metric: keyof DailyRow): SparkPoint[] {
-    if (!daily) return []
+  // Per-metric daily series, aligned Sun->Sat by day-of-week. A day with no row
+  // stays null: the chart leaves an empty slot rather than drawing through it,
+  // because a closed Sunday is not a zero-sales Sunday.
+  function buildSpark(metric: keyof DailyRow): Series | undefined {
+    if (!daily) return undefined
     const byDay = (rows: DailyRow[]) => {
       const map = new Map(rows.map(r => [r.day, r]))
       return DOW_ORDER.map(d => map.get(d) ?? null)
     }
     const ty = byDay(daily.thisWeek)
     const py = byDay(daily.lastYear)
-    return DOW_ORDER.map((day, i) => ({
-      day,
-      v:  ty[i] ? (ty[i]![metric] as number | null) : null,
-      py: py[i] ? (py[i]![metric] as number | null) : null,
-    }))
+    return {
+      labels: DOW_ORDER,
+      ty: DOW_ORDER.map((_, i) => (ty[i] ? (ty[i]![metric] as number | null) : null)),
+      py: DOW_ORDER.map((_, i) => (py[i] ? (py[i]![metric] as number | null) : null)),
+    }
   }
-  const salesSpark    = isCustom ? [] : buildSpark('sales')
-  const ordersSpark   = isCustom ? [] : buildSpark('orders')
-  const eeSpark       = isCustom ? [] : buildSpark('eePct')
-  const atvSpark      = isCustom ? [] : buildSpark('atv')
-  const laborSpark    = isCustom ? [] : buildSpark('laborPct')
-  const voidSpark     = isCustom ? [] : buildSpark('voidPct')
-  const discountSpark = isCustom ? [] : buildSpark('discountPct')
+  const spark = (m: keyof DailyRow) => (isCustom ? undefined : buildSpark(m))
+
+  // Which KPI's trend is open. Nothing is open by default — a chart is the answer
+  // to a question the reader asked, not the thing that greets them.
+  const [openMetric, setOpenMetric] = useState<string | null>(null)
+
+  const money = (v: number) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${Math.round(v)}`)
+  const pctAxis = (v: number) => `${(v * 100).toFixed(1)}%`
+
+  // Every figure, delta and tone below is the one the old KPI cards carried. The
+  // dot and the pill said the same thing twice; the kit says it once, on the delta.
+  const METRICS: Metric[] = k ? [
+    {
+      key: 'sales', label: 'Sales', value: dol(k.sales),
+      delta: k.salesPY ? signed(pillVsPY(k.sales, k.salesPY)) : undefined,
+      tone: k.salesPY ? toneOf(k.sales >= k.salesPY * (1 + TARGETS.salesGrowthYoY) ? 'green' : k.sales >= k.salesPY ? 'yellow' : 'red') : undefined,
+      sub: k.salesTarget ? `${k.sales >= k.salesTarget ? 'at' : 'under'} the 10% target` : undefined,
+      series: spark('sales'), fmt: money,
+    },
+    {
+      key: 'orders', label: 'Orders', value: k.orders.toLocaleString(),
+      delta: k.ordersPY ? signed(pillVsPY(k.orders, k.ordersPY)) : undefined,
+      tone: k.ordersPY ? toneOf(k.orders >= k.ordersPY ? 'green' : 'red') : undefined,
+      series: spark('orders'), fmt: v => Math.round(v).toLocaleString(),
+    },
+    {
+      key: 'labor', label: 'Labor %', target: `tgt ${pct(TARGETS.laborPct)}`, value: pct(k.laborPct),
+      delta: `${k.laborPct <= TARGETS.laborPct ? '-' : '+'}${Math.abs((k.laborPct - TARGETS.laborPct) * 100).toFixed(1)} pts vs tgt`,
+      tone: toneOf(dot(k.laborPct, TARGETS.laborPct, true)),
+      sub: `L4W ${pct(k.laborPctL4W)}`,
+      series: spark('laborPct'), fmt: pctAxis,
+    },
+    {
+      key: 'cogs', label: 'COGS %', target: `tgt ${pct(TARGETS.cogsPct)}`,
+      value: k.cogsActualPct != null ? pct(k.cogsActualPct) : '—',
+      delta: k.cogsActualPct != null
+        ? `${k.cogsActualPct <= TARGETS.cogsPct ? '-' : '+'}${Math.abs((k.cogsActualPct - TARGETS.cogsPct) * 100).toFixed(1)} pts vs tgt`
+        : undefined,
+      tone: k.cogsActualPct != null ? toneOf(dot(k.cogsActualPct, TARGETS.cogsPct, true)) : undefined,
+      sub: k.cogsActualAsOf ? `as of ${k.cogsActualAsOf}` : undefined,
+    },
+    {
+      key: 'atv', label: 'ATV', value: `$${k.atv.toFixed(2)}`,
+      delta: k.atvL4W ? `${k.atv >= k.atvL4W ? '+' : '-'}$${Math.abs(k.atv - k.atvL4W).toFixed(2)} vs L4W` : undefined,
+      tone: k.atvL4W ? toneOf(k.atv >= k.atvL4W ? 'green' : 'yellow') : undefined,
+      series: spark('atv'), fmt: v => `$${v.toFixed(2)}`,
+    },
+    {
+      key: 'ee', label: 'EE %', target: `tgt ${pct(TARGETS.eePct)}`, value: pct(k.eePct),
+      delta: `${k.eePct >= TARGETS.eePct ? '+' : '-'}${Math.abs((k.eePct - TARGETS.eePct) * 100).toFixed(1)} pts vs tgt`,
+      tone: toneOf(dot(k.eePct, TARGETS.eePct)),
+      sub: k.eeInStorePct > 0 || k.eeDigitalPct > 0 ? `In-store ${pct(k.eeInStorePct, 0)} · Digital ${pct(k.eeDigitalPct, 0)}` : undefined,
+      series: spark('eePct'), fmt: pctAxis,
+    },
+  ] : []
+
+  const openTrend = METRICS.find(m => m.key === openMetric && m.series)
 
   return (
-    <div>
-      <Header
+    <Page>
+      <OverviewBar
         store={state.store}
         period={state.period}
         dates={state.dates}
@@ -134,8 +196,6 @@ export default function Dashboard() {
         refreshing={refreshing}
         refreshMsg={refreshMsg}
       />
-
-      <div className="max-w-screen-2xl mx-auto px-4 py-5 space-y-4">
 
         {/* Forecast banner — period in progress */}
         {k && !k.periodComplete && k.salesForecast !== null && (
@@ -149,71 +209,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* KPI Row 1 — Sales, Orders, Labor, COGS, ATV, EE */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          <KpiCard
-            label="Sales"
-            value={k ? dol(k.sales) : '—'}
-            dot={k && k.salesPY ? (k.sales >= k.salesPY * (1 + TARGETS.salesGrowthYoY) ? 'green' : k.sales >= k.salesPY ? 'yellow' : 'red') : 'none'}
-            pill={k && k.salesPY ? pillVsPY(k.sales, k.salesPY) : undefined}
-            pill2={k && k.salesTarget ? { text: `${k.sales >= k.salesTarget ? '✓' : '▼'} 10% tgt`, color: k.sales >= k.salesTarget ? 'green' : 'red' } : undefined}
-            spark={salesSpark}
-            sparkFmt="$"
-            loading={loading}
-          />
-          <KpiCard
-            label="Orders"
-            value={k ? k.orders.toLocaleString() : '—'}
-            dot={k && k.ordersPY ? (k.orders >= k.ordersPY ? 'green' : 'red') : 'none'}
-            pill={k && k.ordersPY ? pillVsPY(k.orders, k.ordersPY) : undefined}
-            spark={ordersSpark}
-            sparkFmt="count"
-            loading={loading}
-          />
-          <KpiCard
-            label="Labor %"
-            target={`tgt ${pct(TARGETS.laborPct)}`}
-            value={k ? pct(k.laborPct) : '—'}
-            dot={k ? dot(k.laborPct, TARGETS.laborPct, true) : 'none'}
-            pill={k ? { text: `${k.laborPct <= TARGETS.laborPct ? '▼' : '▲'}${Math.abs((k.laborPct - TARGETS.laborPct) * 100).toFixed(1)}pts vs tgt`, color: k.laborPct <= TARGETS.laborPct ? 'green' : 'red' } : undefined}
-            sub={k ? `L4W: ${pct(k.laborPctL4W)}` : undefined}
-            tooltip={k && (k.laborCost > 0 || k.laborHours > 0) ? [k.laborCost > 0 ? `$${Math.round(k.laborCost).toLocaleString()}` : null, k.laborHours > 0 ? `${Math.round(k.laborHours)} hrs` : null].filter(Boolean).join(' · ') : undefined}
-            spark={laborSpark}
-            sparkFmt="%"
-            loading={loading}
-          />
-          <KpiCard
-            label="COGS % (Actual)"
-            target={`tgt ${pct(TARGETS.cogsPct)}`}
-            value={k?.cogsActualPct != null ? pct(k.cogsActualPct) : '—'}
-            dot={k?.cogsActualPct != null ? dot(k.cogsActualPct, TARGETS.cogsPct, true) : 'none'}
-            pill={k?.cogsActualPct != null
-              ? { text: `${k.cogsActualPct <= TARGETS.cogsPct ? '▼' : '▲'}${Math.abs((k.cogsActualPct - TARGETS.cogsPct) * 100).toFixed(1)}pts vs tgt`, color: k.cogsActualPct <= TARGETS.cogsPct ? 'green' : 'red' }
-              : undefined}
-            sub={k?.cogsActualAsOf ? `as of ${k.cogsActualAsOf}` : undefined}
-            loading={loading}
-          />
-          <KpiCard
-            label="ATV"
-            value={k ? `$${k.atv.toFixed(2)}` : '—'}
-            dot={k && k.atvL4W ? (k.atv >= k.atvL4W ? 'green' : 'yellow') : 'none'}
-            pill={k && k.atvL4W ? { text: `${k.atv >= k.atvL4W ? '▲' : '▼'}$${Math.abs(k.atv - k.atvL4W).toFixed(2)} vs L4W`, color: k.atv >= k.atvL4W ? 'green' : 'red' } : undefined}
-            spark={atvSpark}
-            sparkFmt="$2"
-            loading={loading}
-          />
-          <KpiCard
-            label="EE %"
-            target={`tgt ${pct(TARGETS.eePct)}`}
-            value={k ? pct(k.eePct) : '—'}
-            dot={k ? dot(k.eePct, TARGETS.eePct) : 'none'}
-            pill={k ? { text: `${k.eePct >= TARGETS.eePct ? '▲' : '▼'}${Math.abs((k.eePct - TARGETS.eePct) * 100).toFixed(1)}pts vs tgt`, color: k.eePct >= TARGETS.eePct ? 'green' : 'red' } : undefined}
-            sub={k && (k.eeInStorePct > 0 || k.eeDigitalPct > 0) ? `In-store ${pct(k.eeInStorePct, 0)} · Digital ${pct(k.eeDigitalPct, 0)}` : undefined}
-            spark={eeSpark}
-            sparkFmt="%"
-            loading={loading}
-          />
-        </div>
+        {/* KPI row — six tiles; selecting one opens its trend in place below. */}
+        <Kpis>
+          {METRICS.map(m => (
+            <KpiTile key={m.key} m={m} selected={openMetric === m.key} onSelect={() => setOpenMetric(openMetric === m.key ? null : m.key)} />
+          ))}
+        </Kpis>
+        {openTrend && <MetricTrend m={openTrend} onClose={() => setOpenMetric(null)} />}
 
         {/* KPI Row 2 — Supply Spend + OpsHealth */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -367,8 +369,6 @@ export default function Dashboard() {
 
         {/* Bottom row — hidden for custom */}
         {!isCustom && <BottomRow channels={channels} products={products} categories={categories} loading={loading} />}
-
-      </div>
-    </div>
+    </Page>
   )
 }

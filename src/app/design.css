@@ -500,14 +500,129 @@
 .sk-table tbody tr.proj td { color: var(--ink-muted); font-style: italic; }
 .sk-table tbody tr.proj td:first-child { font-style: normal; }
 
+
+/* ── KPI tiles ───────────────────────────────────────────────────────────── */
+.sk-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-4); }
+.sk-kpi {
+  position: relative;
+  text-align: left;
+  font-family: var(--font-sans);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-radius);
+  padding: var(--space-4);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+/* The selected tile is marked by a brass rule across its top edge — brass is a
+   marker, never a figure. */
+.sk-kpi::before {
+  content: '';
+  position: absolute;
+  left: -1px; right: -1px; top: -1px;
+  height: 2px;
+  background: transparent;
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
+}
+.sk-kpi[aria-pressed='true']::before { background: var(--accent); }
+.sk-kpi[aria-pressed='true'] { border-color: var(--border); }
+@media (hover: hover) { .sk-kpi:hover { border-color: var(--border); } }
+.sk-kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.sk-kpi-expand {
+  position: absolute;
+  top: var(--space-2); right: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+@media (hover: hover) { .sk-kpi:hover .sk-kpi-expand { opacity: 1; } }
+.sk-kpi:focus-visible .sk-kpi-expand,
+.sk-kpi[aria-pressed='true'] .sk-kpi-expand { opacity: 1; }
+
+.sk-metric {
+  font-size: var(--text-metric-card);
+  font-weight: var(--text-metric-card-weight);
+  line-height: var(--text-metric-card-lh);
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
+.sk-subline { font-size: 12px; color: var(--ink-muted); margin-top: var(--space-1); font-variant-numeric: tabular-nums; }
+
+/* ── Ghost button ────────────────────────────────────────────────────────── */
+.sk-ghost {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  min-height: var(--touch-min);
+}
+@media (hover: hover) { .sk-ghost:hover { color: var(--ink); border-color: var(--ink-muted); } }
+.sk-ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Date row for the Daily range. */
+.sk-daterow { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.sk-daterow input[type='date'] {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  min-height: var(--touch-min);
+}
+/* The freshness label doubles as the refresh control. */
+.sk-refresh {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+@media (hover: hover) { .sk-refresh:hover:not(:disabled) { color: var(--ink); } }
+.sk-refresh:disabled { cursor: default; opacity: 0.6; }
+.sk-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Overview panel grids ────────────────────────────────────────────────── */
+.sk-row4 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--grid-gutter); }
+.sk-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--grid-gutter); }
+.sk-mixrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: var(--grid-gutter); }
+
+/* A chart scrolls at its authored type size rather than shrinking its ticks. */
+/* A chart scrolls at its authored size rather than shrinking its ticks — and it
+   does not BALLOON past that size either. Stretched to a 1100px panel, a 640-wide
+   viewBox renders its 10px mono ticks at 17px, louder than the metrics above it.
+   Held to ~1.35x, the type stays close to what it was drawn at. */
+.sk-chart-scroll { overflow-x: auto; }
+.sk-chart-scroll > svg { min-width: 460px; max-width: 860px; }
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 /* MUST stay last in this file. These override equal-specificity base rules
    above, so source order is what decides — putting them earlier silently
    reverts the whole mobile pass, which is exactly how it went wrong before. */
 @media (max-width: 900px) {
   /* Side-by-side panels are unreadable at this width. */
-  .sk-grid11 { grid-template-columns: minmax(0, 1fr); }
+  .sk-grid11, .sk-row4, .sk-grid3, .sk-mixrow { grid-template-columns: minmax(0, 1fr); }
   .sk-grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sk-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sk-page { padding-left: var(--gutter-mobile); padding-right: var(--gutter-mobile); }
   /* min-width:0 is what actually lets the filter row clip. Without it the flex
      item sizes to its content and the whole page scrolls sideways instead. */
@@ -521,6 +636,7 @@
 }
 @media (max-width: 620px) {
   .sk-tiles, .sk-grid4 { grid-template-columns: 1fr; }
+  .sk-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sk-card { padding: var(--space-4); }
   /* Wide tables scroll under a pinned first column — the row label is what makes
      the numbers mean anything, so it must not scroll away with them. */

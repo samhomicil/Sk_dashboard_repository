@@ -650,6 +650,53 @@
 .sk-ops-guest a { color: var(--ink-muted); text-decoration: underline; text-underline-offset: 3px; }
 @media (hover: hover) { .sk-ops-guest a:hover { color: var(--ink); } }
 
+/* Callout rows are ruled off from one another — the kit separates them so a long
+   sentence and a short one still read as two items. */
+.sk-callouts .sk-flag { border-bottom: 1px solid var(--border-subtle); }
+.sk-callouts .sk-flag:last-child { border-bottom: none; }
+
+/* ── Mix list items ─────────────────────────────────────────────────────── */
+.sk-mixitem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  min-width: 0;
+}
+.sk-mixitem:last-child { border-bottom: none; }
+.sk-mixitem > .grow { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-mixitem .rank {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+  width: 16px;
+  text-align: right;
+  flex: 0 0 auto;
+}
+/* A sub-channel belongs to the row above it: indented, mono, quieter. */
+.sk-mixitem.child {
+  border-bottom: none;
+  padding: 3px 0 3px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.sk-mixpy { font-family: var(--font-mono); font-size: var(--text-eyebrow); color: var(--ink-muted); }
+
+/* ── Segmented bar (Jolt summary) ───────────────────────────────────────── */
+.sk-segbar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--border-subtle);
+  min-width: 90px;
+  margin-left: auto;
+}
+.sk-segbar > div { height: 100%; }
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 /* MUST stay last in this file. These override equal-specificity base rules
    above, so source order is what decides — putting them earlier silently

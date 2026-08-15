@@ -5,8 +5,7 @@ import { useDashboard } from './useDashboard'
 import OverviewBar  from './OverviewBar'
 import { Kpis, KpiTile, MetricTrend, type Metric, type Series } from './design/Kpi'
 import { Page } from './design/shell'
-import SopCard from './SopCard'
-import JoltQualityCard from './JoltQualityCard'
+import JoltPanel from './JoltPanel'
 import ForecastBanner from './ForecastBanner'
 import StoreBreakdown from './StoreBreakdown'
 import OpsHealth    from './OpsHealth'
@@ -15,7 +14,7 @@ import Callouts     from './Callouts'
 import QuarterTable from './QuarterTable'
 import Heatmap      from './Heatmap'
 import EmployeeTable from './EmployeeTable'
-import BottomRow    from './BottomRow'
+import MixRow       from './MixRow'
 import DailyTable   from './DailyTable'
 import { TARGETS }  from '@/lib/config'
 import type { KpiData, DailyRow } from '@/lib/types'
@@ -228,11 +227,10 @@ export default function Dashboard() {
           <OpsHealth kpis={k} soci={soci} guest={guestSat} loading={loading} />
         </div>
 
-        {/* SOP Compliance — Jolt checklists, rolling 7 days, by list + total */}
-        <SopCard data={jolt} loading={loading} />
-
-        {/* Photo Quality — Jolt evidence photos scored done-to-standard, by store */}
-        <JoltQualityCard data={joltQuality} loading={loading} />
+        {/* Jolt — completion and photo quality in one table, as the kit has it.
+            They were two panels, so answering "was it submitted AND done right?"
+            for one store meant scrolling between them. */}
+        <JoltPanel jolt={jolt} quality={joltQuality} />
 
         {/* Daily Table — custom period only */}
         {isCustom && (
@@ -333,8 +331,8 @@ export default function Dashboard() {
         {/* Employee Performance — hidden for custom */}
         {!isCustom && <EmployeeTable employees={employees} loading={loading} />}
 
-        {/* Bottom row — hidden for custom */}
-        {!isCustom && <BottomRow channels={channels} products={products} categories={categories} loading={loading} />}
+        {/* Channel / category / product mix — the kit's 1:1:2 row. */}
+        {!isCustom && <MixRow channels={channels} products={products} categories={categories} loading={loading} />}
     </Page>
   )
 }

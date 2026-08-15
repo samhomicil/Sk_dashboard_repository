@@ -17,7 +17,7 @@ interface Flag {
 }
 
 export default function Callouts({ kpis, loading, period, promotions = [] }: Props) {
-  if (loading) return <div className="card md:col-span-2"><div className="skeleton h-32 w-full" /></div>
+  if (loading) return <div className="sk-card"><div className="skeleton" style={{ height: 128 }} /></div>
   if (!kpis) return null
 
   const showPromotions = period === 'weekly' && promotions.length > 0
@@ -102,7 +102,9 @@ export default function Callouts({ kpis, loading, period, promotions = [] }: Pro
     ...flags.filter(f => f.level === 'green'),
   ]
 
-  const icon = { red: '🔴', yellow: '🟡', green: '🟢' }
+  // Tone dots, not emoji: emoji are not in the system, they render differently on
+  // every platform, and a screen reader announces "large red circle".
+  const TONE = { red: 'bad', yellow: 'warn', green: 'good' } as const
 
   function formatOfferValue(p: Promotion): string | null {
     if (p.offerValue == null) return null
@@ -116,33 +118,31 @@ export default function Callouts({ kpis, loading, period, promotions = [] }: Pro
   }
 
   return (
-    <div className="card md:col-span-2">
-      <div className="text-sm font-bold text-slate-700 mb-0.5">Weekly Callouts</div>
-      <div className="text-xs text-slate-400 mb-3">Auto-generated flags from targets and L4W variance</div>
+    <div className="sk-card">
+      <h3 className="sk-card-title">Weekly callouts</h3>
+      <p className="sk-subline" style={{ margin: '4px 0 12px' }}>Flags derived from targets and L4W variance</p>
 
       {showPromotions && (
-        <div className="mb-3 pb-3 border-b border-slate-100">
-          <div className="text-xs font-bold text-slate-500 mb-1.5">Promotions running this week</div>
-          <div className="space-y-2">
-            {promotions.map(p => (
-              <div key={p.offerName + p.startDate} className="flex items-start gap-2">
-                <span className="text-sm shrink-0">📣</span>
-                <div className="text-xs leading-5">
-                  <span className="font-semibold text-slate-700">{p.offerName}</span>
-                  {formatOfferValue(p) && <span className="text-slate-500"> — {formatOfferValue(p)}</span>}
-                  <span className="text-slate-400"> · {weekLabel(p.startDate)}–{weekLabel(p.endDate)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)' }}>
+          <div className="sk-eyebrow" style={{ marginBottom: 8 }}>Promotions running this week</div>
+          {promotions.map(p => (
+            <div key={p.offerName + p.startDate} className="sk-flag sk-tone-neutral">
+              <span className="sk-flag-dot" style={{ background: 'var(--accent)' }} />
+              <span>
+                <b>{p.offerName}</b>
+                {formatOfferValue(p) && <span> — {formatOfferValue(p)}</span>}
+                <span style={{ color: 'var(--ink-muted)' }}> · {weekLabel(p.startDate)}–{weekLabel(p.endDate)}</span>
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="divide-y divide-slate-50">
+      <div className="sk-callouts">
         {sorted.map((f, i) => (
-          <div key={i} className="flex items-start gap-2 py-2">
-            <span className="text-sm shrink-0">{icon[f.level]}</span>
-            <span className="text-xs text-slate-600 leading-5">{f.text}</span>
+          <div key={i} className={`sk-flag sk-tone-${TONE[f.level]}`}>
+            <span className="sk-flag-dot" />
+            <span>{f.text}</span>
           </div>
         ))}
       </div>

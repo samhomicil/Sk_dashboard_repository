@@ -263,8 +263,16 @@
   box-sizing: border-box;
   border-bottom: 1px solid var(--border-subtle);
 }
-.sk-table th:first-child, .sk-table td:first-child { padding-left: 0; }
-.sk-table th:last-child,  .sk-table td:last-child  { padding-right: 0; }
+/* First and last cells sit flush to the card edge — but ONLY where they really are
+   the first and last COLUMN. With a two-tier header the lower tier ends at the last
+   GROUPED column ("Act / est"), which :last-child also matches, and zeroing its
+   padding shoved the label hard against the divider of the column beside it. The
+   group row spans every column, so scoping to it is correct in both cases; an
+   ungrouped table has only that one header row anyway. */
+.sk-table tbody td:first-child { padding-left: 0; }
+.sk-table tbody td:last-child { padding-right: 0; }
+.sk-table thead tr:first-child th:first-child { padding-left: 0; }
+.sk-table thead tr:first-child th:last-child { padding-right: 0; }
 
 /* A numeric column is right-aligned in BOTH rows. Aligning a header opposite its
    figures is the specificity bug that shipped once already, so the header and the
@@ -282,6 +290,11 @@
   color: var(--ink);
 }
 .sk-table td.divider, .sk-table th.divider { border-left: 1px solid var(--border-subtle); }
+/* NOTE: widening the gap before a group rule was tried and reverted. Every column
+   that closes a set gaining 16px squeezed the narrative column enough to wrap it,
+   which pushed the three forecast rows to 57px against everyone else's 40px — a
+   ragged register is worse than a tight rule. Header and cells must also keep the
+   SAME padding or a right-aligned label sits offset from the figures under it. */
 
 .sk-table tbody tr.total td { border-top: 1px solid var(--border); border-bottom: none; font-weight: 700; }
 .sk-table tbody tr.muted td { opacity: 0.45; }

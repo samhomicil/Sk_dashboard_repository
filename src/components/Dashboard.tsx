@@ -227,11 +227,6 @@ export default function Dashboard() {
           <OpsHealth kpis={k} soci={soci} guest={guestSat} loading={loading} />
         </div>
 
-        {/* Jolt — completion and photo quality in one table, as the kit has it.
-            They were two panels, so answering "was it submitted AND done right?"
-            for one store meant scrolling between them. */}
-        <JoltPanel jolt={jolt} quality={joltQuality} />
-
         {/* Daily Table — custom period only */}
         {isCustom && (
           <DailyTable data={dailyRange} loading={loading} />
@@ -248,6 +243,14 @@ export default function Dashboard() {
             <Callouts kpis={k} loading={loading} period={state.period} promotions={promotions} />
           </div>
         )}
+
+        {/* Channel / category / product mix — the kit's 1:1:2 row. */}
+        {!isCustom && <MixRow channels={channels} products={products} categories={categories} loading={loading} />}
+
+        {/* Jolt — completion and photo quality in one table, as the kit has it.
+            They were two panels, so answering "was it submitted AND done right?"
+            for one store meant scrolling between them. */}
+        <JoltPanel jolt={jolt} quality={joltQuality} />
 
         {/* Quarter table (quarterly + YTD tabs) */}
         {showQuarters && (
@@ -331,8 +334,7 @@ export default function Dashboard() {
         {/* Employee Performance — hidden for custom */}
         {!isCustom && <EmployeeTable employees={employees} loading={loading} />}
 
-        {/* Channel / category / product mix — the kit's 1:1:2 row. */}
-        {!isCustom && <MixRow channels={channels} products={products} categories={categories} loading={loading} />}
+
     </Page>
   )
 }

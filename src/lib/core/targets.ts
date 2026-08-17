@@ -95,3 +95,23 @@ export const STAFFING_BANDS = [
  *  June wage cost and average revenue per unit against the 22% labor target.
  *  Was a literal in components/Heatmap.tsx. See the collision note above. */
 export const STORE_UPH: Record<string, number> = { pines: 7.5, miramar: 8.4, margate: 8.2 }
+
+/**
+ * The shortest NetChef period that can carry a meaningful ACTUAL cost of goods.
+ *
+ * Actual COGS is (beginning + received − physical) × price. Over a full cycle the
+ * received stock is also largely used, so it cancels. Over a 2-day window it does
+ * not: one delivery lands inside the window and nothing has consumed it yet, so
+ * actual comes out enormous against two days of sales.
+ *
+ * That is not hypothetical. On 2026-08-17 the only count period inside the week was
+ * Aug 11–12 — two days — and the Overview reported actual COGS of 182.1% (Margate
+ * 256.8%) beside a perfectly sane 26.0% theoretical. Theoretical survives a short
+ * window because recipe usage scales with sales; actual does not, because receipts
+ * are lumpy.
+ *
+ * A real inventory cycle is a week. 5 is the floor rather than 7 so a count taken a
+ * day early or late still counts, while 1- and 2-day partials are refused. Below
+ * this, actual COGS is reported as unavailable — never as a number.
+ */
+export const INVENTORY_PERIOD_MIN_DAYS = 5

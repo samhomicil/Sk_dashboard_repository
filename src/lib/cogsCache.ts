@@ -38,11 +38,14 @@ import 'server-only'
 import { query } from './db'
 import type { Store } from './types'
 import { sqlSales } from './salesCache'
+import { INVENTORY_PERIOD_MIN_DAYS } from './core/targets'
 
 type CogsWeek = {
   store: string; start: string; end: string; theo: number; actual: number
   /** true when period_start = period_end, i.e. a nightly count rather than a full inventory */
   nightly: boolean
+  /** span in days, inclusive. Short periods cannot carry an actual COGS — see below. */
+  days: number
 }
 
 let _weeks: CogsWeek[] | null = null
@@ -60,7 +63,7 @@ export async function loadCogsCache(): Promise<void> {
     // 15-16% against a true 24-27%. Quantities on those rows are sound; only the price
     // is missing. Same rule as src/lib/core/cogs.ts, so the Overview, Weekly Ops and
     // Budget cannot disagree about how a dollar of food cost is derived.
-    const rows = await query<{ store: string; start: string; end: string; theo: number; actual: number; nightly: number }[]>(
+    const rows = await query<{ store: string; start: string; end: string; theo: number; actual: number; nightly: number; days: number }[]>(
       `WITH px AS (
          SELECT store, product_number, inventory_price,
                 ROW_NUMBER() OVER (PARTITION BY store, product_number ORDER BY as_of DESC) rn
@@ -72,7 +75,8 @@ export async function loadCogsCache(): Promise<void> {
               SUM(u.qty_issue * COALESCE(px.inventory_price, u.price, 0)) AS theo,
               SUM((u.qty_beginning + u.qty_received - u.qty_physical)
                   * COALESCE(px.inventory_price, u.price, 0)) AS actual,
-              MAX(CASE WHEN u.period_start = u.period_end THEN 1 ELSE 0 END) AS nightly
+              MAX(CASE WHEN u.period_start = u.period_end THEN 1 ELSE 0 END) AS nightly,
+              DATEDIFF(day, MIN(u.period_start), MIN(u.period_end)) + 1 AS days
          FROM smoothieking.netchef_usage_api u
          LEFT JOIN px ON px.store = u.store AND px.product_number = u.product_number AND px.rn = 1
         WHERE u.period_start <> u.period_end
@@ -80,7 +84,7 @@ export async function loadCogsCache(): Promise<void> {
     )
     _weeks = rows.map(r => ({
       store: r.store, start: r.start, end: r.end,
-      theo: n(r.theo), actual: n(r.actual), nightly: n(r.nightly) === 1,
+      theo: n(r.theo), actual: n(r.actual), nightly: n(r.nightly) === 1, days: n(r.days),
     }))
   })()
   await _loading
@@ -126,11 +130,14 @@ export function sqlCogsPct(store: Store, start: string, end: string): {
     sales += sqlSales(store, w.start, w.end).net_sales
   }
 
-  // Only full inventory periods reach this point (nightly rows are filtered at load), so
-  // both figures rest on a real closing count. The guard stays as a belt-and-braces check.
+  // A short period cannot carry an ACTUAL cost of goods: a delivery landing inside a
+  // 2-day window is counted as received but not yet used, so (beginning + received −
+  // physical) comes out enormous against two days of sales. Theoretical is unaffected,
+  // because recipe usage scales with sales over any window.
   const anyNightly = matched.some(w => w.nightly)
+  const anyShort   = matched.some(w => w.days < INVENTORY_PERIOD_MIN_DAYS)
   return {
-    actualPct: !anyNightly && actual > 0 && sales > 0 ? actual / sales : null,
+    actualPct: !anyNightly && !anyShort && actual > 0 && sales > 0 ? actual / sales : null,
     theoreticalPct: theo > 0 && sales > 0 ? theo / sales : null,
     asOf: a,
   }

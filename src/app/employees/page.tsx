@@ -10,6 +10,7 @@ import { MINOR_RULE_LABEL, type MinorRule } from '@/lib/minorLabor'
 import Heatmap from '@/components/Heatmap'
 import EmployeeTable from '@/components/EmployeeTable'
 import DemandGrid from '@/components/DemandGrid'
+import { UnknownValue, NotMeasured } from '@/components/design/states'
 import type { StaffingData, StaffingCell, EmployeeRow, Store, StoreRow } from '@/lib/types'
 import { Page, PageBar, Section, Stat, Grid4, FlagList, type Flag } from '@/components/design/shell'
 import { SegControl, TargetBar } from '@/components/design/controls'
@@ -345,72 +346,66 @@ function EmployeesInner() {
           {upcoming.length > 0 && <RecognitionCard items={upcoming} />}
 
           {/* ── Roster ────────────────────────────────────────────────────────── */}
-          <div className="card mt-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="sk-card">
+            <div className="sk-sechead" style={{ marginBottom: 16 }}>
               <div>
-                <div className="text-sm font-bold text-slate-700">Roster</div>
-                <div className="text-xs text-slate-400 mt-0.5">{VIEW_NOTE[view]}</div>
+                <h3 className="sk-card-title">Roster</h3>
+                <p className="sk-subline" style={{ margin: '4px 0 0' }}>{VIEW_NOTE[view]}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 {/* Three narrow views rather than one 17-column table — each stays
                     scannable, and grouping keeps unrelated measures from being read
                     against each other. */}
-                <div className="flex gap-1">
-                  {VIEWS.map(v => (
-                    <button key={v} onClick={() => setView(v)}
-                      className={`px-2.5 py-1 text-[11px] font-medium rounded transition-colors ${
-                        view === v ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'
-                      }`}>{v}</button>
-                  ))}
-                </div>
-                <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                <SegControl
+                  label="Roster view"
+                  options={VIEWS.map(v => ({ value: v, label: v }))}
+                  value={view}
+                  onChange={setView}
+                />
+                <label className="sk-checkbox">
                   <input type="checkbox" checked={showInactive}
-                    onChange={e => setShowInactive(e.target.checked)} className="accent-teal-600" />
+                    onChange={e => setShowInactive(e.target.checked)} />
                   inactive
                 </label>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+            <div className="sk-table-wrap">
+              <table className="sk-table">
                 <thead>
                   {view === 'Exceptions' && (
-                    <tr className="text-[9px] uppercase tracking-wide">
+                    <tr className="group">
                       <th colSpan={2} />
-                      <th colSpan={3} className="pb-1 text-center text-slate-500 border-b-2 border-slate-300">
-                        Theirs — rung / counted by them
-                      </th>
-                      <th colSpan={3} className="pb-1 text-center text-slate-400 border-b-2 border-slate-200">
-                        Rest of shift — same hours, other people
-                      </th>
+                      <th colSpan={3} className="grp num">Theirs — rung / counted by them</th>
+                      <th colSpan={3} className="grp num divider">Rest of shift — same hours, other people</th>
                     </tr>
                   )}
-                  <tr className="text-[10px] text-slate-400 uppercase border-b border-slate-100">
-                    <th className="text-left pb-2">Employee</th>
-                    <th className="text-left pb-2">Store</th>
+                  <tr>
+                    <th scope="col">Employee</th>
+                    <th scope="col">Store</th>
                     {view === 'Productivity' && <>
-                      <th className="text-right pb-2">Hrs</th>
-                      <th className="text-right pb-2">Orders</th>
-                      <th className="text-right pb-2">Gross</th>
-                      <th className="text-right pb-2">$/hr</th>
-                      <th className="text-right pb-2">Avg sale</th>
-                      <th className="text-right pb-2" title="Extras &amp; enhancers attach rate">EE%</th>
+                      <th className="num" scope="col">Hrs</th>
+                      <th className="num" scope="col">Orders</th>
+                      <th className="num" scope="col">Gross</th>
+                      <th className="num" scope="col">$/hr</th>
+                      <th className="num" scope="col">Avg sale</th>
+                      <th className="num" scope="col" title="Extras &amp; enhancers attach rate">EE%</th>
                     </>}
                     {view === 'Attendance' && <>
-                      <th className="text-right pb-2">Sched hrs</th>
-                      <th className="text-right pb-2">Actual hrs</th>
-                      <th className="text-right pb-2">Variance</th>
-                      <th className="text-right pb-2">Late %</th>
-                      <th className="text-right pb-2">No-show</th>
-                      <th className="text-right pb-2">Unsched</th>
-                      <th className="text-right pb-2">OT</th>
+                      <th className="num" scope="col">Sched hrs</th>
+                      <th className="num" scope="col">Actual hrs</th>
+                      <th className="num" scope="col">Variance</th>
+                      <th className="num" scope="col">Late %</th>
+                      <th className="num" scope="col">No-show</th>
+                      <th className="num" scope="col">Unsched</th>
+                      <th className="num" scope="col">OT</th>
                     </>}
                     {view === 'Exceptions' && <>
-                      <th className="text-right pb-2">Void %</th>
-                      <th className="text-right pb-2">Disc %</th>
-                      <th className="text-right pb-2">Cash / drawer</th>
-                      <th className="text-right pb-2">Void %</th>
-                      <th className="text-right pb-2">Disc %</th>
-                      <th className="text-right pb-2">Cash / drawer</th>
+                      <th className="num" scope="col">Void %</th>
+                      <th className="num" scope="col">Disc %</th>
+                      <th className="num" scope="col">Cash / drawer</th>
+                      <th className="num" scope="col">Void %</th>
+                      <th className="num" scope="col">Disc %</th>
+                      <th className="num" scope="col">Cash / drawer</th>
                     </>}
                   </tr>
                 </thead>
@@ -418,18 +413,14 @@ function EmployeesInner() {
                   {rows.map(r => {
                     const a = r.attendance, e = r.exceptions, c = r.cash, p = r.productivity
                     return (
-                      <tr key={r.employeeKey} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-1.5 font-semibold text-slate-700">
-                          <Link href={`/employees/${encodeURIComponent(r.employeeKey)}`}
-                            className="hover:text-teal-600 transition-colors">{r.employee}</Link>
-                          {r.isMinor && (
-                            <span className="ml-1.5 px-1 py-0.5 rounded bg-amber-50 text-amber-700 text-[9px] font-bold align-middle">
-                              {r.age}
-                            </span>
-                          )}
-                          {r.status === 'inactive' && <span className="ml-1.5 text-[9px] text-slate-300">inactive</span>}
+                      <tr key={r.employeeKey} className={r.status === 'inactive' ? 'muted' : undefined}>
+                        <td className="nowrap" style={{ fontWeight: 600 }}>
+                          <Link href={`/employees/${encodeURIComponent(r.employeeKey)}`} className="sk-rowlink">{r.employee}</Link>
+                          {/* An age badge, not a colour: a minor's shifts are governed by
+                              law, so the number itself is the point. */}
+                          {r.isMinor && <span className="sk-age">{r.age}</span>}
                         </td>
-                        <td className="text-slate-400">{r.homeStore}</td>
+                        <td style={{ color: 'var(--ink-muted)' }}>{r.homeStore}</td>
 
                         {view === 'Productivity' && <>
                           <Num v={a?.workedHours} d={1} />
@@ -437,7 +428,7 @@ function EmployeesInner() {
                             ? <><Num v={p?.orders} /><Cell>{p ? money(p.grossSales) : '—'}</Cell>
                                <Cell>{r.grossPerHour != null ? money(r.grossPerHour) : '—'}</Cell>
                                <Cell>{p?.ast != null ? money2(p.ast) : '—'}</Cell></>
-                            : <td className="text-right text-slate-300" colSpan={4} title={SALARIED_NOTE}>salaried — not measured</td>}
+                            : <td className="num" colSpan={4}><NotMeasured reason={SALARIED_NOTE}>salaried — not measured</NotMeasured></td>}
                           <Cell>{e?.eePct != null
                             ? <span className={e.eePct >= 0.6 ? 'text-emerald-600' : e.eePct >= 0.4 ? 'text-slate-600' : 'text-amber-600'}>
                                 {(e.eePct * 100).toFixed(1)}%</span>
@@ -558,10 +549,10 @@ const VIEW_NOTE: Record<View, string> = {
 
 /** Right-aligned numeric cell. */
 function Num({ v, d = 0 }: { v?: number | null; d?: number }) {
-  return <td className="text-right text-slate-600">{v != null ? v.toFixed(d) : '—'}</td>
+  return <td className="num">{v != null ? v.toFixed(d) : '—'}</td>
 }
 function Cell({ children }: { children: React.ReactNode }) {
-  return <td className="text-right text-slate-600">{children}</td>
+  return <td className="num">{children}</td>
 }
 /** A percentage cell that shows its own sample size on hover and greys out when muted. */
 function Rate({ v, limit, n, unit, muted, fallback }: {
@@ -577,10 +568,15 @@ function Rate({ v, limit, n, unit, muted, fallback }: {
 }
 
 /** Distinguishes "no POS attribution for this person" from a genuine zero. */
+/**
+ * Absent, typed. A dash means we looked and there was nothing; "n/a" means the POS
+ * never attributed anything to this person, which is unknown — not zero. Rendering
+ * the second as 0% is how someone gets coached for a data gap.
+ */
 function NoPos({ has }: { has: boolean }) {
   return has
-    ? <span className="text-slate-300">—</span>
-    : <span className="text-slate-300 italic" title="No POS attribution for this employee — the item-sales export drops the cashier stamp for staff hired since May 2026, so this is unknown, not zero.">n/a</span>
+    ? <span style={{ color: 'var(--ink-muted)' }}>—</span>
+    : <UnknownValue reason="No POS attribution for this employee — the item-sales export drops the cashier stamp for staff hired since May 2026, so this is unknown, not zero." />
 }
 function signed(n: number) {
   return `${n < 0 ? '−' : '+'}$${Math.abs(n).toFixed(2)}`

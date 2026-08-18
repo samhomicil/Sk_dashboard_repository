@@ -706,6 +706,32 @@
 }
 .sk-segbar > div { height: 100%; }
 
+/* ── Roster bits ─────────────────────────────────────────────────────────── */
+.sk-rowlink { color: inherit; text-decoration: none; }
+@media (hover: hover) { .sk-rowlink:hover { text-decoration: underline; text-underline-offset: 3px; } }
+/* A minor's age, stated rather than colour-coded — their shifts are governed by law. */
+.sk-age {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--status-warn);
+  color: var(--status-warn);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.sk-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sk-checkbox input { accent-color: var(--brand); width: 15px; height: 15px; }
+
 /* ── Heat grid ───────────────────────────────────────────────────────────── */
 /* Cells are painted on an inner span, not the td, so the table's own hairlines
    still read between them and each block keeps a 2px gap on the surface. */

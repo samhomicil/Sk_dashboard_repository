@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { resolveDateRange } from '@/lib/dates'
+import { resolveDateRange, DEFAULT_PERIOD } from '@/lib/dates'
 import type { Period } from '@/lib/types'
 
 const OPTS: { key: Period; label: string }[] = [
@@ -24,7 +24,7 @@ export default function Timeframe() {
   const router = useRouter()
   const pathname = usePathname()
   const sp = useSearchParams()
-  const period = (sp.get('period') as Period) || 'quarterly'
+  const period = (sp.get('period') as Period) || DEFAULT_PERIOD
   const cs = sp.get('start') || ''
   const ce = sp.get('end') || ''
   const [showCustom, setShowCustom] = useState(period === 'custom')

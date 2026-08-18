@@ -52,3 +52,14 @@ export function resolveDateRange(period: Period, customStart?: string, customEnd
 export function weekLabel(isoDate: string): string {
   return format(new Date(isoDate + 'T00:00:00'), 'MM/dd')
 }
+
+/**
+ * The period a surface shows when the URL does not name one.
+ *
+ * It lives here because it was previously written twice — Timeframe fell back to
+ * 'quarterly' while the employees page fell back to 'weekly', both reading the same
+ * ?period= param. With no param in the URL the control said "Quarterly · Jul 1 – Aug 17"
+ * while the data underneath it was the week of Aug 10–16. A filter that disagrees with
+ * the figures beside it is worse than either answer on its own.
+ */
+export const DEFAULT_PERIOD: Period = 'quarterly'

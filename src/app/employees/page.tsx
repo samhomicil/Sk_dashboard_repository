@@ -3,13 +3,18 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Timeframe from '@/components/Timeframe'
-import { resolveDateRange } from '@/lib/dates'
+import { resolveDateRange, DEFAULT_PERIOD } from '@/lib/dates'
 import type { Period } from '@/lib/types'
 import Link from 'next/link'
 import { MINOR_RULE_LABEL, type MinorRule } from '@/lib/minorLabor'
 import Heatmap from '@/components/Heatmap'
 import EmployeeTable from '@/components/EmployeeTable'
-import type { StaffingData, EmployeeRow, Store } from '@/lib/types'
+import type { StaffingData, EmployeeRow, Store, StoreRow } from '@/lib/types'
+import { Page, PageBar, Section, Stat, Grid4, FlagList, type Flag } from '@/components/design/shell'
+import { SegControl, TargetBar } from '@/components/design/controls'
+import {
+  LABOR_TARGET, DRAWER_VARIANCE_LIMIT, VOID_LIMIT_PCT, VOID_VS_SHIFT_MULTIPLE,
+} from '@/lib/core/targets'
 
 type Productivity = {
   orders: number; guests: number; grossSales: number
@@ -132,10 +137,11 @@ function EmployeesInner() {
   const [staffing, setStaffing] = useState<StaffingData | null>(null)
   const [unitsWindow, setUnitsWindow] = useState<{ start: string; end: string } | null>(null)
   const [labor, setLabor] = useState<EmployeeRow[]>([])
+  const [storeRows, setStoreRows] = useState<StoreRow[]>([])
   // Timeframe comes from the URL, same Period model as the inventory module and the
   // dashboard tabs, so a window is shareable and consistent across surfaces.
   const sp = useSearchParams()
-  const period = (sp.get('period') as Period) || 'weekly'
+  const period = (sp.get('period') as Period) || DEFAULT_PERIOD
   const win = resolveDateRange(period, sp.get('start') || undefined, sp.get('end') || undefined)
 
   useEffect(() => {
@@ -156,6 +162,12 @@ function EmployeesInner() {
     fetch(`/api/employees?store=${store}&period=${period}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(d => { if (!stale && Array.isArray(d)) setLabor(d) })
+      .catch(() => {})
+    // Per-store labour % against target. Same source the Overview's store breakdown
+    // reads, so the two screens cannot disagree about a store's labour.
+    fetch(`/api/stores?period=${period}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => { if (!stale && Array.isArray(d)) setStoreRows(d) })
       .catch(() => {})
     return () => { stale = true }
   }, [store, period])
@@ -191,37 +203,70 @@ function EmployeesInner() {
     return out.sort((a, b) => a.days - b.days)
   }, [active])
 
+  /**
+   * Needs attention — one flag per person per reason, worst first. Every threshold
+   * comes from core/targets.ts, and the subtitle names all three so a reader can see
+   * what did and did not qualify.
+   *
+   * The void test is against the REST OF THE SHIFT, not an absolute rate: an absolute
+   * limit flags a whole store on a bad night, while "double the people working the
+   * same hours" isolates the person a manager can actually talk to.
+   */
+  const flags: Flag[] = useMemo(() => {
+    const out: Flag[] = []
+    for (const r of active) {
+      const a = r.attendance, e = r.exceptions, c = r.cash
+      if (a?.noShows) {
+        out.push({ tone: 'bad', who: r.employee, scope: r.homeStore,
+          text: `${a.noShows} no-show${a.noShows === 1 ? '' : 's'} this window — cover the next posted shift.` })
+      }
+      if (e?.voidPct != null && e.shiftVoidPct != null && e.orders > 0
+          && e.voidPct >= VOID_LIMIT_PCT
+          && e.voidPct >= e.shiftVoidPct * VOID_VS_SHIFT_MULTIPLE) {
+        out.push({ tone: 'bad', who: r.employee, scope: r.homeStore,
+          text: `Void ${(e.voidPct * 100).toFixed(1)}% against a rest-of-shift ${(e.shiftVoidPct * 100).toFixed(1)}% — more than double the baseline, worth asking about.` })
+      }
+      if (c?.ownPerTill != null && Math.abs(c.ownPerTill) > DRAWER_VARIANCE_LIMIT && c.ownTills > 0) {
+        out.push({ tone: 'warn', who: r.employee, scope: r.homeStore,
+          text: `Drawer off ${signed(c.ownPerTill)} per till across ${c.ownTills} drawer${c.ownTills === 1 ? '' : 's'} — re-check the count routine.` })
+      }
+    }
+    return out
+  }, [active])
+
+  const storeLabor = useMemo(
+    () => storeRows.filter(r => store === 'all' || r.store === store),
+    [storeRows, store])
+
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-6 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <h1 className="text-xl font-bold text-slate-800">Employees</h1>
+    <Page>
+      <PageBar
+        eyebrow={`${store === 'all' ? 'All stores' : store} · Crew`}
+        title="Labor & crew"
+      >
+        {/* No `meta` range line: Timeframe already prints the window, and printing it
+            twice in one bar invites the two to disagree — which is exactly what was
+            happening before they were given a single default. */}
+        <SegControl
+          label="Store"
+          options={STORES.map(sv => ({ value: sv, label: sv === 'all' ? 'All Stores' : sv }))}
+          value={store}
+          onChange={setStore}
+        />
         <Timeframe />
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <div className="text-xs text-slate-400">{win.start} – {win.end}</div>
-        <div className="flex gap-1">
-          {STORES.map(s => (
-            <button key={s} onClick={() => setStore(s)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                store === s ? 'bg-teal-600 text-white' : 'bg-white text-slate-500 hover:text-slate-700'
-              }`}>
-              {s === 'all' ? 'All Stores' : s}
-            </button>
-          ))}
-        </div>
-      </div>
+      </PageBar>
 
       {err && (
-        <div className="card mb-4 border-l-4 border-red-500">
-          <div className="text-sm font-semibold text-red-700">Couldn&apos;t load employees</div>
-          <div className="text-xs text-slate-500 mt-1 font-mono">{err}</div>
+        <div className="sk-card sk-flags sk-tone-bad">
+          <h3 className="sk-card-title">Couldn&apos;t load the crew</h3>
+          <p className="sk-subline" style={{ fontFamily: 'var(--font-mono)' }}>{err}</p>
         </div>
       )}
-      {loading && <div className="card"><div className="skeleton h-64 w-full" /></div>}
+      {loading && <div className="sk-card"><div className="skeleton" style={{ height: 256 }} /></div>}
 
       {data && !loading && (
         <>
-          {/* ── Minor-labor compliance: regulatory, so it leads ───────────────── */}
+          {/* Regulatory, so it leads — ahead of anything discretionary. */}
           <MinorLaborCard
             violations={data.minorLabor.violations}
             unknownDob={data.minorLabor.unknownDob}
@@ -229,20 +274,52 @@ function EmployeesInner() {
             scheduledShifts={data.minorLabor.scheduledShifts}
           />
 
-          {/* ── Stat tiles ────────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-4">
-            <Tile label="Active crew" value={String(active.length)}
+          <FlagList
+            flags={flags}
+            title="Needs attention"
+            emptyNote={`No no-shows, no void rate past ${VOID_VS_SHIFT_MULTIPLE}x its shift baseline, and no drawer off more than $${DRAWER_VARIANCE_LIMIT} a till.`}
+          />
+
+          <Grid4>
+            <Stat label="Active crew" value={String(active.length)}
               sub={minors.length ? `${minors.length} under 18` : 'none under 18'} />
-            <Tile label="Hours worked" value={
-              active.reduce((s, r) => s + (r.attendance?.workedHours ?? 0), 0).toFixed(0) + 'h'}
+            <Stat label="Hours worked"
+              value={active.reduce((t, r) => t + (r.attendance?.workedHours ?? 0), 0).toFixed(0) + 'h'}
               sub={`${data.window.start} – ${data.window.end}`} />
-            <Tile label="Attributed sales" value={money(data.basis.attributedGross)}
+            <Stat label="Attributed sales" value={money(data.basis.attributedGross)}
               sub={data.basis.attributedPct != null
                 ? `${(data.basis.attributedPct * 100).toFixed(0)}% of in-store gross`
                 : 'no basis'} />
-            <Tile label="Upcoming dates" value={String(upcoming.length)}
+            <Stat label="Upcoming dates" value={String(upcoming.length)}
               sub="birthdays & anniversaries, 30d" />
-          </div>
+          </Grid4>
+
+          {/* Labour % per store against the 22% target, read from the same source the
+              Overview's store breakdown uses so the two cannot disagree. */}
+          {storeLabor.length > 0 && (
+            <Section label="Labor against target">
+              <div className={storeLabor.length > 1 ? 'sk-grid3' : ''}>
+                {storeLabor.map(r => {
+                  const pct = r.laborPct * 100
+                  const tgt = LABOR_TARGET * 100
+                  return (
+                    <div key={r.store} className="sk-card">
+                      <div className="sk-eyebrow">{r.store}</div>
+                      <div style={{ marginTop: 10 }}>
+                        <TargetBar
+                          label="Labor"
+                          value={pct}
+                          target={tgt}
+                          tone={pct <= tgt ? 'good' : pct <= tgt * 1.1 ? 'warn' : 'bad'}
+                          detail={<><span>vs {tgt.toFixed(1)}% target</span></>}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Section>
+          )}
 
           {/* The basis note is not decoration — it stops these numbers being read
               against the Overview KPI, which is a different (all-channel net) question. */}
@@ -443,7 +520,7 @@ function EmployeesInner() {
           )}
         </>
       )}
-    </div>
+    </Page>
   )
 }
 

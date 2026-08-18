@@ -115,3 +115,32 @@ export const STORE_UPH: Record<string, number> = { pines: 7.5, miramar: 8.4, mar
  * this, actual COGS is reported as unavailable — never as a number.
  */
 export const INVENTORY_PERIOD_MIN_DAYS = 5
+
+/* ── Crew exception thresholds (Labor & crew) ─────────────────────────────── */
+/**
+ * Drawer variance a till may be off before it is worth asking about.
+ *
+ * Already in use — it was `Math.abs(c.ownPerTill) > 5` inside the employees page.
+ * Moved here because a threshold inside a component is invisible to anyone reading
+ * this file to ask what the app grades against. Value unchanged.
+ */
+export const DRAWER_VARIANCE_LIMIT = 5
+
+/**
+ * Void rate a person may run before it is flagged, in absolute terms.
+ * Also already in use — `<Rate limit={0.02}>` on the same page. Value unchanged.
+ */
+export const VOID_LIMIT_PCT = 0.02
+
+/**
+ * How far past the REST-OF-SHIFT void rate a person's own rate must sit to be worth
+ * raising. The kit's Labor & crew names this rule in its own subtitle: "void rates
+ * past double the shift baseline".
+ *
+ * NEW — the app displayed both figures side by side but never compared them. It is
+ * here rather than in a component so it is visible and arguable. It matters because
+ * an absolute 2% limit flags a whole busy store on a bad night, while "double the
+ * people working the same shift" isolates the one person, which is the only version
+ * of this a manager can act on.
+ */
+export const VOID_VS_SHIFT_MULTIPLE = 2

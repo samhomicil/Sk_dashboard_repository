@@ -83,6 +83,14 @@ export const MGR_WEEKLY: Record<string, number> = { Miramar: 625, Pines: 625, Ma
  * (STORE_UPH below). The ranges overlap, so a reader seeing "UPLH 7" gets "near
  * optimal" from the heatmap and "tight, red" from the recap. Same word, opposite
  * verdicts. Renaming one is a decision, not a refactor.
+ *
+ * PARTLY SETTLED 2026-08-18. Sam, asked which the Labor & crew screen should show:
+ * "i want ubits not orders". So that screen plots UNITS per labor hour (STORE_UPH)
+ * and its demand grid is in units too, which keeps supply and demand in one
+ * currency on one screen. The kit had specified orders per person on duty there.
+ *
+ * These bands are therefore the DAILY RECAP's metric only — orders ÷ staff on duty.
+ * Still worth renaming one of the two; the ambiguity is narrower now, not gone.
  */
 export const STAFFING_BANDS = [
   { under: 3, word: 'overstaffed' },

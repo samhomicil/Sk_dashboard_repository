@@ -706,6 +706,32 @@
 }
 .sk-segbar > div { height: 100%; }
 
+/* ── Heat grid ───────────────────────────────────────────────────────────── */
+/* Cells are painted on an inner span, not the td, so the table's own hairlines
+   still read between them and each block keeps a 2px gap on the surface. */
+.sk-heat td, .sk-heat th { padding: 2px 3px; }
+/* Hour and day labels keep their case: "7a" and "12p" read as clock times, where
+   "7A"/"12P" read as codes. The kit does the same. */
+.sk-heat thead th, .sk-heat th[scope='row'] { text-transform: none; }
+.sk-heat th[scope='row'] { padding-left: 0; white-space: nowrap; }
+.sk-heat .cell {
+  display: block;
+  border-radius: 3px;
+  padding: 5px 6px;
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+}
+.sk-ramp-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  color: var(--ink-muted);
+}
+.sk-ramp-legend i { width: 22px; height: 8px; border-radius: 2px; display: block; }
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 /* MUST stay last in this file. These override equal-specificity base rules
    above, so source order is what decides — putting them earlier silently

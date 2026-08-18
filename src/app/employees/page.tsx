@@ -9,7 +9,8 @@ import Link from 'next/link'
 import { MINOR_RULE_LABEL, type MinorRule } from '@/lib/minorLabor'
 import Heatmap from '@/components/Heatmap'
 import EmployeeTable from '@/components/EmployeeTable'
-import type { StaffingData, EmployeeRow, Store, StoreRow } from '@/lib/types'
+import DemandGrid from '@/components/DemandGrid'
+import type { StaffingData, StaffingCell, EmployeeRow, Store, StoreRow } from '@/lib/types'
 import { Page, PageBar, Section, Stat, Grid4, FlagList, type Flag } from '@/components/design/shell'
 import { SegControl, TargetBar } from '@/components/design/controls'
 import {
@@ -50,6 +51,18 @@ type Row = {
   exceptions: Exceptions | null
   cash: Cash | null
   grossPerHour: number | null
+}
+
+/** Sum the three stores into one grid for "All Stores" — demand is additive. */
+function mergeCells(sets: StaffingCell[][]): StaffingCell[] {
+  const by = new Map<string, StaffingCell>()
+  for (const set of sets) for (const c of set ?? []) {
+    const k = `${c.day}|${c.hourNum}`
+    const e = by.get(k)
+    if (e) { e.avgUnits += c.avgUnits; e.count += c.count }
+    else by.set(k, { ...c, employees: [] })
+  }
+  return [...by.values()]
 }
 
 const VIEWS = ['Productivity', 'Attendance', 'Exceptions'] as const
@@ -502,7 +515,7 @@ function EmployeesInner() {
 
           {/* ── Staffing and pay, moved here from Overview ──────────────────── */}
           {staffing && (
-            <div className="mt-4">
+            <Section label="Units per labor hour">
               <Heatmap
                 data={staffing}
                 store={store as Store}
@@ -511,8 +524,21 @@ function EmployeesInner() {
                 unitsWindow={unitsWindow}
                 loading={false}
               />
-            </div>
+            </Section>
           )}
+
+          {/* Demand beneath supply: the grid above divides these units by the labor
+              hours that met them, so they read as one pair. */}
+          {staffing && (
+            <Section label="Hourly demand">
+              <DemandGrid cells={
+                store === 'all'
+                  ? mergeCells([staffing.pines, staffing.miramar, staffing.margate])
+                  : (staffing[store.toLowerCase() as 'pines' | 'miramar' | 'margate'] ?? [])
+              } />
+            </Section>
+          )}
+
           {labor.length > 0 && (
             <div className="mt-4">
               <EmployeeTable employees={labor} loading={false} />

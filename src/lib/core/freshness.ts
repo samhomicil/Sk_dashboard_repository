@@ -37,6 +37,16 @@ export interface SourceContract {
   consumers: string[]
   /** dates land in the future by design (a posted schedule), so don't age-check */
   forwardLooking?: boolean
+  /**
+   * A source still QUERIED but no longer FED — a fallback kept as insurance behind a
+   * live one. It is declared here because the registry must account for every table
+   * the app touches, but it makes no freshness promise, so it cannot raise a stale
+   * warning about data nothing is waiting on.
+   *
+   * `why` says what superseded it, so a future reader can decide to delete it rather
+   * than rediscover why it never updates.
+   */
+  standby?: { why: string }
 }
 
 export const SOURCES: SourceContract[] = [
@@ -123,8 +133,17 @@ export const SOURCES: SourceContract[] = [
     cadence: 'daily', maxAgeDays: 3, fedBy: 'smg-extractor',
     consumers: ['Overview', 'Guest Voice'] },
   { table: 'smoothieking.guest_feedback', label: 'Guest surveys (period)', dateColumn: 'period_end',
-    cadence: 'weekly', maxAgeDays: 10, fedBy: 'smg-extractor',
-    consumers: ['Guest Voice'] },
+    cadence: 'on-demand', maxAgeDays: 10, fedBy: 'smg-extractor main.py (not scheduled)',
+    consumers: ['Guest Voice (fallback only)'],
+    standby: {
+      why: 'Superseded by guest_daily, which is per-store and current. This table is the '
+         + 'older single-store period grain and is only read when the daily table has no '
+         + 'rows for a range, so Guest Voice degrades to "nearest period" instead of going '
+         + 'blank. Nothing schedules it — run_cloud.py never calls main.py — so it has sat '
+         + 'at 2026-07-28 since the manual runs stopped, raising a stale warning about data '
+         + 'no live surface reads. Delete both this and the fallback branch in '
+         + 'api/guest-satisfaction when the daily table has proven itself.',
+    } },
   { table: 'smoothieking.guest_comments', label: 'Guest comments', dateColumn: 'received_date',
     cadence: 'daily', maxAgeDays: 5, fedBy: 'smg-extractor', consumers: ['Guest Voice'] },
   { table: 'smoothieking.guest_cases', label: 'Guest cases', dateColumn: 'case_date',
@@ -178,7 +197,9 @@ export function grade(c: SourceContract, latest: string | null, today: string): 
   const ageDays = Math.round(ms / 86_400_000)
   // A forward-looking source (posted schedule, promo calendar) is healthy while its
   // newest row is still in the future; it only ages once the horizon has passed.
-  const health: Health = ageDays <= c.maxAgeDays ? 'ok' : 'stale'
+  // A standby source is never graded stale: nothing waits on it, and a warning about
+  // data no consumer reads is noise that teaches people to ignore the panel.
+  const health: Health = c.standby ? 'ok' : ageDays <= c.maxAgeDays ? 'ok' : 'stale'
   return { ...c, latest, ageDays, health }
 }
 

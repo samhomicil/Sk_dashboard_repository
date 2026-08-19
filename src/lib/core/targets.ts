@@ -147,14 +147,38 @@ export const INVENTORY_PERIOD_MIN_DAYS = 5
 export const BILL_MATCH_TOLERANCE = 0.25
 
 /**
- * The floor on the ± window a transaction may sit from an occurrence's due date.
+ * How far BEFORE its due date a transaction may sit and still be this occurrence's
+ * payment. Deliberately tiny, and the asymmetry is the whole point.
  *
- * The window itself is derived from the BILL'S OWN CADENCE (half its recurrence
- * interval — past the midpoint a different occurrence is by definition nearer), but
- * half of a weekly bill is only 3.5 days, which would miss a payment landing four
- * days early. This is the floor under that.
+ * Sam, 2026-08-19: "there should definitely not be anything several days before the
+ * date… Things that are auto payments should assume it's on or near the date."
+ * The payment history agrees — signed offsets across 150 vendor-confirmed payments:
+ * weekly auto median 0 / p90 +1, biweekly auto median 0 / p90 +1, monthly auto
+ * median 0 / p90 +1. Money does not leave early.
+ *
+ * Every large negative offset in that history is ≈ exactly one full cadence (−7 on a
+ * weekly bill, −30 on a monthly, −86 on a quarterly). Those are not early payments,
+ * they are MISSED OCCURRENCES — Margate skips a PFG order, the occurrence is still
+ * generated, and the next real payment gets attributed to it looking one cycle early.
+ * Refusing to match them is correct: no suggestion beats a wrong one.
  */
-export const BILL_MATCH_MIN_WINDOW_DAYS = 5
+export const BILL_MATCH_EARLY_DAYS = 2
+
+/**
+ * How far AFTER due a payment may land, by payment type. Late is normal — a manual
+ * bill genuinely gets paid late, and an auto draft can slip a few days.
+ *
+ * Measured late tails: auto reaches +8, manual reaches +14. Auto is held tighter
+ * because an auto-drafted bill that is 10 days late is more likely a mislabelled
+ * payment type than a late draft — Sam: "there may be exceptions if auto payment is
+ * mislabeled" — and 10 days leaves room for exactly that without letting an auto
+ * bill reach halfway to its next occurrence.
+ *
+ * The caller additionally caps these by the bill's own cadence, so no window can
+ * ever stretch far enough to claim the next occurrence's payment.
+ */
+export const BILL_MATCH_LATE_DAYS_AUTO = 10
+export const BILL_MATCH_LATE_DAYS_MANUAL = 15
 
 /* ── Crew exception thresholds (Labor & crew) ─────────────────────────────── */
 /**

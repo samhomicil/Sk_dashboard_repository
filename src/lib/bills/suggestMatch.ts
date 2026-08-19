@@ -1,7 +1,10 @@
 import 'server-only';
 import type { ReconciledOccurrence } from './reconcile';
 import type { UnifiedTxn } from './unifiedTransactions';
-import { BILL_MATCH_TOLERANCE, BILL_MATCH_MIN_WINDOW_DAYS } from '../core/targets';
+import {
+  BILL_MATCH_TOLERANCE, BILL_MATCH_EARLY_DAYS,
+  BILL_MATCH_LATE_DAYS_AUTO, BILL_MATCH_LATE_DAYS_MANUAL,
+} from '../core/targets';
 
 // Suggests a transaction for each still-open bill occurrence, so Sam can
 // eyeball it and confirm rather than the app silently deciding for him.
@@ -41,19 +44,23 @@ export interface Suggestion {
 // Mirrored as a local constant in BillsOverview.tsx (a client component can't
 // import a value from this server-only module without pulling the whole
 // module into the client bundle) — keep the two in sync if this changes.
+//
+// NOTE: since the match window now refuses anything more than BILL_MATCH_EARLY_DAYS
+// (2) before due, no suggestion can reach this threshold any more — it is a
+// belt-and-braces backstop on the UI side, not the thing doing the work. Lower it
+// to 3 or drop the badge if the dead branch becomes confusing.
 export const EARLY_FLAG_DAYS = 5;
 
-const MATCH_DAYS_BEFORE = 10;
-const MATCH_DAYS_AFTER = 5;
 
 /**
- * How far a vendor-confirmed transaction may sit from an occurrence's due date.
+ * The window a vendor-confirmed transaction must fall in to be this occurrence's
+ * payment. ASYMMETRIC, because early and late are not equally plausible.
  *
- * This WAS a flat 20 days, and 20 days is longer than several of these bills'
- * entire billing cycles — so the cap could not do the job its own comment claimed.
- * Measured 2026-08-19, every one of the 9 live suggestions was wrong because of it:
- * median 13 days early, max 16, and all nine paired a FUTURE occurrence (due Aug
- * 21–27) with a transaction that had already happened (Aug 7–17).
+ * This WAS a flat ±20 days, longer than several of these bills' entire billing
+ * cycles, so the cap could not do the job its own comment claimed. Measured
+ * 2026-08-19, all 9 live suggestions were wrong because of it: median 13 days
+ * early, and every one paired a FUTURE occurrence (due Aug 21–27) with a
+ * transaction that had already happened (Aug 7–17).
  *
  *   Workstream payroll  biweekly  due 8/21 → txn 8/07   exactly one full cycle
  *   PFG food cost       weekly    due 8/25 → txn 8/11   exactly two full cycles
@@ -62,12 +69,19 @@ const MATCH_DAYS_AFTER = 5;
  * BILL, never the right OCCURRENCE, and the greedy "each occurrence takes its
  * nearest unclaimed transaction" loop pushes leftovers steadily further out.
  *
- * So the window is the bill's own cadence, halved — past the midpoint another
- * occurrence is by definition nearer — floored so short-cadence bills keep some
- * tolerance. Weekly → ±5 (the floor), biweekly → ±7, monthly → ±15.
+ * Late is bounded by the bill's own cadence as well as by payment type: a window
+ * may never stretch to within a day of the next occurrence, or the two occurrences
+ * compete for the same payment and the drift starts over.
  */
-const vendorWindowDays = (intervalDays: number) =>
-  Math.max(BILL_MATCH_MIN_WINDOW_DAYS, Math.floor(intervalDays / 2));
+function vendorWindow(o: ReconciledOccurrence): { early: number; late: number } {
+  const typeCap = o.payment === 'auto' ? BILL_MATCH_LATE_DAYS_AUTO : BILL_MATCH_LATE_DAYS_MANUAL;
+  const cadenceCap = Math.max(1, o.intervalDays - BILL_MATCH_EARLY_DAYS - 1);
+  return { early: BILL_MATCH_EARLY_DAYS, late: Math.min(typeCap, cadenceCap) };
+}
+
+/** txn − due, in days. Negative = paid BEFORE due. */
+const signedDays = (txnISO: string, dueISO: string) =>
+  Math.round((new Date(txnISO + 'T00:00:00Z').getTime() - new Date(dueISO + 'T00:00:00Z').getTime()) / 86_400_000);
 
 // Local Marketing Fee (1% of sales, all 3 stores) has NO dedicated ACH
 // originator anywhere in the bank feed — verified 2026-08-08: Royalty's real
@@ -163,10 +177,16 @@ export function suggestMatches(
   }
   for (const o of open) {
     const usedByThisBill = claimedByBill.get(o.billId);
-    const win = vendorWindowDays(o.intervalDays);
+    const win = vendorWindow(o);
     const candidates = (byBillId.get(o.billId) ?? []).filter((t) => {
       if (usedByThisBill?.has(t.id)) return false;
-      if (daysBetween(t.date, o.due) > win) return false;
+      const off = signedDays(t.date, o.due);
+      // Early is the suspicious direction: money does not leave before it is owed,
+      // so a transaction sitting before due almost always belongs to the previous
+      // occurrence — or to one that was skipped entirely (a missed PFG order at
+      // Margate leaves an occurrence behind that the next real payment then looks
+      // one full cycle early for).
+      if (off < -win.early || off > win.late) return false;
       // Amount gate. Vendor identity used to be the ONLY test here, with amount
       // consulted solely to break a same-date tie — which let an occurrence
       // expecting $11,000 of ADP payroll claim a $1,721 transaction, an 84% miss,
@@ -201,15 +221,16 @@ export function suggestMatches(
     const k = occKey(o.billId, o.due);
     if (out.has(k) || o.expected == null || o.expected <= 0) continue;
     if (NO_AMOUNT_FALLBACK.test(o.vendor)) continue;
-    const winStart = new Date(o.due + 'T00:00:00Z'); winStart.setUTCDate(winStart.getUTCDate() - MATCH_DAYS_BEFORE);
-    const winEnd = new Date(o.due + 'T00:00:00Z'); winEnd.setUTCDate(winEnd.getUTCDate() + MATCH_DAYS_AFTER);
-    const winStartISO = winStart.toISOString().slice(0, 10);
-    const winEndISO = winEnd.toISOString().slice(0, 10);
+    // Same asymmetric window as Pass 1. This pass used to allow 10 days BEFORE due
+    // and only 5 after — twice as much room in the direction money does not move,
+    // and the exact polarity that produced the wrong-period pairings.
+    const win2 = vendorWindow(o);
 
     const candidates = outflows.filter((t) => {
       if (t.matched || globallyClaimed.has(t.id)) return false;
       if (t.store && t.store !== o.store) return false; // don't cross stores on a guess
-      if (t.date < winStartISO || t.date > winEndISO) return false;
+      const off = signedDays(t.date, o.due);
+      if (off < -win2.early || off > win2.late) return false;
       const variance = Math.abs(Math.abs(t.amount) - o.expected!) / o.expected!;
       if (variance > BILL_MATCH_TOLERANCE) return false;
       // t.notes is only ever populated for already-matched transactions

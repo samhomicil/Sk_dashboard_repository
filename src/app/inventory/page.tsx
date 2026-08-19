@@ -1,148 +1,201 @@
 'use client'
 
+/**
+ * Inventory → Overview. What was bought, from whom, and whether it is landing
+ * against the food-cost target.
+ *
+ * Unlike the other purchasing tabs this screen CAN grade itself: purchases ÷ net
+ * sales has a real target in core/targets (COGS_TARGET), so the take carries a
+ * tone rather than staying neutral. It reads the most recent complete week rather
+ * than the window average, because a run-rate hides the week a price rise landed.
+ */
 import { Suspense } from 'react'
 import { useInventoryData } from '@/components/useInventoryData'
 import { SpendTrendChart, CostPctChart, CategoryMixChart, PriceTrendChart } from '@/components/InventoryCharts'
+import { Grid11, Section, TakeCard, Tile, Tiles } from '@/components/design/shell'
+import { DataTable, type Col, type Row } from '@/components/design/DataTable'
+import { COGS_TARGET, COGS_CAP } from '@/lib/core/targets'
 
-const money = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
+const money = (n: number) =>
+  (n < 0 ? '−$' : '$') + Math.abs(Math.round(n)).toLocaleString()
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`
 const num = (n: number) => n.toLocaleString()
+
+const MIX_COLS: Col[] = [
+  { key: 'category', head: 'Category' },
+  { key: 'spend', head: 'Spend', num: true },
+  { key: 'mix', head: '% mix', num: true, derive: 'none' },
+  { key: 'lines', head: 'Lines', num: true },
+]
+
+const TOP_COLS: Col[] = [
+  { key: 'rank', head: '#', num: true, derive: 'none' },
+  { key: 'product', head: 'Product', nowrap: true },
+  { key: 'category', head: 'Category' },
+  { key: 'spend', head: 'Spend', num: true },
+  { key: 'unit', head: 'Last $/unit', num: true, derive: 'none' },
+  { key: 'pines', head: 'Pines', num: true, divider: true },
+  { key: 'miramar', head: 'Miramar', num: true },
+  { key: 'margate', head: 'Margate', num: true },
+]
+
+const Loading = () => (
+  <div className="sk-card"><p className="sk-flags-empty">Loading purchasing…</p></div>
+)
 
 function OverviewInner() {
   const { data, loading } = useInventoryData()
 
-  if (loading) {
-    return <div className="space-y-4">{[1, 2, 3].map(i => (
-      <div key={i} className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>
-    ))}</div>
-  }
+  if (loading) return <Loading />
   if (!data) {
-    return <div className="card text-center text-slate-400 py-12">No purchasing data in this window — check the DB connection or widen the timeframe.</div>
+    return (
+      <div className="sk-card">
+        <p className="sk-flags-empty">
+          No purchasing data in this window — check the DB connection or widen the timeframe.
+        </p>
+      </div>
+    )
   }
 
   const vendorTotal = data.vendorSplit.pfgTotal + data.vendorSplit.walmartTotal
 
+  // Grade the most recent COMPLETE week. `week` is the week's start date, so the
+  // final row is the one still running and its sales cover only the days elapsed —
+  // purchases then divide into a part-week of sales and the ratio roughly doubles.
+  // Measured 2026-08-19: the in-progress week held $19,187 of sales against ~$38k
+  // for each complete week, which rendered as 58.7% of sales against a 25% target.
+  // That is the same mistake as reading a nightly count as an inventory period:
+  // the number is not high, the denominator is short.
+  //
+  // costPct arrives already expressed in percent (24.8, not 0.248), so the targets
+  // below are scaled to match.
+  const weekComplete = (w: { week: string }) =>
+    Date.parse(w.week + 'T00:00:00Z') + 6 * 86_400_000 < Date.now()
+  const weeks = data.weeklyTrend.filter(w => w.sales > 0 && weekComplete(w))
+  const latest = weeks[weeks.length - 1]
+  const targetPct = COGS_TARGET * 100
+  const capPct = COGS_CAP * 100
+  const tone = !latest ? 'neutral'
+    : latest.costPct <= targetPct ? 'good'
+    : latest.costPct <= capPct ? 'warn'
+    : 'bad'
+
   return (
-    <div className="space-y-4">
-      {/* Vendor split */}
-      <div className="card">
-        <div className="text-sm font-bold text-slate-700 mb-4">Total Purchasing</div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <div className="text-xs text-slate-400 mb-1">Total Spend</div>
-            <div className="text-2xl font-bold text-slate-800 tabular-nums">{money(vendorTotal)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-400 mb-1">PFS / PFG</div>
-            <div className="text-lg font-semibold text-slate-700 tabular-nums">{money(data.vendorSplit.pfgTotal)}</div>
-            <div className="text-xs text-slate-400">{vendorTotal > 0 ? pct(data.vendorSplit.pfgTotal / vendorTotal) : '—'}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-400 mb-1">Walmart</div>
-            <div className="text-lg font-semibold text-slate-700 tabular-nums">{money(data.vendorSplit.walmartTotal)}</div>
-            <div className="text-xs text-slate-400">{vendorTotal > 0 ? pct(data.vendorSplit.walmartTotal / vendorTotal) : '—'}</div>
-          </div>
-        </div>
-      </div>
+    <>
+      <TakeCard
+        tone={tone}
+        label={latest ? `${latest.costPct.toFixed(1)}%` : '—'}
+        headline={latest
+          ? latest.costPct <= targetPct
+            ? `Purchases ran ${latest.costPct.toFixed(1)}% of sales in the week to ${latest.week}, inside the ${targetPct}% target.`
+            : `Purchases ran ${latest.costPct.toFixed(1)}% of sales in the week to ${latest.week}, above the ${targetPct}% target.`
+          : 'No week in this window has sales to measure against.'}
+      >
+        {latest && (
+          <>{money(vendorTotal)} bought across the window,
+          {' '}{vendorTotal > 0 ? pct(data.vendorSplit.pfgTotal / vendorTotal) : '—'} of it through PFG.
+          {' '}This is PURCHASING, not usage — a heavy delivery week reads high here without
+          anything having been consumed differently. Read it as a trend across weeks, which is
+          what the chart below is for.</>
+        )}
+      </TakeCard>
 
-      {/* Trends over time — insights */}
-      {/* *:min-w-0 lets each card shrink below its chart's 480px min width on
-          phones — the chart then scrolls inside the card instead of stretching
-          the page sideways. */}
-      <div className="grid lg:grid-cols-2 gap-4 *:min-w-0">
-        <div className="card">
-          <div className="text-sm font-bold text-slate-700 mb-1">Spend Over Time</div>
-          <div className="text-xs text-slate-400 mb-3">Weekly PFG + Walmart</div>
-          <SpendTrendChart data={data.weeklyTrend} />
-        </div>
-        <div className="card">
-          <div className="text-sm font-bold text-slate-700 mb-1">Purchase Cost % of Sales</div>
-          <div className="text-xs text-slate-400 mb-3">Weekly purchases ÷ net sales vs the 25% target</div>
-          <CostPctChart data={data.weeklyTrend} />
-        </div>
-        <div className="card">
-          <div className="text-sm font-bold text-slate-700 mb-1">Category Mix Shift</div>
-          <div className="text-xs text-slate-400 mb-3">Share of weekly PFG spend by category</div>
-          <CategoryMixChart data={data.categoryTrend} />
-        </div>
-        <div className="card">
-          <div className="text-sm font-bold text-slate-700 mb-1">Unit Price Over Time</div>
-          <div className="text-xs text-slate-400 mb-3">Last-paid price per unit — watch for distributor hikes</div>
-          <PriceTrendChart data={data.priceTrend} items={data.topProducts} />
-        </div>
-      </div>
+      <Section label="Total purchasing">
+        <Tiles>
+          <Tile label="Total spend" value={money(vendorTotal)} hero />
+          <Tile
+            label="PFS / PFG"
+            value={money(data.vendorSplit.pfgTotal)}
+            target={vendorTotal > 0 ? `${pct(data.vendorSplit.pfgTotal / vendorTotal)} of spend` : undefined}
+          />
+          <Tile
+            label="Walmart"
+            value={money(data.vendorSplit.walmartTotal)}
+            target={vendorTotal > 0 ? `${pct(data.vendorSplit.walmartTotal / vendorTotal)} of spend` : undefined}
+          />
+        </Tiles>
+      </Section>
 
-      {/* Category mix table */}
-      <div className="card">
-        <div className="text-sm font-bold text-slate-700 mb-4">Category Mix (PFG)</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-slate-400 uppercase border-b border-slate-100">
-                <th className="text-left pb-2 font-medium">Category</th>
-                <th className="text-right pb-2 font-medium">Spend</th>
-                <th className="text-right pb-2 font-medium">% Mix</th>
-                <th className="text-right pb-2 font-medium">Lines</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.categorySpend.map(c => (
-                <tr key={c.category} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="py-2 font-medium text-slate-700">{c.category}</td>
-                  <td className="py-2 text-right font-semibold text-slate-700 tabular-nums">{money(c.spend)}</td>
-                  <td className="py-2 text-right text-slate-500 tabular-nums">{pct(c.pct)}</td>
-                  <td className="py-2 text-right text-slate-500 tabular-nums">{num(c.lines)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Section label="Trends">
+        {/* *:min-w-0 lets each card shrink below its chart's 480px min width on
+            phones — the chart then scrolls inside the card instead of stretching
+            the page sideways. */}
+        <Grid11>
+          <div className="sk-card">
+            <h3 className="sk-card-title">Spend over time</h3>
+            <p className="sk-subline">Weekly PFG + Walmart</p>
+            <SpendTrendChart data={data.weeklyTrend} />
+          </div>
+          <div className="sk-card">
+            <h3 className="sk-card-title">Purchase cost % of sales</h3>
+            <p className="sk-subline">
+              Weekly purchases ÷ net sales vs the {targetPct}% target · complete weeks only
+            </p>
+            <CostPctChart data={data.weeklyTrend.filter(weekComplete)} />
+          </div>
+          <div className="sk-card">
+            <h3 className="sk-card-title">Category mix shift</h3>
+            <p className="sk-subline">Share of weekly PFG spend by category</p>
+            <CategoryMixChart data={data.categoryTrend} />
+          </div>
+          <div className="sk-card">
+            <h3 className="sk-card-title">Unit price over time</h3>
+            <p className="sk-subline">Last-paid price per unit — watch for distributor hikes</p>
+            <PriceTrendChart data={data.priceTrend} items={data.topProducts} />
+          </div>
+        </Grid11>
+      </Section>
 
-      {/* Top 15 products + last price */}
-      <div className="card">
-        <div className="text-sm font-bold text-slate-700 mb-4">Top 15 Products</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-slate-400 uppercase border-b border-slate-100">
-                <th className="text-left pb-2 font-medium">#</th>
-                <th className="text-left pb-2 font-medium">Product</th>
-                <th className="text-left pb-2 font-medium hidden sm:table-cell">Category</th>
-                <th className="text-right pb-2 font-medium">Spend</th>
-                <th className="text-right pb-2 font-medium">Last $/unit</th>
-                <th className="text-right pb-2 font-medium hidden md:table-cell">Pines</th>
-                <th className="text-right pb-2 font-medium hidden md:table-cell">Miramar</th>
-                <th className="text-right pb-2 font-medium hidden md:table-cell">Margate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topProducts.map((p, i) => (
-                <tr key={p.itemCode} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="py-2 text-slate-300 tabular-nums">{i + 1}</td>
-                  <td className="py-2 font-medium text-slate-700 max-w-[220px] truncate" title={p.description}>{p.description}</td>
-                  <td className="py-2 text-slate-500 hidden sm:table-cell">{p.category}</td>
-                  <td className="py-2 text-right font-semibold text-slate-700 tabular-nums">{money(p.spend)}</td>
-                  <td className="py-2 text-right text-slate-600 tabular-nums" title={p.lastPriceDate ? `as of ${p.lastPriceDate}` : ''}>
-                    {p.lastPrice != null ? `$${p.lastPrice.toFixed(2)}` : '—'}
-                  </td>
-                  <td className="py-2 text-right text-slate-500 tabular-nums hidden md:table-cell">{money(p.pines)}</td>
-                  <td className="py-2 text-right text-slate-500 tabular-nums hidden md:table-cell">{money(p.miramar)}</td>
-                  <td className="py-2 text-right text-slate-500 tabular-nums hidden md:table-cell">{money(p.margate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Section label="Category mix · PFG">
+        <div className="sk-card">
+          <DataTable
+            caption="PFG spend by category with its share of the mix"
+            cols={MIX_COLS}
+            rows={data.categorySpend.map<Row>(c => ({
+              key: c.category,
+              cells: [c.category, money(c.spend), pct(c.pct), num(c.lines)],
+              values: [null, c.spend, null, c.lines],
+            }))}
+          />
         </div>
-        <div className="mt-2 text-xs text-slate-400">Combined by true item code — the distributor renames product descriptions mid-period for the same SKU. Last $/unit = line total ÷ qty on the most recent order in-window.</div>
-      </div>
-    </div>
+      </Section>
+
+      <Section label="Top 15 products">
+        <div className="sk-card">
+          <DataTable
+            caption="Highest-spend products in the window, with the last unit price paid"
+            cols={TOP_COLS}
+            rows={data.topProducts.map<Row>((pr, i) => ({
+              key: pr.itemCode,
+              cells: [
+                String(i + 1),
+                <span key="d" title={pr.description}>{pr.description}</span>,
+                pr.category,
+                money(pr.spend),
+                <span key="u" title={pr.lastPriceDate ? `as of ${pr.lastPriceDate}` : ''}>
+                  {pr.lastPrice != null ? `$${pr.lastPrice.toFixed(2)}` : '—'}
+                </span>,
+                money(pr.pines),
+                money(pr.miramar),
+                money(pr.margate),
+              ],
+              values: [null, null, null, pr.spend, null, pr.pines, pr.miramar, pr.margate],
+            }))}
+          />
+          <p className="sk-take-why" style={{ marginTop: 'var(--space-3)' }}>
+            Combined by true item code — the distributor renames product descriptions
+            mid-period for the same SKU. Last $/unit = line total ÷ qty on the most recent
+            order in-window.
+          </p>
+        </div>
+      </Section>
+    </>
   )
 }
 
 export default function InventoryOverviewPage() {
   return (
-    <Suspense fallback={<div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>}>
+    <Suspense fallback={<Loading />}>
       <OverviewInner />
     </Suspense>
   )

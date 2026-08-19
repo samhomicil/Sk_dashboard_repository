@@ -1,104 +1,126 @@
 'use client'
 
+/**
+ * Inventory → By vendor. Where the food spend goes: PFG against Walmart, and the
+ * brand concentration inside PFG.
+ *
+ * The take is about CONCENTRATION, because that is the only thing on this screen
+ * anyone can act on — a single house label carrying most of PFG spend is the fact
+ * that matters in a volume-pricing conversation. No threshold is graded against;
+ * this app has no target for supplier concentration and the redesign does not
+ * invent one.
+ */
 import { Suspense } from 'react'
 import { useInventoryData } from '@/components/useInventoryData'
+import { Section, TakeCard, Tile, Tiles } from '@/components/design/shell'
+import { DataTable, type Col, type Row } from '@/components/design/DataTable'
 
-const money = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
-const pct   = (n: number) => `${(n * 100).toFixed(1)}%`
+const money = (n: number) =>
+  (n < 0 ? '−$' : '$') + Math.abs(Math.round(n)).toLocaleString()
+const pct = (n: number) => `${(n * 100).toFixed(1)}%`
+
+const BRAND_COLS: Col[] = [
+  { key: 'brand', head: 'Brand / manufacturer' },
+  { key: 'spend', head: 'Spend', num: true },
+  { key: 'share', head: '% of PFG', num: true, derive: 'none' },
+]
+
+const WM_COLS: Col[] = [
+  { key: 'category', head: 'Category' },
+  { key: 'spend', head: 'Spend', num: true },
+  { key: 'share', head: '% of Walmart', num: true, derive: 'none' },
+]
+
+const Loading = () => (
+  <div className="sk-card"><p className="sk-flags-empty">Loading purchasing…</p></div>
+)
 
 function VendorsInner() {
   const { data, loading } = useInventoryData()
 
-  if (loading) {
-    return <div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>
-  }
-  if (!data) {
-    return <div className="card text-center text-slate-400 py-12">No purchasing data yet.</div>
-  }
+  if (loading) return <Loading />
+  if (!data) return <div className="sk-card"><p className="sk-flags-empty">No purchasing data yet.</p></div>
 
-  const vendorTotal = data.vendorSplit.pfgTotal + data.vendorSplit.walmartTotal
+  const { pfgTotal, walmartTotal: wmSplit } = data.vendorSplit
+  const vendorTotal = pfgTotal + wmSplit
   const walmartTotal = data.walmartCategories.reduce((s, c) => s + c.spend, 0)
   const topBrand = data.pfgBrands[0]
 
   return (
-    <div className="space-y-4">
-      <div className="card">
-        <div className="text-sm font-bold text-slate-700 mb-4">Vendor Split</div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs text-slate-400 mb-1">PFS / PFG</div>
-            <div className="text-xl font-bold text-slate-800 tabular-nums">{money(data.vendorSplit.pfgTotal)}</div>
-            <div className="text-xs text-slate-400">{vendorTotal > 0 ? pct(data.vendorSplit.pfgTotal / vendorTotal) : '—'}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-400 mb-1">Walmart</div>
-            <div className="text-xl font-bold text-slate-800 tabular-nums">{money(data.vendorSplit.walmartTotal)}</div>
-            <div className="text-xs text-slate-400">{vendorTotal > 0 ? pct(data.vendorSplit.walmartTotal / vendorTotal) : '—'}</div>
-          </div>
-        </div>
+    <>
+      <TakeCard
+        tone="neutral"
+        label={topBrand ? pct(topBrand.pct) : '—'}
+        headline={topBrand
+          ? `${topBrand.brand} house-label products are ${pct(topBrand.pct)} of all PFG spend.`
+          : 'No vendor spend in this window.'}
+      >
         {topBrand && (
-          <div className="mt-4 text-xs text-slate-500">
-            <strong className="text-slate-700">{topBrand.brand}</strong> house-label products are {pct(topBrand.pct)} of all PFG
-            spend — heavy single-brand concentration, typical for a franchise but worth knowing for any future volume-pricing conversation.
-          </div>
+          <>Heavy single-brand concentration is typical for a franchise, and it is not a
+          problem on its own — but it is the number to have in hand for any volume-pricing
+          conversation. PFG carries {vendorTotal > 0 ? pct(pfgTotal / vendorTotal) : '—'} of
+          food spend overall; Walmart is a supplemental channel, not planned bulk purchasing.</>
         )}
-      </div>
+      </TakeCard>
 
-      <div className="card">
-        <div className="text-sm font-bold text-slate-700 mb-4">PFG Brand Concentration</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-slate-400 uppercase border-b border-slate-100">
-                <th className="text-left pb-2 font-medium">Brand / Manufacturer</th>
-                <th className="text-right pb-2 font-medium">Spend</th>
-                <th className="text-right pb-2 font-medium">% of PFG</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.pfgBrands.map(b => (
-                <tr key={b.brand} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="py-2 font-medium text-slate-700">{b.brand}</td>
-                  <td className="py-2 text-right font-semibold text-slate-700 tabular-nums">{money(b.spend)}</td>
-                  <td className="py-2 text-right text-slate-500 tabular-nums">{pct(b.pct)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Section label="Vendor split">
+        <Tiles>
+          <Tile
+            label="PFS / PFG"
+            value={money(pfgTotal)}
+            hero
+            target={vendorTotal > 0 ? `${pct(pfgTotal / vendorTotal)} of food spend` : undefined}
+          />
+          <Tile
+            label="Walmart"
+            value={money(wmSplit)}
+            target={vendorTotal > 0 ? `${pct(wmSplit / vendorTotal)} of food spend` : undefined}
+          />
+        </Tiles>
+      </Section>
 
-      <div className="card">
-        <div className="text-sm font-bold text-slate-700 mb-4">Walmart Category Breakdown</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-slate-400 uppercase border-b border-slate-100">
-                <th className="text-left pb-2 font-medium">Category</th>
-                <th className="text-right pb-2 font-medium">Spend</th>
-                <th className="text-right pb-2 font-medium">% of Walmart</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.walmartCategories.map(c => (
-                <tr key={c.category} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="py-2 font-medium text-slate-700">{c.category}</td>
-                  <td className="py-2 text-right font-semibold text-slate-700 tabular-nums">{money(c.spend)}</td>
-                  <td className="py-2 text-right text-slate-500 tabular-nums">{walmartTotal > 0 ? pct(c.spend / walmartTotal) : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Section label="PFG brand concentration">
+        <div className="sk-card">
+          <DataTable
+            caption="PFG spend by brand or manufacturer, with each brand's share of PFG"
+            cols={BRAND_COLS}
+            rows={data.pfgBrands.map<Row>(b => ({
+              key: b.brand,
+              cells: [b.brand, money(b.spend), pct(b.pct)],
+              values: [null, b.spend, null],
+            }))}
+          />
         </div>
-        <div className="mt-2 text-xs text-slate-400">Walmart is a supplemental channel — almost entirely fresh produce toppings and small ad-hoc top-ups, not planned bulk purchasing.</div>
-      </div>
-    </div>
+      </Section>
+
+      <Section label="Walmart breakdown">
+        <div className="sk-card">
+          <DataTable
+            caption="Walmart spend by category, with each category's share of Walmart"
+            cols={WM_COLS}
+            rows={data.walmartCategories.map<Row>(c => ({
+              key: c.category,
+              cells: [
+                c.category,
+                money(c.spend),
+                walmartTotal > 0 ? pct(c.spend / walmartTotal) : '—',
+              ],
+              values: [null, c.spend, null],
+            }))}
+          />
+          <p className="sk-take-why" style={{ marginTop: 'var(--space-3)' }}>
+            Walmart is a supplemental channel — almost entirely fresh produce toppings and
+            small ad-hoc top-ups, not planned bulk purchasing.
+          </p>
+        </div>
+      </Section>
+    </>
   )
 }
 
 export default function InventoryVendorsPage() {
   return (
-    <Suspense fallback={<div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>}>
+    <Suspense fallback={<Loading />}>
       <VendorsInner />
     </Suspense>
   )

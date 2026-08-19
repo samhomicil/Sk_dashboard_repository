@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { COGS_TARGET } from '@/lib/core/targets'
 import type { WeekPoint, CategoryWeekPoint, TopProductPriced } from '@/lib/purchasingUtils'
 
 // Fixed categorical order (never cycled) — teal-led to match the dashboard, warm/cool
@@ -64,7 +65,7 @@ export function SpendTrendChart({ data }: { data: WeekPoint[] }) {
   )
 }
 
-/* ── Cost % of sales vs 25% target ── */
+/* ── Cost % of sales vs the recipe-COGS target ── */
 export function CostPctChart({ data }: { data: WeekPoint[] }) {
   const pts = data.filter(d => d.sales > 0)
   if (!pts.length) return <Empty />
@@ -73,7 +74,12 @@ export function CostPctChart({ data }: { data: WeekPoint[] }) {
   const x = (i: number) => PL + (W - PL - 8) * (i / Math.max(1, pts.length - 1))
   const y = (v: number) => PT + (H - PT - PB) * (1 - v / max)
   const line = pts.map((d, i) => `${i ? 'L' : 'M'}${x(i)},${y(d.costPct)}`).join(' ')
-  const target = 25
+  // The target is COGS_TARGET, not a 25 typed here. This was a literal, which is
+  // exactly how the Overview once graded labor at 25% while Weekly Ops used 22%:
+  // the chart and the screen citing it drift apart the moment one is edited.
+  // `npm run check` did not catch it because the const was named `target`, which
+  // its *TARGET/*THRESHOLD pattern does not match.
+  const target = COGS_TARGET * 100
   return (
     <div className="overflow-x-auto">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 480 }}>
@@ -84,7 +90,7 @@ export function CostPctChart({ data }: { data: WeekPoint[] }) {
           </g>
         ))}
         <line x1={PL} x2={W} y1={y(target)} y2={y(target)} stroke="var(--ink-muted)" strokeDasharray="4 3" />
-        <text x={W - 4} y={y(target) - 4} textAnchor="end" className="fill-slate-400" fontSize="9">25% target</text>
+        <text x={W - 4} y={y(target) - 4} textAnchor="end" className="fill-slate-400" fontSize="9">{target}% target</text>
         <path d={line} fill="none" stroke={PFG_C} strokeWidth={2} />
         {pts.map((d, i) => (
           <circle key={d.week} cx={x(i)} cy={y(d.costPct)} r={3.5} fill={d.costPct > target ? 'var(--status-bad)' : 'var(--status-good)'}>

@@ -1,4 +1,7 @@
-import { LABOR_TARGET, COGS_TARGET } from './core/targets'
+import {
+  LABOR_TARGET, COGS_TARGET, EE_TARGET, VOID_PCT_TARGET, DISCOUNT_PCT_TARGET,
+  SALES_GROWTH_YOY_TARGET, OSAT_TARGET, SURVEYS_PER_STORE_MONTH,
+} from './core/targets'
 
 /**
  * Overview-dashboard targets.
@@ -11,19 +14,20 @@ import { LABOR_TARGET, COGS_TARGET } from './core/targets'
  * identically — SUM(total_pay) from smoothieking.labor, excluding NON_EMP/Support —
  * so there was never a definitional reason for the two numbers to differ.
  *
- * Targets below the re-exports are Overview-only (guest satisfaction, void/discount
- * hygiene, YoY growth) and have no counterpart in core.
+ * The Overview-only targets (guest satisfaction, void/discount hygiene, YoY growth)
+ * have no counterpart on another surface, but they are still business rules, so they
+ * live in core/targets.ts too and are re-exported here. Nothing in this file is a
+ * literal — that is the invariant `npm run check` now enforces.
  */
 export const TARGETS = {
   laborPct: LABOR_TARGET,   // 0.22 — canon, matches daily recap / Weekly Ops / Budget
   cogsPct: COGS_TARGET,     // 0.25 — canon, recipe-COGS basis
-  eePct: 0.60,
-  voidPct: 0.02,
-  discountPct: 0.08,
-  salesGrowthYoY: 0.10,
-  // Guest satisfaction (SMG). 90% OSAT is the confirmed target.
-  osatPct: 0.90,
-  surveysPerStoreMonth: 22,
+  eePct: EE_TARGET,
+  voidPct: VOID_PCT_TARGET,
+  discountPct: DISCOUNT_PCT_TARGET,
+  salesGrowthYoY: SALES_GROWTH_YOY_TARGET,
+  osatPct: OSAT_TARGET,
+  surveysPerStoreMonth: SURVEYS_PER_STORE_MONTH,
 }
 
 export const STORE_CODES: Record<string, string> = {

@@ -131,6 +131,21 @@ export const STORE_UPH: Record<string, number> = { pines: 7.5, miramar: 8.4, mar
  */
 export const INVENTORY_PERIOD_MIN_DAYS = 5
 
+/* ── Overview-only targets ────────────────────────────────────────────────── */
+/**
+ * These grade only the Overview dashboard and have no counterpart on another
+ * surface — but they are still business rules, and they were literals inside
+ * lib/config.ts, which is outside this file. Values unchanged; only their address
+ * moved, so config.ts now re-exports rather than restates them.
+ */
+export const EE_TARGET = 0.60
+export const VOID_PCT_TARGET = 0.02
+export const DISCOUNT_PCT_TARGET = 0.08
+export const SALES_GROWTH_YOY_TARGET = 0.10
+/** Guest satisfaction (SMG). 90% OSAT is the confirmed target. */
+export const OSAT_TARGET = 0.90
+export const SURVEYS_PER_STORE_MONTH = 22
+
 /* ── Bill ↔ transaction matching ──────────────────────────────────────────── */
 /**
  * How far a bank transaction's amount may sit from what a bill occurrence expects

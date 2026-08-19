@@ -41,7 +41,17 @@ function walk(dir: string, out: string[] = []): string[] {
   }
   return out
 }
-const FILES = walk(ROOT).map(p => ({ path: p, rel: relative(ROOT, p), src: readFileSync(p, 'utf8') }))
+/** Source with comments removed. Patterns that look for LITERALS must run against
+ *  this, not the raw text: `cogsPct: COGS_TARGET, // 0.25 — canon` is a re-export
+ *  whose comment happens to quote the value, and matching the digits inside it
+ *  reports the one file that is doing the right thing. */
+const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+
+const FILES = walk(ROOT).map(p => {
+  const src = readFileSync(p, 'utf8')
+  return { path: p, rel: relative(ROOT, p), src, code: stripComments(src) }
+})
 const src = (rel: string) => FILES.find(f => f.rel === rel)?.src ?? ''
 
 console.log('\nSK Dashboard — invariant checks\n')
@@ -72,11 +82,22 @@ check('config.TARGETS.cogsPct === core COGS_TARGET', TARGETS.cogsPct === COGS_TA
   //   b. a const named like one of the relocated rules, re-declared locally
   // Importing them and aliasing (`const QUALITY_TARGET = JOLT_QUALITY_TARGET`) is fine:
   // the right-hand side is an identifier, not a literal.
-  const NAMED = /^[ \t]*(?:export )?const [A-Za-z_][A-Za-z0-9_]*(?:TARGET|TARGETS|THRESHOLD|THRESHOLDS|Target|Threshold)[A-Za-z0-9_]*[ \t]*(?::[^=]+)?=[ \t]*[0-9{]/m
+  // Case-INSENSITIVE, and the name may BE the word rather than merely contain it.
+  // The previous pattern required at least one character before TARGET and listed
+  // only upper/TitleCase spellings, so `const target = 25` could never match it —
+  // which is exactly what shipped in components/InventoryCharts.tsx, drawing the
+  // food-cost line from a hand-typed 25 while every screen citing it read
+  // COGS_TARGET. A rule that cannot catch the plainest spelling of the thing it
+  // guards is not a rule.
+  // Matches an assigned NUMBER, or an object literal that CONTAINS one. An object
+  // whose values are all identifiers is a re-export, not a restatement — that is
+  // what lib/config.ts is, and flagging it would only teach people to add
+  // exemptions.
+  const NAMED = /^[ \t]*(?:export )?const [A-Za-z0-9_]*(?:target|threshold|limit|ceiling)[A-Za-z0-9_]*[ \t]*(?::[^=]+)?=[ \t]*(?:[0-9]|\{[^}]*[0-9])/im
   const RELOCATED = /^[ \t]*(?:export )?const (?:MGR_WK|MGR_WEEKLY|STORE_UPH|STORE_TARGETS|PRIME_TARGET|FAST_MOVER_(?:DAYS|THRESHOLD_DAYS)|VARIANCE_FLAG_(?:PCT|THRESHOLD_PCT)|STAFFING_BANDS)[ \t]*(?::[^=]+)?=[ \t]*[0-9{[]/m
   const offenders = FILES.filter(f =>
     !f.rel.includes('core/targets') && !f.rel.includes('scripts/check') &&
-    (NAMED.test(f.src) || RELOCATED.test(f.src)))
+    (NAMED.test(f.code) || RELOCATED.test(f.code)))
   check('no target/threshold literal outside core/targets.ts', offenders.length === 0,
     offenders.map(o => o.rel).join('\n') +
     (offenders.length ? '\n  -> move the value to src/lib/core/targets.ts and import it' : ''))

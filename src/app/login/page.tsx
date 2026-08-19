@@ -32,7 +32,7 @@ export default async function LoginPage({
         <div className="w-14 h-14 bg-teal-700 rounded-full flex items-center justify-center text-white text-xl font-bold mx-auto mb-4">
           SK
         </div>
-        <div className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">SK Wellness</div>
+        <div className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Hispaniola Wellness</div>
         <div className="text-xl font-bold text-slate-800 mb-1">Performance Dashboard</div>
 
         {denied ? (

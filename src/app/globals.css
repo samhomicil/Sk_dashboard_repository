@@ -281,19 +281,25 @@ body {
 }
 .sk-side.collapsed { width: 70px; }
 
-.sk-brand { display: flex; align-items: center; gap: 11px; padding: 20px 18px 18px; text-decoration: none; }
-.sk-brand .sk-mark {
-  width: 34px; height: 34px; border-radius: 9px;
-  background: var(--accent); color: var(--brand-deep);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px; flex-shrink: 0;
-}
-.sk-brand .sk-nm { font-size: 15px; font-weight: 700; color: var(--ink-inverse); white-space: nowrap; }
-.sk-side.collapsed .sk-brand .sk-nm { display: none; }
+/* Brand lockup — the kit's drawn H, a brass hairline, then a two-line wordmark.
+   Not a lettered chip: the mark is a monogram struck in bone, and the brass rule
+   between mark and name is the same rule that underlines an active tab. */
+.sk-brand { display: flex; align-items: center; gap: 10px; padding: 20px 18px 18px; text-decoration: none; }
+.sk-brand .sk-mark { flex-shrink: 0; display: block; }
+.sk-brand .sk-rule { width: 2px; height: 28px; background: var(--accent); flex-shrink: 0; }
+.sk-brand .sk-nm { display: block; white-space: nowrap; color: var(--ink-inverse); }
+.sk-brand .sk-nm-1 { display: block; font-size: 14px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.15; }
+.sk-brand .sk-nm-2 { display: block; font-size: 9px; letter-spacing: 0.18em; opacity: 0.8; line-height: 1.3; }
+.sk-side.collapsed .sk-brand .sk-nm,
+.sk-side.collapsed .sk-brand .sk-rule { display: none; }
 .sk-side.collapsed .sk-brand { justify-content: center; padding: 20px 0 18px; }
 
 .sk-navlabel { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in srgb, var(--ink-inverse) 50%, var(--brand-deep)); padding: 6px 20px 6px; }
 .sk-side.collapsed .sk-navlabel { text-align: center; padding: 6px 0; font-size: 8px; }
+/* The owner group's eyebrow is brass — the kit uses the accent here to mark the
+   rail's privileged half, which is the one place a colour carries meaning in the
+   navigation rather than decoration. */
+.sk-navlabel.owner { color: var(--accent); opacity: 0.8; margin-top: 10px; }
 
 .sk-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; }
 .sk-side.collapsed .sk-nav { padding: 0 10px; }

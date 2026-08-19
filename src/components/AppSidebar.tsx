@@ -10,7 +10,8 @@ const INVENTORY_SUB = [
   { label: 'By Category',         href: '/inventory/categories' },
   { label: 'By Store',            href: '/inventory/stores' },
   { label: 'By Vendor',           href: '/inventory/vendors' },
-  { label: 'Order Guide',         href: '/inventory/watchlist' },
+  { label: 'Actions & watchlist', href: '/inventory/watchlist' },
+  { label: 'Shrink',              href: '/inventory/shrink' },
 ]
 
 // Owner-only financial modules (rendered only when session role === 'owner').
@@ -18,6 +19,7 @@ const FINANCIALS_SUB = [
   { label: 'Budget',       href: '/financials' },
   { label: 'Cash Flow',    href: '/cashflow' },
   { label: 'Bills',        href: '/bills' },
+  { label: 'Bill vendors', href: '/bills/vendors' },
   { label: 'P&L',          href: '/pnl' },
   { label: 'Transactions', href: '/transactions' },
   { label: 'Settings',     href: '/settings' },
@@ -58,8 +60,20 @@ export default function AppSidebar() {
         so navigation moves into a slide-over drawer opened from here. */}
     <div className="sk-mobilebar">
       <Link href="/" className="sk-brand">
-        <span className="sk-mark">SK</span>
-        <span className="sk-nm">SK Wellness</span>
+        <span className="sk-mark" aria-hidden="true">
+          <svg viewBox="0 0 100 100" width="28" height="28">
+            <g fill="none" stroke="var(--ink-inverse)" strokeLinecap="butt">
+              <path strokeWidth="22" d="M 11 0 L 11 100" />
+              <path strokeWidth="22" d="M 89 0 L 89 100" />
+              <path strokeWidth="20" d="M 11 47 L 89 47" />
+            </g>
+          </svg>
+        </span>
+        <span className="sk-rule" aria-hidden="true" />
+        <span className="sk-nm">
+          <span className="sk-nm-1">HISPANIOLA</span>
+          <span className="sk-nm-2">WELLNESS</span>
+        </span>
       </Link>
       <button className="sk-burger" aria-label="Open menu" onClick={() => setMobileOpen(true)}>
         <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -68,26 +82,39 @@ export default function AppSidebar() {
     {mobileOpen && <div className="sk-scrim" onClick={() => setMobileOpen(false)} />}
     <aside className={`sk-side${collapsed && !mobileOpen ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       <Link href="/" className="sk-brand">
-        <span className="sk-mark">SK</span>
-        <span className="sk-nm">SK Wellness</span>
+        <span className="sk-mark" aria-hidden="true">
+          <svg viewBox="0 0 100 100" width="28" height="28">
+            <g fill="none" stroke="var(--ink-inverse)" strokeLinecap="butt">
+              <path strokeWidth="22" d="M 11 0 L 11 100" />
+              <path strokeWidth="22" d="M 89 0 L 89 100" />
+              <path strokeWidth="20" d="M 11 47 L 89 47" />
+            </g>
+          </svg>
+        </span>
+        <span className="sk-rule" aria-hidden="true" />
+        <span className="sk-nm">
+          <span className="sk-nm-1">HISPANIOLA</span>
+          <span className="sk-nm-2">WELLNESS</span>
+        </span>
       </Link>
 
-      <div className="sk-navlabel">Menu</div>
+      <div className="sk-navlabel">Operations</div>
       <nav className="sk-nav">
         <Link href="/" className={item(pathname === '/')}>
           <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
             <rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" />
             <rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" />
           </svg>
-          <span className="sk-lbl">Dashboard</span>
+          <span className="sk-lbl">Overview</span>
         </Link>
 
-        <Link href="/menu-mix" className={item(pathname.startsWith('/menu-mix'))}>
+        <Link href="/employees" className={item(pathname.startsWith('/employees'))}>
           <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
-            <path d="M9 9h6M9 13h6M9 17h4" />
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" />
           </svg>
-          <span className="sk-lbl">Menu Mix</span>
+          <span className="sk-lbl">Labor</span>
         </Link>
 
         <Link href="/ops-report" className={item(pathname.startsWith('/ops-report'))}>
@@ -98,23 +125,6 @@ export default function AppSidebar() {
           <span className="sk-lbl">Weekly Ops</span>
         </Link>
 
-        <Link href="/guest-voice" className={item(pathname.startsWith('/guest-voice'))}>
-          <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 4 11.5a8.5 8.5 0 0 1 8.5-8.5 8.4 8.4 0 0 1 8.5 8.5z" />
-          </svg>
-          <span className="sk-lbl">Guest Voice</span>
-        </Link>
-
-        <Link href="/employees" className={item(pathname.startsWith('/employees'))}>
-          <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" />
-          </svg>
-          <span className="sk-lbl">Employees</span>
-        </Link>
-
-        {/* Inventory parent */}
         <Link href="/inventory" className={item(onInventory, onInventory ? 'section' : '')}>
           <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 7l9-4 9 4-9 4-9-4z" /><path d="M3 7v10l9 4 9-4V7" /><path d="M12 11v10" />
@@ -141,33 +151,49 @@ export default function AppSidebar() {
           </div>
         </div>
 
-        {/* Financials — owners only (managers never see this; also gated server-side). */}
-        {session?.user?.role === 'owner' && (() => {
-          const onFin = FINANCIALS_SUB.some(s => pathname.startsWith(s.href))
-          return (
-            <>
-              <Link href="/financials" className={item(onFin, onFin ? 'section' : '')}>
-                <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" />
-                </svg>
-                <span className="sk-lbl">Financials</span>
-              </Link>
-              <div className="sk-subnav open">
-                <div className="sk-subwrap">
-                  {FINANCIALS_SUB.map(s => {
-                    const active = s.href === '/financials' ? pathname === '/financials' : pathname.startsWith(s.href)
-                    return (
-                      <Link key={s.href} href={s.href} className={`sk-subitem${active ? ' active' : ''}`}>
-                        <span className="sk-sdot" />{s.label}
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            </>
-          )
-        })()}
+        <Link href="/menu-mix" className={item(pathname.startsWith('/menu-mix'))}>
+          <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+            <path d="M9 9h6M9 13h6M9 17h4" />
+          </svg>
+          <span className="sk-lbl">Menu Mix</span>
+        </Link>
+
+        <Link href="/guest-voice" className={item(pathname.startsWith('/guest-voice'))}>
+          <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 4 11.5a8.5 8.5 0 0 1 8.5-8.5 8.4 8.4 0 0 1 8.5 8.5z" />
+          </svg>
+          <span className="sk-lbl">Guest Voice</span>
+        </Link>
+
       </nav>
+
+      {/* Owner-only modules. Managers never see these; the real gate is server-side
+          in proxy.ts + requireOwner(), and hiding the nav is presentation only.
+
+          The kit groups these under a BRASS section eyebrow as flat siblings of the
+          operations items — it does not have a "Financials" nav item, which this app
+          had invented as a collapsible parent pointing at /financials. Naming the
+          group by its AUDIENCE ("Owner only") rather than its subject matter is the
+          point: it tells a manager the rail is complete for them, where "Financials"
+          reads like a section they are missing. */}
+      {session?.user?.role === 'owner' && (
+        <>
+          <div className="sk-navlabel owner">Owner only</div>
+          <nav className="sk-nav">
+            <div className="sk-subwrap">
+              {FINANCIALS_SUB.map(s => {
+                const active = s.href === '/financials' ? pathname === '/financials' : pathname.startsWith(s.href)
+                return (
+                  <Link key={s.href} href={s.href} className={`sk-subitem${active ? ' active' : ''}`}>
+                    <span className="sk-sdot" />{s.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </nav>
+        </>
+      )}
 
       <div className="sk-spring" />
 

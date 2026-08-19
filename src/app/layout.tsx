@@ -22,8 +22,8 @@ const plexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'SK Wellness Dashboard',
-  description: 'SK Wellness Performance Dashboard',
+  title: 'Hispaniola Wellness',
+  description: 'Hispaniola Wellness performance dashboard',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

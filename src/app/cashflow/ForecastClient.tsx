@@ -116,7 +116,7 @@ export default function ForecastClient() {
     <Shell store={sel.store}>
       <header className="fin-head">
         <div>
-          <div className="eyebrow">SK Wellness · cash forecast</div>
+          <div className="eyebrow">Hispaniola Wellness · cash forecast</div>
           <h1>Cash Flow</h1>
           <div className="sub">What each account&apos;s bank balance does over the next {n} days — click a week to see the days.</div>
         </div>

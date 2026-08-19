@@ -13,7 +13,7 @@ import { Page, PageBar, TakeCard, FlagList, Tile, Tiles, BasisNote } from '@/com
 import { UnknownValue, NotMeasured, NeedsInput, CertaintySplit, CertaintyLegend } from '@/components/design/states'
 import { DataTable, type Col, type Row } from '@/components/design/DataTable'
 
-export const metadata: Metadata = { title: 'Design system — SK Wellness' }
+export const metadata: Metadata = { title: 'Design system — Hispaniola Wellness' }
 
 const money = (n: number) => `$${n.toLocaleString()}`
 

@@ -110,7 +110,7 @@ export default function BudgetView() {
     <Shell store={store}>
       <header className="fin-head">
         <div>
-          <div className="eyebrow">SK Wellness · full weekly budget</div>
+          <div className="eyebrow">Hispaniola Wellness · full weekly budget</div>
           <h1>Weekly Cost Cockpit</h1>
           <div className="sub">Every dollar out — click any bucket to drill into the line items.</div>
         </div>

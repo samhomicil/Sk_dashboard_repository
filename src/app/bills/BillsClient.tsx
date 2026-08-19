@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
+import { PageBar } from '@/components/design/shell';
+import { SegControl } from '@/components/design/controls';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   dueDatesInRange, parseISO, iso, ymOf, scheduleLabel, type SalesData,
@@ -33,6 +35,9 @@ const TABS = [
   { id: 'sales', label: 'Sales' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
+
+/** Derived from STORES so the control and the filter can never disagree. */
+const STORE_OPTS = STORES.map((s) => ({ value: s, label: s }));
 
 type DayItem = {
   bill: ClientBill;
@@ -101,44 +106,33 @@ export default function BillsClient({
   );
 
   return (
-    <div className="min-h-screen">
-      {/* Main */}
-      <main className="pb-safe-mobile">
-        <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white/80 px-5 py-3 backdrop-blur sm:px-7">
-          <h1 className="text-base font-semibold capitalize text-ink">Bills — {TABS.find((t) => t.id === tab)?.label}</h1>
-          {/* Tab switcher (relocated from the old sidebar) */}
-          <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  tab === t.id ? 'bg-white text-ink shadow-sm' : 'text-slate-500 hover:text-ink'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div className="ml-auto flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
-            {STORES.map((s) => (
-              <button
-                key={s}
-                onClick={() => setStore(s)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  store === s ? 'bg-white text-ink shadow-sm' : 'text-slate-500 hover:text-ink'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <RefreshButton lastSyncedAt={lastSyncedAt} />
-        </header>
+    <div className="sk-page">
+      {/* Module chrome matches every other module: PageBar owns the title and this
+          screen's own filters, the tab row sits under it with the kit's brass
+          underline. The old header was a sticky white/80 backdrop-blur bar with
+          pill tabs and a shadow — none of which the system has. */}
+      <PageBar title="Bills">
+        <SegControl label="Store" options={STORE_OPTS} value={store} onChange={setStore} />
+        <RefreshButton lastSyncedAt={lastSyncedAt} />
+      </PageBar>
 
+      <nav className="sk-tabs" aria-label="Bills sections">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            aria-current={tab === t.id ? 'page' : undefined}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      <main>
         {(dash.mode.data === 'seed' || dash.mode.actual === 'mock') && <SetupBanner mode={dash.mode} />}
 
-        <div className="px-5 py-5 sm:px-7">
+        <div className="sk-page-inner">
           {tab === 'overview' && (
             <BillsOverview
               occ={occ}
@@ -187,7 +181,8 @@ function RefreshButton({ lastSyncedAt }: { lastSyncedAt: string | null }) {
         onClick={() => startTransition(() => { router.refresh(); })}
         disabled={isPending}
         title="Re-fetch latest data from the database"
-        className="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+        className="sk-select"
+        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
       >
         <svg
           className={`h-3 w-3 ${isPending ? 'animate-spin' : ''}`}

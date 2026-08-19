@@ -2,7 +2,8 @@ import 'server-only';
 import type { BillRecord } from './types';
 import type { SalesData } from './billsEngine';
 import type { ActualTxn } from './actual';
-import { dueDatesInRange, resolveAmount, iso, ymOf } from './billsEngine';
+import { dueDatesInRange, resolveAmount, iso, ymOf, recurrenceIntervalDays } from './billsEngine';
+import { BILL_MATCH_TOLERANCE } from '../core/targets';
 
 export interface ReconciledOccurrence {
   billId: string;
@@ -13,6 +14,9 @@ export interface ReconciledOccurrence {
   original: string;
   shifted: boolean;
   expected: number | null;
+  /** Nominal days between this bill's occurrences — bounds how far a transaction
+   *  may sit from `due` and still plausibly be THIS occurrence's payment. */
+  intervalDays: number;
   rollingEstimate?: boolean;
   status: 'paid' | 'due' | 'overdue' | 'missed' | 'upcoming';
   match?: {
@@ -25,7 +29,6 @@ export interface ReconciledOccurrence {
 const DUE_DAYS = 3;          // days ahead that count as "due"
 const MATCH_DAYS_BEFORE = 10; // how far before due date to look for a txn
 const MATCH_DAYS_AFTER = 5;   // how far after due date to look for a txn
-const MATCH_TOLERANCE = 0.25; // 25% variance — wide enough for variable payroll/COGS
 
 export function reconcile(
   bills: BillRecord[],
@@ -68,7 +71,7 @@ export function reconcile(
           if (t.date < winStartISO || t.date > winEndISO) return false;
           const dollars = Math.abs(t.amount) / 100;
           const variance = matchBasis > 0 ? Math.abs(dollars - matchBasis) / matchBasis : 0;
-          return variance <= MATCH_TOLERANCE;
+          return variance <= BILL_MATCH_TOLERANCE;
         });
       }
 
@@ -112,6 +115,7 @@ export function reconcile(
         original: iso(o.original),
         shifted: o.shifted,
         expected: expectedDollars,
+        intervalDays: recurrenceIntervalDays(bill.recurrence),
         rollingEstimate: status === 'upcoming' && rollingAvg != null,
         status,
         match: match ? { txnId: match.id, amount: matchDollars!, variancePct } : undefined,

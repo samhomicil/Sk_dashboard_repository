@@ -131,6 +131,31 @@ export const STORE_UPH: Record<string, number> = { pines: 7.5, miramar: 8.4, mar
  */
 export const INVENTORY_PERIOD_MIN_DAYS = 5
 
+/* ── Bill ↔ transaction matching ──────────────────────────────────────────── */
+/**
+ * How far a bank transaction's amount may sit from what a bill occurrence expects
+ * before the pairing is refused.
+ *
+ * Was a literal `MATCH_TOLERANCE = 0.25` in BOTH bills/reconcile.ts and
+ * bills/suggestMatch.ts, the second carrying the comment "matches reconcile.ts's own
+ * tolerance" — two copies of one rule, kept in step by hand. Value unchanged.
+ *
+ * 0.25 is wide on purpose: PFG food cost genuinely swings (an occurrence expecting
+ * $2,600 settled by a real $2,017 payment is a legitimate 22% miss), and payroll
+ * varies by period. Tightening it starts rejecting true matches.
+ */
+export const BILL_MATCH_TOLERANCE = 0.25
+
+/**
+ * The floor on the ± window a transaction may sit from an occurrence's due date.
+ *
+ * The window itself is derived from the BILL'S OWN CADENCE (half its recurrence
+ * interval — past the midpoint a different occurrence is by definition nearer), but
+ * half of a weekly bill is only 3.5 days, which would miss a payment landing four
+ * days early. This is the floor under that.
+ */
+export const BILL_MATCH_MIN_WINDOW_DAYS = 5
+
 /* ── Crew exception thresholds (Labor & crew) ─────────────────────────────── */
 /**
  * Drawer variance a till may be off before it is worth asking about.

@@ -1,6 +1,7 @@
 import 'server-only';
 import type { ReconciledOccurrence } from './reconcile';
 import type { UnifiedTxn } from './unifiedTransactions';
+import { BILL_MATCH_TOLERANCE, BILL_MATCH_MIN_WINDOW_DAYS } from '../core/targets';
 
 // Suggests a transaction for each still-open bill occurrence, so Sam can
 // eyeball it and confirm rather than the app silently deciding for him.
@@ -44,16 +45,29 @@ export const EARLY_FLAG_DAYS = 5;
 
 const MATCH_DAYS_BEFORE = 10;
 const MATCH_DAYS_AFTER = 5;
-const MATCH_TOLERANCE = 0.25; // matches reconcile.ts's own tolerance
-// A recurring bill (monthly rent, etc.) has many occurrences but OpenBudget's
-// history only goes back so far. Once the transaction actually near a given
-// occurrence gets claimed by it, a naive "closest remaining" search on a
-// vendor-confirmed match will happily pair a leftover occurrence with a
-// transaction from a completely different billing period — vendor identity
-// says it's the right BILL, not the right OCCURRENCE. Cap both passes to the
-// same window so a wrong-period pairing is dropped instead of shown as if
-// it were reliable just because the vendor matched.
-const MAX_VENDOR_MATCH_DAYS = 20;
+
+/**
+ * How far a vendor-confirmed transaction may sit from an occurrence's due date.
+ *
+ * This WAS a flat 20 days, and 20 days is longer than several of these bills'
+ * entire billing cycles — so the cap could not do the job its own comment claimed.
+ * Measured 2026-08-19, every one of the 9 live suggestions was wrong because of it:
+ * median 13 days early, max 16, and all nine paired a FUTURE occurrence (due Aug
+ * 21–27) with a transaction that had already happened (Aug 7–17).
+ *
+ *   Workstream payroll  biweekly  due 8/21 → txn 8/07   exactly one full cycle
+ *   PFG food cost       weekly    due 8/25 → txn 8/11   exactly two full cycles
+ *
+ * The 8/07 payment is the 8/07 occurrence's. Vendor identity says it is the right
+ * BILL, never the right OCCURRENCE, and the greedy "each occurrence takes its
+ * nearest unclaimed transaction" loop pushes leftovers steadily further out.
+ *
+ * So the window is the bill's own cadence, halved — past the midpoint another
+ * occurrence is by definition nearer — floored so short-cadence bills keep some
+ * tolerance. Weekly → ±5 (the floor), biweekly → ±7, monthly → ±15.
+ */
+const vendorWindowDays = (intervalDays: number) =>
+  Math.max(BILL_MATCH_MIN_WINDOW_DAYS, Math.floor(intervalDays / 2));
 
 // Local Marketing Fee (1% of sales, all 3 stores) has NO dedicated ACH
 // originator anywhere in the bank feed — verified 2026-08-08: Royalty's real
@@ -149,8 +163,22 @@ export function suggestMatches(
   }
   for (const o of open) {
     const usedByThisBill = claimedByBill.get(o.billId);
-    const candidates = (byBillId.get(o.billId) ?? [])
-      .filter((t) => !usedByThisBill?.has(t.id) && daysBetween(t.date, o.due) <= MAX_VENDOR_MATCH_DAYS);
+    const win = vendorWindowDays(o.intervalDays);
+    const candidates = (byBillId.get(o.billId) ?? []).filter((t) => {
+      if (usedByThisBill?.has(t.id)) return false;
+      if (daysBetween(t.date, o.due) > win) return false;
+      // Amount gate. Vendor identity used to be the ONLY test here, with amount
+      // consulted solely to break a same-date tie — which let an occurrence
+      // expecting $11,000 of ADP payroll claim a $1,721 transaction, an 84% miss,
+      // purely because the alias resolved and nothing nearer was left. The same
+      // tolerance Pass 2 already applies belongs here too; being sure of the
+      // vendor is not evidence about the amount.
+      if (o.expected != null && o.expected > 0) {
+        const variance = Math.abs(Math.abs(t.amount) - o.expected) / o.expected;
+        if (variance > BILL_MATCH_TOLERANCE) return false;
+      }
+      return true;
+    });
     if (!candidates.length) continue;
     candidates.sort((a, b) => {
       const byDate = daysBetween(a.date, o.due) - daysBetween(b.date, o.due);
@@ -183,7 +211,7 @@ export function suggestMatches(
       if (t.store && t.store !== o.store) return false; // don't cross stores on a guess
       if (t.date < winStartISO || t.date > winEndISO) return false;
       const variance = Math.abs(Math.abs(t.amount) - o.expected!) / o.expected!;
-      if (variance > MATCH_TOLERANCE) return false;
+      if (variance > BILL_MATCH_TOLERANCE) return false;
       // t.notes is only ever populated for already-matched transactions
       // (excluded above), so payee — the raw merchant/descriptor text for an
       // unmatched one — is the only useful field here.

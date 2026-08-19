@@ -15,6 +15,27 @@ export type RecurrenceRule =
   | { type: 'every_n_months'; n: number; day: number }
   | { type: 'yearly'; month: number; day: number };
 
+/**
+ * Nominal days between consecutive occurrences of a rule.
+ *
+ * Used to bound how far from its due date a transaction may sit and still plausibly
+ * be THIS occurrence's payment. It is deliberately nominal — a month is 30 whether
+ * it is February or March — because the only thing downstream of it is a symmetric
+ * tolerance window, and a day either way there changes nothing.
+ */
+export function recurrenceIntervalDays(rule: RecurrenceRule): number {
+  switch (rule.type) {
+    case 'weekly': return 7;
+    case 'biweekly': return 14;
+    case 'semimonthly': return 15;
+    case 'every_n_days': return Math.max(1, rule.n);
+    case 'every_n_months': return Math.max(1, rule.n) * 30;
+    case 'yearly': return 365;
+    // monthly_day, monthly_last_day, monthly_nth_weekday
+    default: return 30;
+  }
+}
+
 export type AmountType = 'fixed' | 'estimate' | 'percent';
 export type Payment = 'auto' | 'manual';
 

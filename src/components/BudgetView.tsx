@@ -300,7 +300,7 @@ function Style() {
        existed. Rather than rewrite every rule below, the variables now RESOLVE to
        the tokens — one indirection, and the whole panel is on the system's
        palette. --shadow becomes none because the system has no drop shadows. */
-    .fin{--bg:var(--ground);--surface:var(--surface);--elev:var(--surface);--ink:var(--ink);--muted:var(--ink-muted);--faint:var(--ink-muted);--line:var(--border);--line2:var(--border-subtle);
+    .fin{--bg:var(--ground);--elev:var(--surface);--muted:var(--ink-muted);--faint:var(--ink-muted);--line:var(--border);--line2:var(--border-subtle);
       --good:var(--status-good);--good-bg:color-mix(in srgb,var(--status-good) 12%,var(--surface));--warn:var(--status-warn);--warn-bg:color-mix(in srgb,var(--status-warn) 14%,var(--surface));--crit:var(--status-bad);--crit-bg:color-mix(in srgb,var(--status-bad) 10%,var(--surface));--pos:var(--status-good);--neg:var(--status-bad);
       --cert:var(--store-miramar);--store:var(--brand);--store-tint:color-mix(in srgb,var(--brand) 10%,var(--surface));--shadow:none;
       background:var(--bg);color:var(--ink);min-height:100vh;padding:24px 20px 60px;font:14px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}

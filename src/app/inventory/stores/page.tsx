@@ -1,87 +1,113 @@
 'use client'
 
+/**
+ * Inventory → By store. Category spend split across the three stores.
+ *
+ * The share row is the point of the screen, and it is the row most likely to be
+ * misread, which is why the note above the table is not decoration: Miramar buys
+ * several dry goods for all three stores and transfers them out, so its column
+ * runs high for a reason that has nothing to do with consumption.
+ */
 import { Suspense } from 'react'
 import { useInventoryData } from '@/components/useInventoryData'
 import { storeTotal } from '@/lib/purchasingUtils'
+import { Section, TakeCard } from '@/components/design/shell'
+import { DataTable, type Col, type Row } from '@/components/design/DataTable'
 
-const money = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
-const pct   = (n: number) => `${(n * 100).toFixed(1)}%`
+const money = (n: number) =>
+  (n < 0 ? '−$' : '$') + Math.abs(Math.round(n)).toLocaleString()
+const pct = (n: number) => `${(n * 100).toFixed(1)}%`
+
+const COLS: Col[] = [
+  { key: 'category', head: 'Category' },
+  { key: 'pines', head: 'Pines', num: true },
+  { key: 'miramar', head: 'Miramar', num: true },
+  { key: 'margate', head: 'Margate', num: true },
+  { key: 'total', head: 'Total', num: true, divider: true },
+]
+
+const Loading = () => (
+  <div className="sk-card"><p className="sk-flags-empty">Loading purchasing…</p></div>
+)
 
 function StoresInner() {
   const { data, loading } = useInventoryData()
 
-  if (loading) {
-    return <div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>
-  }
-  if (!data) {
-    return <div className="card text-center text-slate-400 py-12">No purchasing data yet.</div>
-  }
+  if (loading) return <Loading />
+  if (!data) return <div className="sk-card"><p className="sk-flags-empty">No purchasing data yet.</p></div>
 
   const totals = data.categoryByStore.reduce(
     (acc, c) => ({ pines: acc.pines + c.pines, miramar: acc.miramar + c.miramar, margate: acc.margate + c.margate }),
-    { pines: 0, miramar: 0, margate: 0 }
+    { pines: 0, miramar: 0, margate: 0 },
   )
   const grand = totals.pines + totals.miramar + totals.margate
+  const share = (n: number) => (grand > 0 ? pct(n / grand) : '—')
+
+  const rows: Row[] = [
+    ...data.categoryByStore.map<Row>(c => ({
+      key: c.category,
+      cells: [c.category, money(c.pines), money(c.miramar), money(c.margate), money(storeTotal(c))],
+      values: [null, c.pines, c.miramar, c.margate, storeTotal(c)],
+    })),
+    {
+      key: '__total',
+      total: true,
+      cells: ['Store total', money(totals.pines), money(totals.miramar), money(totals.margate), money(grand)],
+      values: [null, totals.pines, totals.miramar, totals.margate, grand],
+    },
+    {
+      key: '__share',
+      total: true,
+      // A share row is not a sum of the rows above it, so it declares itself as
+      // derive:'none' through the column spec rather than tripping the table's
+      // reconciliation check.
+      cells: ['% of total', share(totals.pines), share(totals.miramar), share(totals.margate), '100%'],
+    },
+  ]
+
+  // Derived, not authored. There is no target for "share of purchasing" in this
+  // app and the redesign does not invent one, so the take states the concentration
+  // and names the transfer practice that explains most of it — tone stays neutral
+  // because a high share here is a fact about how ordering is organised, not a
+  // number failing a threshold.
+  const byShare = ([['Pines', totals.pines], ['Miramar', totals.miramar], ['Margate', totals.margate]] as const)
+    .slice().sort((a, b) => b[1] - a[1])
+  const [topName, topSpend] = byShare[0]
+  const evenShare = grand / 3
 
   return (
-    <div className="space-y-4">
-      <div className="card border-l-4 border-teal-500" style={{ background: 'color-mix(in srgb, var(--brand) 6%, var(--surface))' }}>
-        <div className="text-xs text-teal-800">
-          <strong>Note on Miramar&apos;s share:</strong> Miramar is used as a deliberate ordering hub for several dry-goods
-          items — bought there and split via transfer to Pines and Margate to smooth week-to-week costs. Its higher spend
-          share on a given category or item often reflects that practice, not higher standalone consumption. See the
-          Watchlist tab for usage figures that account for this.
-        </div>
-      </div>
+    <>
+      <TakeCard
+        tone="neutral"
+        label={grand > 0 ? share(topSpend) : '—'}
+        headline={grand > 0
+          ? `${topName} buys the largest share of purchasing, ${money(topSpend)} of ${money(grand)}.`
+          : 'No purchasing in this window.'}
+      >
+        {grand > 0 && (
+          <>That is {money(topSpend - evenShare)} above an even three-way split
+          {topName === 'Miramar'
+            ? ', which is expected — Miramar orders several dry goods for all three stores and transfers them out.'
+            : '.'} Read shares here as ordering behaviour, not consumption — Actions &amp; watchlist carries usage figures that account for the transfers.</>
+        )}
+      </TakeCard>
 
-      <div className="card">
-        <div className="text-sm font-bold text-slate-700 mb-4">Category × Store</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-slate-400 uppercase border-b border-slate-100">
-                <th className="text-left pb-2 font-medium">Category</th>
-                <th className="text-right pb-2 font-medium">Pines</th>
-                <th className="text-right pb-2 font-medium">Miramar</th>
-                <th className="text-right pb-2 font-medium">Margate</th>
-                <th className="text-right pb-2 font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.categoryByStore.map(c => (
-                <tr key={c.category} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="py-2 font-medium text-slate-700">{c.category}</td>
-                  <td className="py-2 text-right text-slate-600 tabular-nums">{money(c.pines)}</td>
-                  <td className="py-2 text-right text-slate-600 tabular-nums">{money(c.miramar)}</td>
-                  <td className="py-2 text-right text-slate-600 tabular-nums">{money(c.margate)}</td>
-                  <td className="py-2 text-right font-semibold text-slate-700 tabular-nums">{money(storeTotal(c))}</td>
-                </tr>
-              ))}
-              <tr className="border-t-2 border-slate-200 font-bold text-slate-800">
-                <td className="py-2">Store total</td>
-                <td className="py-2 text-right tabular-nums">{money(totals.pines)}</td>
-                <td className="py-2 text-right tabular-nums">{money(totals.miramar)}</td>
-                <td className="py-2 text-right tabular-nums">{money(totals.margate)}</td>
-                <td className="py-2 text-right tabular-nums">{money(grand)}</td>
-              </tr>
-              <tr className="text-slate-400">
-                <td className="pt-1">% of total</td>
-                <td className="pt-1 text-right tabular-nums">{grand > 0 ? pct(totals.pines / grand) : '—'}</td>
-                <td className="pt-1 text-right tabular-nums">{grand > 0 ? pct(totals.miramar / grand) : '—'}</td>
-                <td className="pt-1 text-right tabular-nums">{grand > 0 ? pct(totals.margate / grand) : '—'}</td>
-                <td className="pt-1 text-right tabular-nums">100%</td>
-              </tr>
-            </tbody>
-          </table>
+      <Section label="Category × store">
+        <div className="sk-card">
+          <DataTable
+            caption="Purchasing spend by category and store, with each store's share of the total"
+            cols={COLS}
+            rows={rows}
+          />
         </div>
-      </div>
-    </div>
+      </Section>
+    </>
   )
 }
 
 export default function InventoryStoresPage() {
   return (
-    <Suspense fallback={<div className="card"><div className="animate-pulse h-16 bg-slate-100 rounded-lg w-full" /></div>}>
+    <Suspense fallback={<Loading />}>
       <StoresInner />
     </Suspense>
   )

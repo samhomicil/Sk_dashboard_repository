@@ -1,7 +1,7 @@
 {
   "no-shadow": 4,
   "touch-target": 2,
-  "missing-take": 10,
+  "missing-take": 8,
   "hardcoded-color": 4,
   "no-gradient": 2,
   "no-emoji": 2

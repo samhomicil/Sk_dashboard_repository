@@ -121,6 +121,13 @@ export const STORE_UPH: Record<string, number> = { pines: 7.5, miramar: 8.4, mar
  * A real inventory cycle is a week. 5 is the floor rather than 7 so a count taken a
  * day early or late still counts, while 1- and 2-day partials are refused. Below
  * this, actual COGS is reported as unavailable — never as a number.
+ *
+ * SHRINK depends on the same floor for the same reason. Since 2026-08-03 the API
+ * loader also writes the NIGHTLY hot-list count into netchef_usage_api as a one-day
+ * period, and /inventory/shrink was picking its period by taking the newest row —
+ * so "week ending Aug 17" was Aug 17 alone, and it reported a +1006% net gap with
+ * $11,964 of overage. Any surface measuring usage or variance across a period must
+ * filter on this, not merely sort by date.
  */
 export const INVENTORY_PERIOD_MIN_DAYS = 5
 

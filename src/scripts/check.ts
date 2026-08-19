@@ -122,15 +122,20 @@ console.log('\nMetric sources')
       ? [...variants.entries()].map(([k, fs]) => `  "${k}"\n     ${[...new Set(fs)].join(', ')}`).join('\n')
         + '\n  -> they must match core/sources.ts NET_SALES exactly'
       : '')
-  // core/onHand is the one legitimate reader: it needs the most recent FULL physical
-  // inventory to anchor the nightly chain, and netchef_usage carries that a week fresher
-  // than netchef_usage_api (2026-08-03 vs 2026-07-27 as of 2026-08-09). It reads only
-  // qty_physical for the anchor, never usage history.
-  check('the old 1-week netchef_usage table is used only to anchor core/onHand', !FILES.some(f =>
+  // The two usage tables are not interchangeable and neither is sufficient alone:
+  //   netchef_usage      CrunchTime's own scrape. qty_issue is THEIRS, so it carries no
+  //                      modelling residual — but it only reaches back to 2026-07-27.
+  //   netchef_usage_api  our reconstruction. Reaches back to 2025-12-30, but qty_issue is
+  //                      COMPUTED by theoretical.py, so every row needs a confidence tier.
+  // Reading the scrape ALONE silently truncates history to a few weeks and hides the
+  // model caveat on the weeks that still need it, so a reader must cover both.
+  const scrapeOnly = FILES.filter(f =>
     /smoothieking\.netchef_usage\b(?!_api)/.test(f.src)
-    && !f.rel.includes('scripts/check') && f.rel !== 'lib/core/onHand.ts'
-    && f.rel !== 'lib/core/freshness.ts'),
-    'netchef_usage holds ~1 week of usage; use netchef_usage_api (~30 weeks) for history.')
+    && !/netchef_usage_api/.test(f.src)
+    && !f.rel.includes('scripts/check') && f.rel !== 'lib/core/freshness.ts')
+  check('netchef_usage is never read without netchef_usage_api alongside it',
+    scrapeOnly.length === 0, scrapeOnly.map(f => '  ' + f.rel).join('\n')
+    + '\n  -> netchef_usage starts 2026-07-27; fall back to netchef_usage_api for older periods.')
 }
 
 // ── 4. Money routes are gated twice ──────────────────────────────────────────
@@ -238,6 +243,17 @@ console.log('\nInventory / order-guide core')
     !consumers.some(f => /period_end\s*=\s*\(\s*SELECT\s+MAX\(period_end\)/i.test(f.src)),
     'MAX(period_end) now resolves to a ONE-DAY nightly period. Anything calling that '
     + 'result "weekly" forecasts a week of demand from a single night. Use core/usage.')
+
+  // The rule above only catches the `= (SELECT MAX(period_end))` shape. Shrink picked
+  // the latest period a different way — ORDER BY period_end DESC, take the first — and
+  // sailed straight past it, reporting a single night's count as a week: +1006% net gap,
+  // $11,964 of "overage", a 55-unit chicken count against a zero opening balance. Shrink
+  // differences a count against a whole period's book stock, so its period list must be
+  // filtered by length, not merely sorted.
+  check('shrink measures over real count periods, not nightly counts',
+    /INVENTORY_PERIOD_MIN_DAYS/.test(src('lib/shrink.ts')),
+    'A one-day period differences one evening\'s shelf against a week of book stock. '
+    + 'Filter the period list on core/targets INVENTORY_PERIOD_MIN_DAYS.')
 
   check('COGS windows pair sales to each period, not to the outer span',
     !/MIN\(period_start\)\s*ps,\s*MAX\(period_end\)\s*pe/.test(src('app/api/budget/route.ts')),

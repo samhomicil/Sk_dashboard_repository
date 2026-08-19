@@ -732,6 +732,28 @@
 }
 .sk-checkbox input { accent-color: var(--brand); width: 15px; height: 15px; }
 
+/* ── Rollups ─────────────────────────────────────────────────────────────── */
+/* The quiet tail of a long list, summarised instead of enumerated: a label and a
+   count per line, several columns wide. Not a table — there is nothing to compare
+   down a column, only to skim. */
+.sk-rollups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  column-gap: var(--space-6);
+}
+.sk-rollup {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  min-width: 0;
+}
+.sk-rollup > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-rollup > span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 /* ── Module tabs ─────────────────────────────────────────────────────────── */
 /* Sub-navigation inside a module (Inventory's six views). The kit marks the active
    tab with a brass underline on the module rule, not a filled pill — the pill is

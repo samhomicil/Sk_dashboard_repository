@@ -1,69 +1,104 @@
 'use client'
 
+/**
+ * Shrink — usage variance for one completed inventory period.
+ *
+ * THE FRAMING RULE, which the redesign preserves deliberately. Gross shrink read
+ * alone is alarmist: counting noise lands on BOTH sides and largely cancels, so the
+ * screen leads with NET and shows short/over beneath it. On a modelled period our
+ * recipe usage is also known to over-count substitutable bases and hand-portioned
+ * toppings, which inflates the OVER side specifically. A single period is never
+ * evidence — the same item going short period after period is.
+ *
+ * NO NEW BUSINESS RULES. There is no "shrink is bad above X%" threshold anywhere in
+ * this app, and the redesign does not invent one. So the take is DESCRIPTIVE — it
+ * names the largest mover and where it sits — and its tone follows the sign of the
+ * net gap, which is a fact about the number rather than a grade against a target.
+ * Nothing here reads a threshold, so nothing here needs one from core/targets.
+ */
 import { useState, useEffect, useMemo } from 'react'
+import { Section, TakeCard, Tile, Tiles } from '@/components/design/shell'
+import { SegControl } from '@/components/design/controls'
+import { DataTable, type Col, type Row } from '@/components/design/DataTable'
 import type { ShrinkPayload, ShrinkRow } from '@/lib/shrink'
 import { BIAS_NOTE } from '@/lib/netchefTiers'
 
-// Diverging pair for the variance bar. Validated (light surface): chroma floor,
-// CVD separation deutan ΔE 13.1, normal-vision ΔE 31.4, contrast >= 3:1.
-// The app is light-only, so no dark steps are needed.
-const SHORT = '#dc2626'   // counted less than the books say — product lost
-const OVER  = '#0d9488'   // counted more than expected
+const STORE_OPTS = [
+  { value: 'All', label: 'All' },
+  { value: 'Pines', label: 'Pines' },
+  { value: 'Miramar', label: 'Miramar' },
+  { value: 'Margate', label: 'Margate' },
+] as const
+type StoreOpt = typeof STORE_OPTS[number]['value']
 
-const money = (n: number) => (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
-const money2 = (n: number) => (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (n: number) =>
+  (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
+const money2 = (n: number) =>
+  (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const qty = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 })
-const md = (iso: string) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+const pct = (n: number) => (n > 0 ? '+' : '') + n.toFixed(1) + '%'
+const md = (iso: string) =>
+  new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 
-const STORE_TABS = ['All', 'Pines', 'Miramar', 'Margate'] as const
-
-function TierBadge({ row }: { row: ShrinkRow }) {
-  // An unsourced count is a paperwork artefact, not a weak model, so it gets its
-  // own word — calling it "unmodelled" on a CrunchTime-reported week would be false.
-  if (row.unsourced) return <span className="pill pill-red" title={row.tierNote ?? ''}>no opening count</span>
-  if (row.tier === 'D') return <span className="pill pill-red" title={row.tierNote ?? ''}>unmodelled</span>
-  if (row.tier === 'C') return <span className="pill pill-yellow" title={row.tierNote ?? ''}>low confidence</span>
-  return null
-}
-
-/** Inline diverging bar: zero at centre, short to the left, overage to the right. */
+/**
+ * Inline diverging bar — zero at centre, short left, over right.
+ *
+ * Uses the kit's validated diverging pair rather than its own hex. The previous
+ * build carried #dc2626/#0d9488 locally, which is exactly the drift tokens exist to
+ * stop: two screens showing "loss" in two different reds.
+ */
 function VarianceBar({ value, max }: { value: number; max: number }) {
   const frac = max > 0 ? Math.min(Math.abs(value) / max, 1) : 0
-  const pct = frac * 50
   const neg = value < 0
   return (
-    <div className="relative h-4 w-full min-w-[80px]" aria-hidden="true">
-      <div className="absolute inset-y-0 left-1/2 w-px bg-slate-200" />
-      <div
-        className="absolute inset-y-[3px]"
+    <div className="sk-divbar" aria-hidden="true">
+      <i className="sk-divbar-axis" />
+      <i
+        className="sk-divbar-fill"
         style={{
-          background: neg ? SHORT : OVER,
-          borderRadius: 4,
-          right: neg ? '50%' : undefined,
-          left: neg ? undefined : '50%',
-          width: `${pct}%`,
-          marginRight: neg ? 1 : undefined,
-          marginLeft: neg ? undefined : 1,
+          background: neg ? 'var(--ramp-diverging-bad)' : 'var(--ramp-diverging-good)',
+          width: `${frac * 50}%`,
+          ...(neg ? { right: '50%', marginRight: 1 } : { left: '50%', marginLeft: 1 }),
         }}
       />
     </div>
   )
 }
 
-function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'bad' | 'ok' }) {
-  return (
-    <div className="card p-3">
-      <div className="text-[11px] uppercase tracking-wide text-slate-400 font-medium">{label}</div>
-      <div className={`text-2xl font-bold mt-0.5 ${tone === 'bad' ? 'text-red-600' : 'text-slate-800'}`}>{value}</div>
-      {sub && <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>}
-    </div>
-  )
+/** A row's caveat, in the vocabulary that is actually true of it. */
+function RowFlag({ row }: { row: ShrinkRow }) {
+  if (row.unsourced)
+    return <span className="sk-pill sk-tone-bad" title={row.tierNote ?? ''}>no opening count</span>
+  if (row.tier === 'D')
+    return <span className="sk-pill sk-tone-bad" title={row.tierNote ?? ''}>unmodelled</span>
+  if (row.tier === 'C')
+    return <span className="sk-pill sk-tone-warn" title={row.tierNote ?? ''}>low confidence</span>
+  return null
 }
+
+const STORE_COLS: Col[] = [
+  { key: 'store', head: 'Store' },
+  { key: 'net', head: 'Net', num: true },
+  { key: 'short', head: 'Short', num: true },
+  { key: 'over', head: 'Over', num: true },
+  { key: 'usage', head: 'Expected usage', num: true, divider: true },
+  { key: 'pctUsage', head: 'Net % of usage', num: true, derive: 'none' },
+]
+
+const GAP_COLS: Col[] = [
+  { key: 'item', head: 'Item' },
+  { key: 'store', head: 'Store' },
+  { key: 'expected', head: 'Expected use', num: true },
+  { key: 'actual', head: 'Actual use', num: true },
+  { key: 'gap', head: 'Gap', num: true, divider: true },
+  { key: 'bar', head: '', derive: 'none' },
+  { key: 'cost', head: 'Cost', num: true, derive: 'none' },
+]
 
 export default function ShrinkPage() {
   const [data, setData] = useState<ShrinkPayload | null>(null)
   const [loading, setLoading] = useState(true)
-  const [store, setStore] = useState<typeof STORE_TABS[number]>('All')
+  const [store, setStore] = useState<StoreOpt>('All')
   const [reliableOnly, setReliableOnly] = useState(true)
   const [shortOnly, setShortOnly] = useState(true)
   const [period, setPeriod] = useState<string>('')
@@ -76,192 +111,226 @@ export default function ShrinkPage() {
       .catch(() => setLoading(false))
   }, [period])
 
+  const modelled = data?.usageBasis === 'modelled'
+
   const rows = useMemo(() => {
     if (!data) return []
     return data.rows.filter(r =>
       (store === 'All' || r.store === store) &&
-      (!reliableOnly || r.tier === 'A' || r.tier === 'B') &&
+      (!reliableOnly || (!r.unsourced && (r.tier === 'A' || r.tier === 'B'))) &&
       (!shortOnly || r.varianceDollars < 0))
   }, [data, store, reliableOnly, shortOnly])
 
   const maxAbs = useMemo(() => Math.max(1, ...rows.map(r => Math.abs(r.varianceDollars))), [rows])
   const shown = rows.slice(0, 60)
 
-  if (loading) return <div className="text-sm text-slate-500">Loading…</div>
-  if (!data) return (
-    <div className="card p-4 text-sm text-slate-600">
-      No completed inventory period yet. Shrink is measured over a full count period —
-      the nightly hot-list counts are a different signal and are read by the order guide,
-      not here.
-    </div>
-  )
-
-  const summary = store === 'All' ? data.totals : (data.stores.find(s => s.store === store) ?? data.totals)
-  // On a 'reported' period the usage figure is CrunchTime's own, so the tiers and
-  // the modelling caveat below simply do not apply and must not be shown.
-  const modelled = data.usageBasis === 'modelled'
+  const summary = data
+    ? (store === 'All' ? data.totals : data.stores.find(s => s.store === store) ?? data.totals)
+    : null
 
   return (
-    <div className="space-y-4">
-      {/* filters — one row above the content */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1">
-          {STORE_TABS.map(t => (
-            <button key={t} onClick={() => setStore(t)}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                store === t ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
-              {t}
-            </button>
-          ))}
-        </div>
-        {/* Label the real span. The old "week ending X" was a guess that held
-            until the nightly counts arrived, at which point it cheerfully called
-            a single evening a week. */}
-        <select value={period || data.periodEnd} onChange={e => setPeriod(e.target.value)}
-          className="text-xs border border-slate-200 rounded px-2 py-1 bg-white text-slate-700">
-          {data.availablePeriods.map(p => (
-            <option key={p.periodEnd} value={p.periodEnd}>
-              {md(p.periodStart)} – {md(p.periodEnd)}{p.basis === 'modelled' ? ' · modelled' : ''}
-            </option>
-          ))}
-        </select>
-        <label className="flex items-center gap-1.5 text-xs text-slate-600 ml-1">
+    <>
+      {/* The module header above already carries the title; a second PageBar here
+          would stack two of them. These are this SCREEN's filters, which is where
+          they belong — the module's calendar timeframe does not govern shrink. */}
+      <div className="sk-filterbar">
+        <SegControl label="Store" options={[...STORE_OPTS]} value={store} onChange={setStore} />
+        {data && (
+          <select
+            className="sk-select"
+            value={period || data.periodEnd}
+            onChange={e => setPeriod(e.target.value)}
+            aria-label="Inventory period"
+          >
+            {data.availablePeriods.map(p => (
+              <option key={p.periodEnd} value={p.periodEnd}>
+                {md(p.periodStart)} – {md(p.periodEnd)}{p.basis === 'modelled' ? ' · modelled' : ''}
+              </option>
+            ))}
+          </select>
+        )}
+        <label className="sk-checkbox">
           <input type="checkbox" checked={shortOnly} onChange={e => setShortOnly(e.target.checked)} />
           losses only
         </label>
-        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+        <label className="sk-checkbox">
           <input type="checkbox" checked={reliableOnly} onChange={e => setReliableOnly(e.target.checked)} />
           {modelled ? 'hide low-confidence items' : 'hide unsourced counts'}
         </label>
+        {data && (
+          <span className="sk-meta sk-filterbar-meta">
+            {md(data.periodStart)} – {md(data.periodEnd)} · {data.periodDays} days ·{' '}
+            {modelled ? 'usage modelled from recipes' : 'usage as CrunchTime reports it'}
+          </span>
+        )}
       </div>
 
-      {/* NET first, deliberately. Gross shrink read alone is alarmist: counting
-          noise lands on both sides and largely cancels, and our modelled usage
-          is known to over-count, which inflates the OVER side specifically. */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Tile label="Net gap" value={money(summary.netDollars)}
-              tone={summary.netDollars < 0 ? 'bad' : undefined}
-              sub={`${md(data.periodStart)} – ${md(data.periodEnd)} · ${data.periodDays} days · ${
-                summary.netPctOfUsage != null ? (summary.netPctOfUsage > 0 ? '+' : '') + summary.netPctOfUsage.toFixed(1) + '% of usage' : '—'}`} />
-        {/* "on confident items" is only worth the line when the model is what is
-            being doubted. On a reported period every sourced row is tier A, so
-            the subline would just restate the headline. */}
-        <Tile label="Short" value={money(summary.shrinkDollars)} tone="bad"
-              sub={modelled
-                ? `${money(summary.reliableShrinkDollars)} on confident items`
-                : `across ${summary.shortLines} of ${summary.rowCount} lines`} />
-        <Tile label="Over" value={money(summary.overageDollars)}
-              sub="counted more than books expected" />
-        <Tile label={modelled ? 'Modelled usage' : 'Expected usage'} value={money(summary.usageDollars)}
-              sub={modelled ? 'our recipe model, at cost' : 'CrunchTime’s figure, at cost'} />
-      </div>
-
-      <div className="card p-3 bg-amber-50 border-amber-200 text-[11px] text-amber-900 leading-relaxed">
-        <span className="font-semibold">Read the net figure, not the gross.</span> Short and Over
-        are both inflated by ordinary counting noise, which mostly cancels out.{' '}
-        {modelled && <>Expected usage on this period is <em>modelled</em> and is known to run high on
-        substitutable bases and hand-portioned toppings, and that bias pushes the <em>Over</em> side
-        up specifically.{' '}</>}
-        A single period is not evidence — what matters is the same item going short period
-        after period.
-      </div>
-
-      {store === 'All' && (
-        <div className="card p-3">
-          <div className="text-xs font-semibold text-slate-700 mb-2">By store</div>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-slate-400 text-left">
-                <th className="font-medium pb-1">Store</th>
-                <th className="font-medium pb-1 text-right">Net</th>
-                <th className="font-medium pb-1 text-right">Short</th>
-                <th className="font-medium pb-1 text-right">Over</th>
-                <th className="font-medium pb-1 text-right">Net % of usage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.stores.map(s => (
-                <tr key={s.store} className="border-t border-slate-100">
-                  <td className="py-1.5 font-medium text-slate-700">{s.store}</td>
-                  <td className={`py-1.5 text-right font-semibold ${s.netDollars < 0 ? 'text-red-600' : 'text-slate-700'}`}>{money(s.netDollars)}</td>
-                  <td className="py-1.5 text-right text-slate-600">{money(s.shrinkDollars)}</td>
-                  <td className="py-1.5 text-right text-slate-600">{money(s.overageDollars)}</td>
-                  <td className="py-1.5 text-right text-slate-600">{s.netPctOfUsage != null ? (s.netPctOfUsage > 0 ? '+' : '') + s.netPctOfUsage.toFixed(1) + '%' : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="sk-card"><p className="sk-flags-empty">Counting…</p></div>
+      ) : !data || !summary ? (
+        <div className="sk-card">
+          <p className="sk-flags-empty">
+            No completed inventory period yet. Shrink is measured over a full count period —
+            the nightly hot-list counts are a different signal, read by the order guide.
+          </p>
         </div>
+      ) : (
+        <Report data={data} summary={summary} rows={shown} total={rows.length}
+                maxAbs={maxAbs} modelled={!!modelled} scope={store} />
+      )}
+    </>
+  )
+}
+
+function Report({ data, summary, rows, total, maxAbs, modelled, scope }: {
+  data: ShrinkPayload
+  summary: NonNullable<ShrinkPayload['totals']>
+  rows: ShrinkRow[]
+  total: number
+  maxAbs: number
+  modelled: boolean
+  scope: string
+}) {
+  // The take is derived, never authored. It names the store carrying the gap and
+  // the single item behind most of it, because those are the two things a manager
+  // can actually go and look at.
+  const worstStore = [...data.stores].sort((a, b) => a.netDollars - b.netDollars)[0]
+  const worstItem = data.rows.filter(r => !r.unsourced && r.varianceDollars < 0)[0]
+  const net = summary.netDollars
+
+  const headline = net < 0
+    ? `${scope === 'All' ? 'The portfolio' : scope} came up ${money(-net)} short this period.`
+    : `${scope === 'All' ? 'The portfolio' : scope} counted ${money(net)} more than the books expected.`
+
+  return (
+    <>
+      <TakeCard tone={net < 0 ? 'bad' : 'neutral'} label={net < 0 ? 'Short' : 'Over'} headline={headline}>
+        {worstStore && scope === 'All' && worstStore.netDollars < 0 ? (
+          <>{worstStore.store} carries the most of it at {money(worstStore.netDollars)}
+          {worstStore.netPctOfUsage != null ? ` (${pct(worstStore.netPctOfUsage)} of its usage)` : ''}. </>
+        ) : null}
+        {worstItem ? (
+          <>The largest single gap is {worstItem.productName} at {worstItem.store},
+          {' '}{money2(worstItem.varianceDollars)}. </>
+        ) : null}
+        Read the net, not the gross — counting noise lands on both sides and mostly cancels
+        {modelled ? ', and modelled usage pushes the over side up specifically' : ''}.
+        One period is not evidence; the same item short period after period is.
+      </TakeCard>
+
+      <Section label={`Summary · ${md(data.periodStart)} – ${md(data.periodEnd)}`}>
+        <Tiles>
+          <Tile
+            label="Net gap"
+            value={money(summary.netDollars)}
+            tone={summary.netDollars < 0 ? 'bad' : undefined}
+            hero
+            target={summary.netPctOfUsage != null ? `${pct(summary.netPctOfUsage)} of usage` : undefined}
+          />
+          <Tile
+            label="Short"
+            value={money(summary.shrinkDollars)}
+            tone="bad"
+            target={modelled
+              ? `${money(summary.reliableShrinkDollars)} on confident items`
+              : `across ${summary.shortLines} of ${summary.rowCount} lines`}
+          />
+          <Tile
+            label="Over"
+            value={money(summary.overageDollars)}
+            target="counted more than books expected"
+          />
+          <Tile
+            label={modelled ? 'Modelled usage' : 'Expected usage'}
+            value={money(summary.usageDollars)}
+            target={modelled ? 'our recipe model, at cost' : 'CrunchTime’s figure, at cost'}
+          />
+        </Tiles>
+      </Section>
+
+      {scope === 'All' && (
+        <Section label="By store">
+          <div className="sk-card">
+            <DataTable
+              caption="Net, short and over by store for the period"
+              cols={STORE_COLS}
+              rows={data.stores.map<Row>(s => ({
+                key: s.store,
+                cells: [
+                  s.store,
+                  <b key="n" data-tone={s.netDollars < 0 ? 'bad' : undefined}>{money(s.netDollars)}</b>,
+                  money(s.shrinkDollars),
+                  money(s.overageDollars),
+                  money(s.usageDollars),
+                  s.netPctOfUsage != null ? pct(s.netPctOfUsage) : '—',
+                ],
+                values: [null, s.netDollars, s.shrinkDollars, s.overageDollars, s.usageDollars, null],
+              }))}
+            />
+          </div>
+        </Section>
       )}
 
-      <div className="card p-3">
-        <div className="flex items-baseline justify-between mb-2">
-          <div className="text-xs font-semibold text-slate-700">
-            Biggest gaps {shown.length < rows.length && <span className="font-normal text-slate-400">· top {shown.length} of {rows.length}</span>}
+      <Section
+        label="Biggest gaps"
+        aside={
+          <div className="sk-legend">
+            <span><i className="sk-dot" style={{ background: 'var(--ramp-diverging-bad)' }} /> short</span>
+            <span><i className="sk-dot" style={{ background: 'var(--ramp-diverging-good)' }} /> over</span>
+            {total > rows.length && <span className="sk-meta">top {rows.length} of {total}</span>}
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-slate-500">
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SHORT }} />short</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: OVER }} />over</span>
-          </div>
+        }
+      >
+        <div className="sk-card">
+          {rows.length ? (
+            <DataTable
+              caption="Largest usage variances for the period, by dollar impact"
+              cols={GAP_COLS}
+              rows={rows.map<Row>(r => ({
+                key: `${r.store}-${r.productNumber}`,
+                cells: [
+                  <span key="i">
+                    <span>{r.productName}</span>
+                    <span className="sk-meta"> {r.productNumber}{r.unit ? ` · ${r.unit}` : ''}</span>
+                    {' '}<RowFlag row={r} />
+                  </span>,
+                  r.store,
+                  qty(r.theoretical),
+                  qty(r.actual),
+                  qty(r.variance),
+                  <VarianceBar key="b" value={r.varianceDollars} max={maxAbs} />,
+                  <b key="c" data-tone={r.varianceDollars < 0 ? 'bad' : 'good'}>{money2(r.varianceDollars)}</b>,
+                ],
+                values: [null, null, r.theoretical, r.actual, r.variance, null, r.varianceDollars],
+              }))}
+            />
+          ) : (
+            <p className="sk-flags-empty">Nothing matches these filters.</p>
+          )}
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-slate-400 text-left">
-                <th className="font-medium pb-1">Item</th>
-                <th className="font-medium pb-1">Store</th>
-                <th className="font-medium pb-1 text-right">Expected use</th>
-                <th className="font-medium pb-1 text-right">Actual use</th>
-                <th className="font-medium pb-1 text-right">Gap</th>
-                <th className="font-medium pb-1 w-24">&nbsp;</th>
-                <th className="font-medium pb-1 text-right">Cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map(r => (
-                <tr key={`${r.store}-${r.productNumber}`} className="border-t border-slate-100">
-                  <td className="py-1.5 pr-2">
-                    <div className="text-slate-700">{r.productName}</div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] text-slate-400">{r.productNumber}{r.unit ? ` · ${r.unit}` : ''}</span>
-                      <TierBadge row={r} />
-                    </div>
-                  </td>
-                  <td className="py-1.5 text-slate-500">{r.store}</td>
-                  <td className="py-1.5 text-right text-slate-600">{qty(r.theoretical)}</td>
-                  <td className="py-1.5 text-right text-slate-600">{qty(r.actual)}</td>
-                  <td className="py-1.5 text-right font-medium text-slate-700">{qty(r.variance)}</td>
-                  <td className="py-1.5 px-1"><VarianceBar value={r.varianceDollars} max={maxAbs} /></td>
-                  <td className={`py-1.5 text-right font-semibold ${r.varianceDollars < 0 ? 'text-red-600' : 'text-teal-700'}`}>
-                    {money2(r.varianceDollars)}
-                  </td>
-                </tr>
-              ))}
-              {!shown.length && (
-                <tr><td colSpan={7} className="py-4 text-center text-slate-400">Nothing matches these filters.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </Section>
 
-      <div className="card p-3 text-[11px] text-slate-500 leading-relaxed">
-        <div className="font-semibold text-slate-600 mb-1">How this is calculated</div>
-        Book stock = opening count + deliveries received − expected usage. The gap is the
-        physical count minus that book figure, so a negative gap means product left without
-        being sold. Only completed count periods appear here ({data.periodDays} days for this
-        one); the nightly hot-list counts are too short to difference this way.{' '}
-        {modelled ? (
-          <>Expected usage for this period is derived from CrunchTime recipes × items actually
-          rung up (menu mix), not from CrunchTime&rsquo;s own report — it agreed with theirs to a
-          1.4% median across all three stores for the validation week, but it is an estimate.{' '}
-          {BIAS_NOTE} Items where the model is weakest are tagged and hidden by default.</>
-        ) : (
-          <>Expected usage for this period is CrunchTime&rsquo;s own figure, so no recipe model
-          sits between the count and the gap.</>
-        )}{' '}
-        {data.emptyLines > 0 && `${data.emptyLines} blank template lines were dropped as carrying no information.`}
-      </div>
-    </div>
+      <Section label="Method">
+        <div className="sk-card">
+          <h3 className="sk-card-title">How this is calculated</h3>
+          <p className="sk-take-why">
+            Book stock = opening count + deliveries received − expected usage. The gap is the
+            physical count minus that book figure, so a negative gap means product left without
+            being sold. Only completed count periods appear here ({data.periodDays} days for this
+            one); the nightly hot-list counts are too short to difference this way.{' '}
+            {modelled ? (
+              <>Expected usage for this period is derived from CrunchTime recipes × items actually
+              rung up, not from CrunchTime&rsquo;s own report — it agreed with theirs to a 1.4%
+              median across all three stores for the validation week, but it is an estimate.{' '}
+              {BIAS_NOTE} Items where the model is weakest are tagged and hidden by default.</>
+            ) : (
+              <>Expected usage for this period is CrunchTime&rsquo;s own figure, so no recipe model
+              sits between the count and the gap.</>
+            )}{' '}
+            {data.emptyLines > 0 && `${data.emptyLines} blank template lines were dropped as carrying no information.`}
+          </p>
+        </div>
+      </Section>
+    </>
   )
 }

@@ -732,6 +732,84 @@
 }
 .sk-checkbox input { accent-color: var(--brand); width: 15px; height: 15px; }
 
+/* ── Module tabs ─────────────────────────────────────────────────────────── */
+/* Sub-navigation inside a module (Inventory's six views). The kit marks the active
+   tab with a brass underline on the module rule, not a filled pill — the pill is
+   how SegControl reads, and a tab is navigation rather than a scope toggle. */
+.sk-tabs {
+  display: flex;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-6);
+  overflow-x: auto;
+}
+.sk-tabs a {
+  padding: var(--space-2) 2px var(--space-3);
+  margin-bottom: -1px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--ink-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.sk-tabs a:hover { color: var(--ink); }
+.sk-tabs a[aria-current='page'] { color: var(--ink); border-bottom-color: var(--accent); }
+
+.sk-backlink { display: inline-block; margin-bottom: 2px; text-decoration: none; }
+.sk-backlink:hover { color: var(--ink); }
+
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
+/* A screen's own filters when the module header above already owns the title, so
+   a PageBar would stack a second one. The meta line is pushed to the far end and
+   drops below on narrow screens rather than squeezing the controls. */
+.sk-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.sk-filterbar-meta { margin-left: auto; }
+@media (max-width: 720px) {
+  .sk-filterbar-meta { margin-left: 0; flex-basis: 100%; }
+}
+
+/* ── Select ──────────────────────────────────────────────────────────────── */
+/* A PageBar dropdown, for a scope choice with too many options to segment — the
+   inventory period list runs to 33 entries. Sized to sit level with .sk-seg. */
+.sk-select {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  padding: 6px 10px;
+  border-radius: var(--card-radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+/* ── Diverging bar ───────────────────────────────────────────────────────── */
+/* Zero at centre, loss to the left, surplus to the right — for a signed quantity
+   whose SIGN is the point (usage variance). Both halves run to the same max, so
+   a short and an over of equal size draw equal bars. Colours are passed in from
+   the diverging ramp by the caller rather than set here, because which end is
+   "good" is per metric, not per component. */
+.sk-divbar { position: relative; height: 16px; width: 100%; min-width: 80px; }
+.sk-divbar-axis {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border);
+}
+.sk-divbar-fill {
+  position: absolute;
+  inset-block: 3px;
+  border-radius: 4px;
+}
+
 /* ── Heat grid ───────────────────────────────────────────────────────────── */
 /* Cells are painted on an inner span, not the td, so the table's own hairlines
    still read between them and each block keeps a 2px gap on the surface. */

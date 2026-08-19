@@ -1,5 +1,17 @@
 'use client'
 
+/**
+ * Inventory module chrome — the title row and the sub-tabs, shared by every tab.
+ *
+ * THE TIMEFRAME IS NOT SHARED BY ALL OF THEM. Five tabs are purchasing views and
+ * run on a calendar window (4/8/13 weeks, YTD). Shrink does not: it measures one
+ * COMPLETED INVENTORY COUNT PERIOD, chosen from the periods CrunchTime actually
+ * has, and there is no meaningful way to answer it for "Jul 1 – Aug 19". Leaving
+ * the control on screen there would be a lie — a filter the page visibly ignores.
+ * So the header renders it only for the tabs it governs, and Shrink carries its own
+ * period picker beside its own filters, which is the rule shell.tsx states: filters
+ * belong to the screen, never to a global header.
+ */
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { usePathname } from 'next/navigation'
@@ -14,40 +26,41 @@ const TABS = [
   { href: '/inventory/shrink',     label: 'Shrink' },
 ]
 
+/** Tabs that run on their own period rather than the module's calendar window. */
+const OWN_TIMEFRAME = ['/inventory/shrink']
+
 export default function InventoryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const sharedTimeframe = !OWN_TIMEFRAME.some(p => pathname.startsWith(p))
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-6 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-teal-600 transition-colors">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path d="M19 12H5M12 5l-7 7 7 7"/>
-            </svg>
-            Dashboard
-          </Link>
-          <div className="w-px h-4 bg-slate-200" />
-          <h1 className="text-xl font-bold text-slate-800">Inventory</h1>
+    <div className="sk-page">
+      <div className="sk-pagebar">
+        <div>
+          <Link href="/" className="sk-eyebrow sk-backlink">← Dashboard</Link>
+          <h1>Inventory</h1>
         </div>
-        <Suspense fallback={<div className="h-8" />}>
-          <InventoryTimeframe />
-        </Suspense>
+        {sharedTimeframe && (
+          <div className="sk-pagebar-right">
+            <div className="sk-pagebar-filters">
+              <Suspense fallback={null}>
+                <InventoryTimeframe />
+              </Suspense>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto">
+      <nav className="sk-tabs" aria-label="Inventory sections">
         {TABS.map(t => {
           const active = t.href === '/inventory' ? pathname === '/inventory' : pathname.startsWith(t.href)
           return (
-            <Link key={t.href} href={t.href}
-              className={`px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
-                active ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}>
+            <Link key={t.href} href={t.href} aria-current={active ? 'page' : undefined}>
               {t.label}
             </Link>
           )
         })}
-      </div>
+      </nav>
 
       {children}
     </div>

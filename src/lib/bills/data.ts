@@ -264,10 +264,25 @@ export async function markUnpaid(billId: string, dueDate: string): Promise<void>
   await db.billPayment.deleteMany({ where: { billId, dueDate } });
 }
 
+/**
+ * When the Bills page's data was last refreshed.
+ *
+ * This read sk_bills.Sales, which is a TOMBSTONE: loadSales above retired that
+ * table as a metric source, saveSales was deleted, and nothing has written it since
+ * a manual backfill on 2026-06-28. So the header cheerfully reported "synced 52d
+ * ago" while every figure on the screen was a day old — a freshness indicator
+ * measuring a table the page does not use, counting up forever.
+ *
+ * QbBalance is the honest source. /api/sync writes it daily and deliberately stamps
+ * updatedAt with each account's BALANCE DATE rather than the run time, in its own
+ * words "so freshness is honest — a broken feed shows an old timestamp instead of
+ * silently looking current". That is exactly the property a sync label needs, and
+ * it is the cash the coverage panel on this page is drawn from.
+ */
 export async function loadLastSyncedAt(): Promise<string | null> {
   const db = getPrisma();
   if (!db) return null;
-  const row = await db.sales.findFirst({ orderBy: { updatedAt: 'desc' } });
+  const row = await db.qbBalance.findFirst({ orderBy: { updatedAt: 'desc' } });
   return row ? row.updatedAt.toISOString() : null;
 }
 

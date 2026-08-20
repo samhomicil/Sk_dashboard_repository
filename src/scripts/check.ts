@@ -110,12 +110,20 @@ console.log('\nData sources')
   const queried = new Set<string>()
   for (const f of FILES) {
     if (f.rel.includes('core/freshness')) continue
-    for (const m of f.src.matchAll(/\b(smoothieking\.[a-z_]+|sk_bills\.[A-Za-z_]+)\b/g)) queried.add(m[1])
+    // Comment-stripped: a table named only in prose is not a table the app queries.
+    // sk_bills.Sales stayed "in use" for weeks on the strength of three comments,
+    // one of which said its writer had been removed.
+    for (const m of f.code.matchAll(/\b(smoothieking\.[a-z_]+|sk_bills\.[A-Za-z_]+)\b/g)) queried.add(m[1])
   }
   const undeclared = [...queried].filter(t => !declared.has(t)).sort()
   check('every queried table is in the freshness registry', undeclared.length === 0,
     undeclared.length ? `undeclared: ${undeclared.join(', ')}\n  -> add it to src/lib/core/freshness.ts with a maxAgeDays` : '')
-  const unused = [...declared].filter(t => !queried.has(t)).sort()
+  // A source is reachable by its own name, or by whatever stands in for it in code
+  // (a Prisma model, a view) — see SourceContract.queriedAs.
+  const reachable = (s: typeof SOURCES[number]) =>
+    queried.has(s.table) || (s.queriedAs ?? []).some(alias =>
+      FILES.some(f => !f.rel.includes('core/freshness') && f.code.includes(alias)))
+  const unused = SOURCES.filter(s => !reachable(s)).map(s => s.table).sort()
   check('registry has no entries the app never queries', unused.length === 0,
     unused.length ? `declared but unused: ${unused.join(', ')}` : '')
   check('every source names what feeds it and who consumes it',

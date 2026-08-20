@@ -47,6 +47,19 @@ export interface SourceContract {
    * than rediscover why it never updates.
    */
   standby?: { why: string }
+  /**
+   * Identifiers that stand in for this table in code, when the app never names it
+   * literally. Two real cases: a table reached through Prisma (`db.bill`), which
+   * emits a model name and not a table name, and a table read through a VIEW
+   * (`vw_employee_dim` over employee_hr_netchef) where the view is what queries
+   * mention but the base table is what actually ages.
+   *
+   * `npm run check` verifies a source is reachable by its table name OR by one of
+   * these, so the registry documents its own access path rather than leaving the
+   * check to guess — it previously counted a table as "in use" because three
+   * COMMENTS mentioned it, one of which said its writer had been deleted.
+   */
+  queriedAs?: string[]
 }
 
 export const SOURCES: SourceContract[] = [
@@ -97,6 +110,7 @@ export const SOURCES: SourceContract[] = [
     cadence: 'weekly', maxAgeDays: 400, fedBy: 'Brink HR sync',
     consumers: ['Employees'] },
   { table: 'smoothieking.employee_hr_netchef', label: 'NetChef HR records', dateColumn: 'date_of_birth',
+    queriedAs: ['smoothieking.vw_employee_dim'],
     cadence: 'weekly', maxAgeDays: 40000, fedBy: 'netchef sync_hr',
     consumers: ['Employees', 'minor-hour compliance'] },
   { table: 'smoothieking.employee_alias', label: 'Employee name aliases', dateColumn: 'created_at',
@@ -175,11 +189,9 @@ export const SOURCES: SourceContract[] = [
   { table: 'sk_bills.QbBalance', label: 'Bank balances', dateColumn: 'updatedAt',
     cadence: 'daily', maxAgeDays: 2, fedBy: '/api/sync (OpenBudget, 06:00 UTC cron)',
     consumers: ['Cash Flow', 'Bills'] },
-  { table: 'sk_bills.Sales', label: 'Monthly sales base', dateColumn: 'updatedAt',
-    cadence: 'monthly', maxAgeDays: 40, fedBy: 'bills app', consumers: ['Bills', 'Budget'] },
   { table: 'sk_bills.Bill', label: 'Bill schedule', dateColumn: 'updatedAt',
     cadence: 'on-demand', maxAgeDays: 400, fedBy: 'manual entry in the bills app',
-    consumers: ['Bills', 'Budget', 'Cash Flow'] },
+    consumers: ['Bills', 'Budget', 'Cash Flow'], queriedAs: ['db.bill.'] },
 ]
 
 export type Health = 'ok' | 'stale' | 'unknown'

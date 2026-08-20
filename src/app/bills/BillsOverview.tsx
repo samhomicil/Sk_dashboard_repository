@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useMemo, useState } from 'react';
+import { Tile, Tiles, TakeCard } from '@/components/design/shell';
 import { iso } from '@/lib/bills/billsEngine';
 import type { ReconciledOccurrence } from '@/lib/bills/reconcile';
 import type { Suggestion } from '@/lib/bills/suggestMatch';
@@ -159,16 +160,47 @@ export default function BillsOverview({
   else tableItems = mergedItems.filter(i => i.offset >= -14 && i.offset <= 14);
   tableItems = [...tableItems].sort((a, b) => statusTab === 'paid' ? b.due.getTime() - a.due.getTime() : a.due.getTime() - b.due.getTime());
 
+  // Derived, never authored. Overdue outranks coverage — a late bill is a fact,
+  // a tight balance is a forecast — and the stores are named because "somewhere is
+  // short" is not something anyone can act on.
+  const tight = coverage.filter(c => c.ok === false).map(c => NAME[c.k]);
+  /** "a", "a and b", "a, b and c" — join(' and ') gives "a and b and c". */
+  const list = (xs: string[]) =>
+    xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+  const overdueTotal = sum(over);
+  const takeTone = overdueTotal > 0 ? 'bad' : tight.length ? 'warn' : 'good';
+
   return (
     <div className="flex flex-col gap-4">
+      <TakeCard
+        tone={takeTone}
+        label={overdueTotal > 0 ? 'Overdue' : tight.length ? 'Tight' : 'Covered'}
+        headline={
+          overdueTotal > 0
+            ? `${$f(overdueTotal)} is overdue across ${over.length} bill${over.length === 1 ? '' : 's'}.`
+            : tight.length
+              ? `${list(tight)} ${tight.length === 1 ? 'does not' : 'do not'} comfortably cover this week's bills.`
+              : `Every store covers this week's bills from cash on hand.`
+        }
+      >
+        {$f(sum(week))} due this week across {week.length} bills.
+        {tight.length > 0 && overdueTotal > 0 && (
+          <> {list(tight)} {tight.length === 1 ? 'also runs' : 'also run'} tight on coverage.</>
+        )}
+        {sum(act) > 0 && <> {$f(sum(act))} of it is manual and not scheduled, so it will not pay itself.</>}
+      </TakeCard>
+
       {/* This week: KPIs + per-store coverage in one comprehensive section */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-4">
-          <Kpi k="Due this week" v={$f(sum(week))} sub={`${week.length} bills`} />
-          <Kpi k="Due next 30 days" v={$f(sum(m30))} sub={`${m30.length} bills`} />
-          <Kpi k="Needs action" v={$f(sum(act))} sub={`${act.length} manual · not scheduled`} tone="warn" />
-          <Kpi k="Overdue" v={sum(over) > 0 ? $f(sum(over)) : 'None'} sub={sum(over) > 0 ? `${over.length} bill${over.length > 1 ? 's' : ''}` : 'all current'} tone={sum(over) > 0 ? 'bad' : 'good'} />
-        </div>
+      <div className="sk-card">
+        <Tiles>
+          <Tile label="Due this week" value={$f(sum(week))} target={`${week.length} bills`} />
+          <Tile label="Due next 30 days" value={$f(sum(m30))} target={`${m30.length} bills`} />
+          <Tile label="Needs action" value={$f(sum(act))} tone="warn"
+                target={`${act.length} manual · not scheduled`} />
+          <Tile label="Overdue" value={sum(over) > 0 ? $f(sum(over)) : 'None'}
+                tone={sum(over) > 0 ? 'bad' : 'good'}
+                target={sum(over) > 0 ? `${over.length} bill${over.length > 1 ? 's' : ''}` : 'all current'} />
+        </Tiles>
         <div className="flex items-baseline justify-between border-t border-slate-100 px-5 pb-0.5 pt-3">
           <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-slate-400">Coverage this week</span>
           <span className="text-[11px] text-slate-400">unpaid bills vs cash on hand</span>
@@ -193,7 +225,7 @@ export default function BillsOverview({
       </div>
 
       {/* Bill Timeline */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="sk-card">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 pb-0.5 pt-4">
           <span className="text-sm font-bold text-slate-900">Bill Timeline</span>
           <div className="flex gap-0.5 rounded-lg bg-slate-100 p-0.5">
@@ -214,7 +246,7 @@ export default function BillsOverview({
       </div>
 
       {/* Bills table */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="sk-card">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 pb-1 pt-4">
           <span className="text-sm font-bold text-slate-900">Bills</span>
           <div className="flex gap-0.5 rounded-lg bg-slate-100 p-0.5">
@@ -332,17 +364,6 @@ export default function BillsOverview({
           </table>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Kpi({ k, v, sub, tone }: { k: string; v: string; sub: string; tone?: 'warn' | 'bad' | 'good' }) {
-  const color = tone === 'warn' ? 'var(--status-warn)' : tone === 'bad' ? 'var(--status-bad)' : tone === 'good' ? 'var(--status-good)' : 'var(--ink)';
-  return (
-    <div className="px-5 py-4">
-      <div className="text-[11px] font-semibold text-slate-400">{k}</div>
-      <div className="mt-1.5 font-mono text-[22px] font-bold tabular-nums" style={{ color }}>{v}</div>
-      <div className="mt-0.5 text-[11px] text-slate-400">{sub}</div>
     </div>
   );
 }

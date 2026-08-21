@@ -11,8 +11,13 @@ export interface DateRange {
 
 export interface KpiData {
   sales: number
+  /** Prior year over the SAME ELAPSED DAYS — the like-for-like figure, and the only
+   *  one that may sit beside month-to-date sales. */
   salesPY: number
-  salesTarget: number    // PY × 1.10
+  /** Prior year over the WHOLE period. Comparable to salesForecast, never to `sales`. */
+  salesPYFull: number
+  salesTarget: number        // like-for-like PY × 1.10 — compare to `sales`
+  salesTargetFull: number    // full PY × 1.10 — compare to `salesForecast`
   salesForecast: number | null  // null when period is complete
   orders: number
   ordersPY: number

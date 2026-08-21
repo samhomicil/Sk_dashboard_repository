@@ -114,7 +114,14 @@ export async function GET(req: NextRequest) {
   const kpis: KpiData = {
     sales,
     salesPY,
+    // This route already compared like-for-like (pyStart..pyEnd) — cache-builder was
+    // the one using the whole prior period, so the two paths disagreed about the same
+    // metric. The *Full variants exist for the forecast banner, which never renders
+    // here because salesForecast is null; they mirror the like-for-like figures rather
+    // than inventing a window this route does not fetch.
+    salesPYFull:        salesPY,
     salesTarget:        salesPY > 0 ? Math.round(salesPY * (1 + TARGETS.salesGrowthYoY)) : 0,
+    salesTargetFull:    salesPY > 0 ? Math.round(salesPY * (1 + TARGETS.salesGrowthYoY)) : 0,
     salesForecast:      null,
     orders,
     ordersPY,

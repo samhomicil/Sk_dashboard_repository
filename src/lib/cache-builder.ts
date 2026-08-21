@@ -170,7 +170,15 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const l4wE = format(l4wEnd,   'yyyy-MM-dd')
 
   const sigSales   = sigmaSales(store, start, end)
-  const sigSalesPY = sigmaSales(store, pyStart, pyNaturalEnd)
+  // TWO prior-year windows, because two different things are compared against them
+  // and one figure cannot serve both. This used pyNaturalEnd for everything, so the
+  // Overview compared month-to-date sales against the WHOLE prior month: on
+  // 2026-08-21 that read −22% while the same 20 days last year were $101,786 against
+  // this year's $107,878, i.e. +6.0% UP. Sam noticed because the daily numbers said
+  // the opposite. Quarterly and YTD were worse — YTD compared 8 months against all
+  // twelve of 2025.
+  const sigSalesPY     = sigmaSales(store, pyStart, pyEnd)         // like-for-like
+  const sigSalesPYFull = sigmaSales(store, pyStart, pyNaturalEnd)  // whole period
   const sigL4w     = sigmaSales(store, l4wS, l4wE)
   const orders     = sigmaOrders(store, start, end)
   const l4wOrders  = sigmaOrders(store, l4wS, l4wE)
@@ -220,7 +228,8 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const l4wTill = val(l4wTillRes,   { till_variance:0 })
 
   const sales      = sigSales.net_sales
-  const salesPY    = sigSalesPY.net_sales
+  const salesPY     = sigSalesPY.net_sales
+  const salesPYFull = sigSalesPYFull.net_sales
   const laborCost  = Number(lab.total_pay) || 0
   const laborHours = Number(lab.total_hrs) || 0
   const pfsTot    = Number(pfs.pfs_total)    || 0
@@ -246,8 +255,9 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
   const daysTotal   = Math.max(1, differenceInDays(new Date(naturalEnd + 'T00:00:00'), new Date(start + 'T00:00:00')) + 1)
 
   return {
-    sales, salesPY,
+    sales, salesPY, salesPYFull,
     salesTarget:        Math.round(salesPY * (1 + TARGETS.salesGrowthYoY)),
+    salesTargetFull:    Math.round(salesPYFull * (1 + TARGETS.salesGrowthYoY)),
     salesForecast:      end >= today && sales > 0 ? Math.round(sales / daysElapsed * daysTotal) : null,
     orders,
     ordersPY:           0,

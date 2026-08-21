@@ -15,7 +15,12 @@ export default function ForecastBanner({ kpis, period }: Props) {
   if (!kpis || kpis.periodComplete) return null
   if (kpis.salesForecast === null) return null
 
-  const { sales, salesPY, salesTarget, salesForecast, daysElapsed, daysTotal } = kpis
+  // The banner compares a WHOLE-PERIOD forecast, so it must use the whole-period
+  // prior year and target. It previously read salesPY/salesTarget, which are now the
+  // like-for-like figures — comparing a full-month projection against 20 days of last
+  // year would have flattered every number on it.
+  const { sales, salesPYFull: salesPY, salesTargetFull: salesTarget,
+          salesForecast, daysElapsed, daysTotal } = kpis
   const pctVsPY     = salesPY     > 0 ? (salesForecast - salesPY)     / salesPY     : 0
   const pctVsTarget = salesTarget > 0 ? (salesForecast - salesTarget) / salesTarget : 0
   const onTrack     = pctVsTarget >= -0.03

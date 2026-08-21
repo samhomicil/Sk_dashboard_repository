@@ -203,9 +203,29 @@ export const SPEC: SpecEntry[] = [
   { pattern: 'Airtech', field: 'merchant', vendorLike: 'Air', amountMin: 190, amountMax: 260,
     priority: 70, confirmed: true,
     note: 'quarterly PM only; charges outside $190-$260 are repair calls, not bills' },
+  // The four Workstream subscriptions are billed individually but DRAWN AS ONE
+  // charge, and they sum to it exactly:
+  //     Hiring $59 + Onboarding $15 + Payroll Module $35 + Records $15 = $124
+  // The old rule looked for a $59 charge in a $50-70 window, which is what an
+  // individually-drawn Hiring line WOULD have looked like. No such charge exists, so
+  // the real $124 fell outside the window and matched nothing — all four bills stayed
+  // open every month. Observed at $124 on 2026-05-18, 06-16, 07-15 and 08-17.
   { pattern: 'WORKSTREAM.US', vendorLike: 'Workstream — Hiring', store: 'Margate',
-    amountMin: 50, amountMax: 70, priority: 60, confirmed: false,
-    note: 'four Workstream subscriptions bill on one card; only the $59 Hiring line is separable by amount so far' },
+    alsoSettles: ['Workstream — Onboarding', 'Workstream — Payroll Module', 'Workstream — Records'],
+    amountMin: 110, amountMax: 140, priority: 82, confirmed: true,
+    note: 'One card charge settles all four subscriptions: 59+15+35+15 = 124 exactly.' },
+
+  // A SECOND WORKSTREAM.US charge lands the same day and has NO BILL AT ALL:
+  // $84 on 2026-05-18, $77 on 06-16, $84 on 07-15, $84 on 08-17 — roughly $1,000/yr
+  // of unbudgeted spend. It is deliberately left unmatched rather than folded into
+  // the $124 rule, because attaching it to a bill it does not belong to would hide
+  // it. Identify what it is and add the bill; until then it should keep showing up
+  // as an unexplained charge, which is the honest state.
+  { pattern: 'WORKSTREAM.US', vendorLike: 'Workstream — Hiring', store: 'Margate',
+    amountMin: 70, amountMax: 95, priority: 10, confirmed: false, enabled: false,
+    note: 'PLACEHOLDER, DISABLED. The recurring $77-$84 second charge has no bill. '
+        + 'Do not enable this until the charge is identified — it is pointed at Hiring '
+        + 'only so the research sits next to the rule it will replace.' },
 
   // Northwest Extermination bills two stores at different rates; the descriptor
   // is identical, so amount is the only separator.

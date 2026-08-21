@@ -73,6 +73,45 @@ export const SPEC: SpecEntry[] = [
     priority: 90, confirmed: true,
     note: 'Regional Ad Fund — Miami co-op' },
 
+  // ---- Smoothie King corporate ACH, 2026-08 format ----------------------------
+  // From 2026-08-17 corporate consolidated its ACH originators onto one CO ID
+  // (…19008, was …83003 for SKFI and …65003 for NAF) and replaced the fee-coded
+  // description with a single generic "DES:SKFIACHCCD". Two originators were also
+  // renamed: NAF Operating -> NAD Operating, MIAMI RAF -> RMF Miami.
+  //
+  // Everything above matched on the fee name inside DES:, which is now gone, so the
+  // 2026-08-17 royalty and national-ad drafts mapped to nothing — Sam noticed the
+  // franchise fees had stopped reconciling. Note how volatile that field has always
+  // been: ROYALTYP12, "P1 ROYALTY", ROYALTY226, P3ROYALTY, P4_ROYALTY, P6_ROYALTY in
+  // seven months. The rules below key on the ORIGINATOR instead, which has changed
+  // twice in that time rather than every period.
+  //
+  // The fee type now has to come from somewhere else, because SKFI draws BOTH the
+  // royalty and the technology fee under the identical descriptor. Amount separates
+  // them cleanly and with room to spare: the tech fee is a flat per-store charge that
+  // has ranged $413.28-$489.41 all year, while royalty is a percentage of period
+  // sales and has ranged $1,407.30-$4,535.88. The $900 split sits nearly 2x above the
+  // highest tech fee and 1.5x below the lowest royalty. A royalty under $900 would
+  // mean a period barely over $15k in sales, which has never happened.
+  { pattern: 'SKFI\\s+Operating\\s+DES:SKFIACHCCD', matchType: 'regex', vendorLike: 'Royalty Fees',
+    amountMin: 900, priority: 92, confirmed: true,
+    note: '2026-08 format. Royalty vs tech fee is the amount — see the $900 split above. '
+        + 'e.g. "SKFI Operating DES:SKFIACHCCD ID:1892", $4,302.38 on 2026-08-17' },
+  { pattern: 'SKFI\\s+Operating\\s+DES:SKFIACHCCD', matchType: 'regex', vendorLike: 'Technology F',
+    amountMax: 900, priority: 92, confirmed: false,
+    note: 'Same descriptor as royalty, under the amount split. NOT yet observed in the '
+        + 'new format — the last tech fee was 2026-07-23 under DES:P6_TECHFEE, and the '
+        + 'next falls due around the 23rd. Confirm against that draft before trusting it.' },
+  { pattern: 'NAD\\s+Operating', matchType: 'regex', vendorLike: 'National Mar',
+    priority: 92, confirmed: true,
+    note: 'National Ad Fund, renamed from NAF Operating. First real draft 2026-08-17 '
+        + '($1,201.10-$2,151.19), matching NAF\'s last on 2026-07-16 ($984.59-$1,895.14). '
+        + 'Exactly half the royalty draft in every store on the same day.' },
+  { pattern: 'RMF\\s+Miami', matchType: 'regex', vendorLike: 'Regional Mar',
+    priority: 92, confirmed: false,
+    note: 'Regional Ad Fund, renamed from MIAMI RAF. Only $0.01 verification pings seen '
+        + 'so far (2026-07-21), no real draft, so the amount range is unverified.' },
+
   // ---- Loans, rent, taxes -----------------------------------------------------
   { pattern: 'MECHANICS&FARMER DES:AUTO TRANS', vendorLike: 'M&F Bank', priority: 90, confirmed: true,
     note: 'M&F = Mechanics & Farmers Bank; descriptor ends "PMT INFO:M&F"' },

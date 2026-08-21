@@ -28,6 +28,18 @@ export interface ReconciledOccurrence {
     amount: number;
     variancePct: number | null;
   };
+  /**
+   * A bank transaction that satisfies all three signals but has NOT cleared this
+   * occurrence — Sam confirms it. Surfaced through the same suggestions map the UI
+   * already renders, so nothing on screen changes status without a human.
+   */
+  bankProposal?: {
+    txnId: string;
+    amount: number;
+    date: string;
+    payee: string;
+    alsoSettles?: string[];
+  };
 }
 
 const DUE_DAYS = 3;          // days ahead that count as "due"
@@ -185,7 +197,12 @@ export function reconcile(
 
       const manualKey = `${bill.id}|${dueISO}`;
       let status: ReconciledOccurrence['status'];
-      if (manualPaid.has(manualKey) || match || bankMatch) {
+      // A BANK MATCH PROPOSES, IT DOES NOT CLEAR. Sam, asked whether this was
+      // auto-clearing or suggesting: "suggestions". Three agreeing signals are strong
+      // evidence, but marking a bill paid is a statement about his money and it is his
+      // to make — the same reason suggestMatch has never auto-applied. The matching
+      // work is unchanged; only the verdict moved.
+      if (manualPaid.has(manualKey) || match) {
         status = 'paid';
       } else if (dueISO > dueWindowEnd) {
         status = 'upcoming';
@@ -199,11 +216,12 @@ export function reconcile(
 
       // ActualTxn amounts are CENTS; UnifiedTxn amounts are DOLLARS and
       // outflow-negative. Getting this wrong would report a $2,000 bill as $200,000.
-      const matchDollars = match
-        ? Math.abs(match.amount) / 100
-        : bankMatch ? Math.abs(bankMatch.amount) : null;
-      if (matchDollars != null) {
-        rollingBuf.push(matchDollars);
+      const matchDollars = match ? Math.abs(match.amount) / 100 : null;
+      // A proposal still feeds the rolling average — it is real money that left the
+      // account, whether or not the pairing has been confirmed.
+      const proposedDollars = bankMatch ? Math.abs(bankMatch.amount) : null;
+      if (matchDollars != null || proposedDollars != null) {
+        rollingBuf.push((matchDollars ?? proposedDollars)!);
         if (rollingBuf.length > 3) rollingBuf.shift();
       }
 
@@ -224,7 +242,7 @@ export function reconcile(
       // occurrence reported a null variance and the UI would have shown a 15% miss
       // as no miss at all.
       const variancePct =
-        (match || bankMatch) && expectedDollars != null && expectedDollars > 0
+        match && expectedDollars != null && expectedDollars > 0
           ? (matchDollars! - expectedDollars) / expectedDollars
           : null;
 
@@ -240,11 +258,11 @@ export function reconcile(
         intervalDays: recurrenceIntervalDays(bill.recurrence),
         rollingEstimate: forecastPayroll == null && status === 'upcoming' && rollingAvg != null,
         status,
-        match: match
-          ? { txnId: match.id, amount: matchDollars!, variancePct }
-          : bankMatch
-            ? { txnId: bankMatch.id, amount: matchDollars!, variancePct }
-            : undefined,
+        match: match ? { txnId: match.id, amount: matchDollars!, variancePct } : undefined,
+        bankProposal: bankMatch
+          ? { txnId: bankMatch.id, amount: proposedDollars!, date: bankMatch.date,
+              payee: bankMatch.payee, alsoSettles: bankMatch.settledBillIds }
+          : undefined,
       });
     }
   }

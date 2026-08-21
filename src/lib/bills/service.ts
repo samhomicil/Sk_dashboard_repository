@@ -77,6 +77,28 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     console.error('[service] suggestMatches failed:', e);
   }
 
+  // Fold in reconcile's bank proposals — the three-signal findings that used to mark
+  // bills paid outright. They are the strongest evidence available (alias-resolved
+  // transaction, amount inside tolerance, date inside the window), so they take
+  // precedence where suggestMatch also proposed something, but they still require a
+  // human to confirm. Without this the evidence would simply be lost: those
+  // occurrences are no longer 'paid', and suggestMatch's own pass does not
+  // necessarily reach the same transactions.
+  for (const o of occurrences) {
+    if (!o.bankProposal || o.status === 'paid') continue;
+    suggestions[`${o.billId}|${o.due}`] = {
+      txnId: o.bankProposal.txnId,
+      amount: o.bankProposal.amount,
+      date: o.bankProposal.date,
+      name: o.bankProposal.payee,
+      confidence: 'vendor',
+      alsoSettles: o.bankProposal.alsoSettles,
+      earlyByDays: Math.round(
+        (Date.parse(o.due + 'T00:00:00Z') - Date.parse(o.bankProposal.date + 'T00:00:00Z'))
+        / 86_400_000),
+    };
+  }
+
   const count = (s: string) => occurrences.filter((o) => o.status === s).length;
   return {
     mode: { data: dataMode(), actual: liveConfigured ? 'live' : 'mock' },

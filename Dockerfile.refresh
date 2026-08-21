@@ -1,0 +1,26 @@
+# sk-dash-refresh — the dash-refresh job (daily 06:30 UTC), which runs
+# src/scripts/sql_push_refresh.py to push refreshed data into Azure SQL.
+#
+# Reconstructed 2026-08-21 from the pushed image's config blob (built 2026-07-19);
+# the original build context was not on disk, so this image could not be rebuilt.
+#
+# Named Dockerfile.refresh, not Dockerfile: this repo is a Next.js app deployed by
+# Vercel, and the container is a side job, not how the app ships. Build it with:
+#   az acr build -r skwellnessacr -t sk-dash-refresh:latest -f Dockerfile.refresh .
+#
+# Unlike the other jobs this one keeps its own CMD — the job sets no command.
+# DB_PW and REFRESH_KEY come from the job's environment.
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+
+RUN pip install pymssql
+
+WORKDIR /app
+
+# Only what the script reads. node_modules and .next are excluded in .dockerignore —
+# without that the context upload is gigabytes of JavaScript this image never runs.
+COPY src /app/src
+COPY data /app/data
+
+CMD ["python", "src/scripts/sql_push_refresh.py"]

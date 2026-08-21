@@ -1,0 +1,16 @@
+# Only used by Dockerfile.refresh (the sk-dash-refresh container job). Vercel does
+# not read this file, so nothing here affects the web deploy.
+#
+# node_modules + .next are ~1.7GB and the refresh script needs neither. Without
+# these two lines every build uploads all of it to ACR.
+node_modules
+.next
+.git
+.vercel
+.env
+.env.*
+*.log
+__pycache__/
+*.pyc
+Dockerfile.refresh
+.dockerignore

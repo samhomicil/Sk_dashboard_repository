@@ -18,6 +18,7 @@ interface Day { d: string; inflow: number; outflow: number; balance: number; lin
 interface StoreF {
   store: Store; balSrc: string; stale: boolean
   start: number; low: number; lowDate: string; end: number
+  bankNow?: number; anchorDrift?: number
   need: number; needBy: string | null; days: Day[]
   // Checking/savings split behind `start` — a snapshot of TODAY from
   // sk_bills.QbBalance, not part of the day-by-day projection. Genuinely
@@ -90,23 +91,35 @@ export default function ForecastClient() {
     .sort((a, b) => a.by.localeCompare(b.by) || b.need - a.need)
   const totalNeed = funding.reduce((s, f) => s + f.need, 0)
 
-  const take = sel.need > 0
-    ? `${sel.store} has ${dMoney(sel.start)} in the bank today and, on the current pace, dips to ${dMoney(sel.low)} on ${monDay(sel.lowDate)} — move ${dMoney(sel.need)} in before then to stay above zero.`
-    : `${sel.store} has ${dMoney(sel.start)} today and stays positive the whole ${n} days — the tightest it gets is ${dMoney(sel.low)} on ${monDay(sel.lowDate)}. It self-funds.`
-
   // Breakdown only when the sync actually gave us both parts — a store with
   // checking but no savings account (e.g. Pines) still has a real, non-zero
   // split worth showing; a store with neither should fall back to the plain
   // "live bank balance" label rather than print "checking $0 · savings $0".
   const hasSplit = sel.checking != null && sel.savings != null
+  // The headline and this subtitle must come from ONE source or they contradict each
+  // other; both are now the live QbBalance figures. `start` stays the projection's
+  // anchor and is reported separately when it has drifted.
+  const bankNow = sel.bankNow ?? sel.start
+  const drift = sel.anchorDrift
+  const driftMatters = drift != null && Math.abs(drift) >= 100
   const bankSub = sel.stale
     ? 'bank feed stale'
     : hasSplit
       ? `checking ${dMoney(sel.checking!)} · savings ${dMoney(sel.savings!)}`
       : 'live bank balance'
 
+  // Says the live balance, then flags when the projection behind the rest of the
+  // sentence is anchored somewhere else — otherwise a reader reconciles the tiles
+  // themselves and concludes the screen is broken, which is what happened.
+  const take = (sel.need > 0
+    ? `${sel.store} has ${dMoney(bankNow)} in the bank today and, on the current pace, dips to ${dMoney(sel.low)} on ${monDay(sel.lowDate)} — move ${dMoney(sel.need)} in before then to stay above zero.`
+    : `${sel.store} has ${dMoney(bankNow)} today and stays positive the whole ${n} days — the tightest it gets is ${dMoney(sel.low)} on ${monDay(sel.lowDate)}. It self-funds.`)
+    + (driftMatters
+      ? ` The projection below still starts from ${dMoney(sel.start)} — it was built when the balance was ${drift! > 0 ? 'lower' : 'higher'}, so re-run the forecast before acting on the dates.`
+      : '')
+
   const tiles = [
-    { nm: 'In the bank now', v: dMoney(sel.start), cls: '', sub: bankSub },
+    { nm: 'In the bank now', v: dMoney(bankNow), cls: '', sub: bankSub },
     { nm: 'Lowest point', v: dMoney(sel.low), cls: sel.low < 0 ? 'crit' : 'good', sub: monDay(sel.lowDate) },
     { nm: `Money in · ${n}d`, v: dMoney(totalIn), cls: '', sub: 'card + cash + delivery' },
     { nm: `Money out · ${n}d`, v: dMoney(totalOut), cls: '', sub: 'payroll + bills + food' },

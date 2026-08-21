@@ -74,6 +74,22 @@ export async function GET() {
       // Optional — see balByStore comment above. undefined (not 0) when missing,
       // so the UI can tell "no data" apart from "genuinely $0 in checking".
       checking: bal?.checking, savings: bal?.savings,
+      // WHAT IS ACTUALLY IN THE BANK RIGHT NOW, which is NOT `start`.
+      //
+      // `start` is the projection's anchor, frozen when forecast.py last ran (06:40
+      // daily). bankNow and the checking/savings split are read from QbBalance at
+      // request time. The tile labelled "in the bank now" was printing `start` above
+      // a split read live, so the headline and its own subtitle disagreed whenever
+      // the balance moved after the forecast ran — on 2026-08-21 it showed Margate
+      // $8,330.46 over a split totalling $4,473.75, and Miramar $3,693.01 over
+      // -$377.28. A figure labelled "now" has to be now; the anchor is a modelling
+      // input, not a statement about the present.
+      bankNow: bal?.cashTotal,
+      // How far the projection's anchor has drifted from the live balance. Small is
+      // normal — a few hours of card settlements. Large means the forecast is
+      // anchored to a stale snapshot and its whole path is off by that amount, which
+      // is worth saying rather than leaving the reader to subtract two tiles.
+      anchorDrift: bal?.cashTotal != null ? bal.cashTotal - start : undefined,
       days: s.days,
     }
   })

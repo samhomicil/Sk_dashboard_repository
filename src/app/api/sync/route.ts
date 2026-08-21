@@ -48,7 +48,24 @@ export async function GET(req: Request) {
     `IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='sk_bills' AND TABLE_NAME='QbBalance')
      CREATE TABLE sk_bills.QbBalance (store NVARCHAR(20) NOT NULL PRIMARY KEY, checking FLOAT NOT NULL DEFAULT 0,
        savings FLOAT NOT NULL DEFAULT 0, petty FLOAT NOT NULL DEFAULT 0, creditCard FLOAT NOT NULL DEFAULT 0,
-       cashTotal FLOAT NOT NULL DEFAULT 0, updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME())`,
+       cashTotal FLOAT NOT NULL DEFAULT 0, updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+       writtenAt DATETIME2 NULL)`,
+  );
+
+  // …and that writtenAt exists on a table created before it did.
+  //
+  // updatedAt is deliberately the BANK'S BALANCE DATE, not the write time, so a
+  // broken feed shows an old timestamp instead of looking current. That honesty
+  // costs something: the row cannot say WHEN IT LANDED, and on 2026-08-21 that made
+  // a real problem undiagnosable — the 06:40 cash forecast anchored Margate at
+  // $8,330.46 while this table held $4,473.75 stamped 22:04 the previous evening,
+  // and there was no way to tell which value was here when the forecast read it.
+  // Two timestamps answer two different questions: how old is the BANK DATA, and
+  // how old is THIS ROW.
+  await db.$executeRawUnsafe(
+    `IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA='sk_bills' AND TABLE_NAME='QbBalance' AND COLUMN_NAME='writtenAt')
+     ALTER TABLE sk_bills.QbBalance ADD writtenAt DATETIME2 NULL`,
   );
 
   let balances: Awaited<ReturnType<typeof getOpenBudgetBalances>>;
@@ -70,9 +87,9 @@ export async function GET(req: Request) {
     }
     await db.$executeRawUnsafe(`DELETE FROM sk_bills.QbBalance WHERE store = '${b.store}'`);
     await db.$executeRawUnsafe(
-      `INSERT INTO sk_bills.QbBalance (store, checking, savings, petty, creditCard, cashTotal, updatedAt)
+      `INSERT INTO sk_bills.QbBalance (store, checking, savings, petty, creditCard, cashTotal, updatedAt, writtenAt)
        VALUES ('${b.store}', ${b.checking}, ${b.savings}, 0, ${b.creditCard}, ${b.cashTotal},
-               DATEADD(second, ${Math.round(b.balanceDate)}, '1970-01-01'))`,
+               DATEADD(second, ${Math.round(b.balanceDate)}, '1970-01-01'), SYSUTCDATETIME())`,
     );
     synced.push({
       store: b.store,

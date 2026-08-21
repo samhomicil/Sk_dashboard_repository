@@ -96,7 +96,11 @@ model QbBalance {
   petty      Float    @default(0)
   creditCard Float    @default(0)
   cashTotal  Float    @default(0)
+  /// The BANK's balance date — how old the money figure is. Not the write time.
   updatedAt  DateTime @default(now())
+  /// When this row was last written. Answers "was this here when X read it?",
+  /// which updatedAt cannot, because it deliberately carries the bank's date.
+  writtenAt  DateTime?
 
   @@schema("sk_bills")
 }

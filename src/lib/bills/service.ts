@@ -1,6 +1,6 @@
 import 'server-only';
 import { iso } from './billsEngine';
-import { loadBills, loadSales, loadManualPayments, dataMode } from './data';
+import { loadBills, loadSales, loadManualPayments, loadPayrollForecast, dataMode } from './data';
 import { reconcile, ReconciledOccurrence } from './reconcile';
 import { refresh, getTxnsByAccount, isLiveConfigured } from './actualAdapter';
 import { getUnifiedTransactions } from './unifiedTransactions';
@@ -62,8 +62,10 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       + 'unpaid this render. Treat any spike in overdue as suspect until it returns.');
   }
 
+  const payrollForecast = await loadPayrollForecast();
+
   const occurrences = reconcile(
-    bills, sales, txnsByAccount, manualPaid, lookbackISO, horizonISO, now, feed);
+    bills, sales, txnsByAccount, manualPaid, lookbackISO, horizonISO, now, feed, payrollForecast);
 
   // Suggestions cover what the three-signal auto-match deliberately would not clear:
   // right vendor but wrong amount, right amount but outside the window, no alias at

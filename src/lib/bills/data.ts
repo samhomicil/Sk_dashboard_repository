@@ -279,6 +279,50 @@ export async function markUnpaid(billId: string, dueDate: string): Promise<void>
  * silently looking current". That is exactly the property a sync label needs, and
  * it is the cash the coverage panel on this page is drawn from.
  */
+/**
+ * Payroll amounts the cash forecast has already computed, keyed `store|YYYY-MM-DD`.
+ *
+ * Sam: "the payroll estimates should be coming from the forecast module. I should
+ * have exactly what the payroll is going to be on the cash flow, so use that."
+ * He is right, and the static estimates were all high — Margate $6,000 against a
+ * forecast $4,805.90, Pines $9,500 against $8,049.35, Miramar $11,000 against
+ * $10,284.89. A bill schedule that overstates payroll every fortnight overstates
+ * every cash position downstream of it.
+ *
+ * The forecast is the better number because it is computed from ACTUAL HOURS —
+ * "hours Aug 3-Aug 16 · wages + tips + 11.4% tax & WC" — rather than a figure typed
+ * once and left. Its horizon is short (about four weeks), so callers must fall back
+ * to the bill's own estimate beyond it rather than reporting zero.
+ */
+export async function loadPayrollForecast(): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  try {
+    const rows = await query<{ store: string; d: string; detail: string | null }[]>(
+      `SELECT store, CONVERT(char(10), d, 23) d, detail
+         FROM sk_bills.Forecast WHERE detail IS NOT NULL`);
+    for (const r of rows) {
+      if (!r.detail) continue;
+      let items: { label?: string; amt?: number; kind?: string }[];
+      try { items = JSON.parse(r.detail); } catch { continue; }
+      for (const it of items) {
+        // The forecast labels every store's payroll "Payroll (ADP draft)", including
+        // MARGATE, which does not use ADP — its payroll runs through Workstream. That
+        // is a naming artefact in cash-forecast/forecast.py, so match on the word
+        // payroll and exclude the per-month software lines that also contain it
+        // ("ADP — Payroll Processing", "Workstream — Payroll Module").
+        const label = String(it.label ?? '');
+        if (!/payroll/i.test(label)) continue;
+        if (/processing|module/i.test(label)) continue;
+        if (typeof it.amt !== 'number') continue;
+        out.set(`${r.store}|${String(r.d).slice(0, 10)}`, it.amt);
+      }
+    }
+  } catch (e) {
+    console.error('[data] payroll forecast unavailable:', e);
+  }
+  return out;
+}
+
 export async function loadLastSyncedAt(): Promise<string | null> {
   const db = getPrisma();
   if (!db) return null;

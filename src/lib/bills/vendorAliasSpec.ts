@@ -215,17 +215,15 @@ export const SPEC: SpecEntry[] = [
     amountMin: 110, amountMax: 140, priority: 82, confirmed: true,
     note: 'One card charge settles all four subscriptions: 59+15+35+15 = 124 exactly.' },
 
-  // A SECOND WORKSTREAM.US charge lands the same day and has NO BILL AT ALL:
-  // $84 on 2026-05-18, $77 on 06-16, $84 on 07-15, $84 on 08-17 — roughly $1,000/yr
-  // of unbudgeted spend. It is deliberately left unmatched rather than folded into
-  // the $124 rule, because attaching it to a bill it does not belong to would hide
-  // it. Identify what it is and add the bill; until then it should keep showing up
-  // as an unexplained charge, which is the honest state.
-  { pattern: 'WORKSTREAM.US', vendorLike: 'Workstream — Hiring', store: 'Margate',
-    amountMin: 70, amountMax: 95, priority: 10, confirmed: false, enabled: false,
-    note: 'PLACEHOLDER, DISABLED. The recurring $77-$84 second charge has no bill. '
-        + 'Do not enable this until the charge is identified — it is pointed at Hiring '
-        + 'only so the research sits next to the rule it will replace.' },
+  // The second WORKSTREAM.US charge on the same day is the PER-EMPLOYEE payroll fee:
+  // $7 per employee (Sam, 2026-08-21), which is why it moves with headcount —
+  // $84 = 12 employees on 2026-05-18, 07-15 and 08-17, and $77 = 11 on 06-16.
+  // Deliberately a separate charge and a separate bill from the $124 subscription
+  // bundle above: that one is fixed, this one is a headcount reading, and averaging
+  // them into one line would lose the only signal it carries.
+  { pattern: 'WORKSTREAM.US', vendorLike: 'Workstream — Per-Employee Payroll Fee',
+    store: 'Margate', amountMin: 60, amountMax: 100, priority: 82, confirmed: true,
+    note: '$7 per employee. The amount IS the headcount — $84 = 12, $77 = 11.' },
 
   // Northwest Extermination bills two stores at different rates; the descriptor
   // is identical, so amount is the only separator.

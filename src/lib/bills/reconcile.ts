@@ -82,6 +82,23 @@ function bankAutoMatch(
   return best;
 }
 
+/** Forecast payroll for this store nearest `dueISO`, within PAYROLL_MATCH_DAYS. */
+const PAYROLL_MATCH_DAYS = 3;
+function nearestPayroll(
+  forecast: Map<string, number>, store: string, dueISO: string,
+): number | undefined {
+  const due = Date.parse(dueISO + 'T00:00:00Z');
+  let best: number | undefined;
+  let bestGap = Infinity;
+  for (const [key, amt] of forecast) {
+    const sep = key.indexOf('|');
+    if (key.slice(0, sep) !== store) continue;
+    const gap = Math.abs(Date.parse(key.slice(sep + 1) + 'T00:00:00Z') - due) / 86_400_000;
+    if (gap <= PAYROLL_MATCH_DAYS && gap < bestGap) { bestGap = gap; best = amt; }
+  }
+  return best;
+}
+
 export function reconcile(
   bills: BillRecord[],
   sales: SalesData,
@@ -92,6 +109,8 @@ export function reconcile(
   now: Date,
   /** Bank feed, for the auto-match above. Omitted in callers that have none. */
   feed: UnifiedTxn[] = [],
+  /** `store|YYYY-MM-DD` -> payroll the cash forecast computed for that draft. */
+  payrollForecast: Map<string, number> = new Map(),
 ): ReconciledOccurrence[] {
   const nowISO = iso(now);
   const dueWindowEnd = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + DUE_DAYS));
@@ -114,7 +133,27 @@ export function reconcile(
     for (const o of occ) {
       const dueISO = iso(o.due);
       const ym = ymOf(o.due);
-      const { val: staticExpected } = resolveAmount(bill as any, sales, ym, dueISO);
+      let { val: staticExpected } = resolveAmount(bill as any, sales, ym, dueISO);
+
+      // Payroll comes from the cash forecast, which computes it from ACTUAL HOURS,
+      // rather than from a static estimate typed once. Only the variable payroll
+      // bills — category Payroll AND amountType estimate — are redirected; the fixed
+      // per-month software lines that share the category ("ADP — Payroll Processing"
+      // $99, "Workstream — Payroll Module" $35) keep their own amounts.
+      //
+      // The forecast horizon is about four weeks, so anything past it keeps the
+      // bill's estimate. That is a real fallback, not a formality: most occurrences
+      // in a 120-day window sit beyond the forecast.
+      // Matched to the NEAREST forecast draft within a few days, not the exact date.
+      // The bill's due date is the schedule's; the forecast's is the actual draft
+      // date, and they drift — Margate's 2026-08-21 occurrence lines up exactly, but
+      // Pines and Miramar are due the 27th against a forecast draft on the 28th, and
+      // an exact-key lookup silently missed both. Payroll is a fortnight apart, so a
+      // 3-day window cannot reach the neighbouring draft.
+      const usesForecast = bill.category === 'Payroll' && bill.amountType === 'estimate';
+      const forecastPayroll = usesForecast
+        ? nearestPayroll(payrollForecast, bill.store, dueISO) : undefined;
+      if (forecastPayroll != null) staticExpected = forecastPayroll;
 
       // For matching past/current: use static expected so we don't miss transactions outside rolling tolerance.
       let match: ActualTxn | undefined;
@@ -170,7 +209,16 @@ export function reconcile(
 
       // For upcoming occurrences: override expected with rolling average if we have history.
       const rollingAvg = rollingBuf.length > 0 ? rollingBuf.reduce((a, b) => a + b) / rollingBuf.length : null;
-      const expectedDollars = status === 'upcoming' && rollingAvg != null ? rollingAvg : staticExpected;
+      // …but NOT when the cash forecast has a figure for this draft. The rolling
+      // average is a stand-in for not knowing; the forecast is computed from actual
+      // scheduled hours, so it outranks it. This ordering matters more than it looks:
+      // only occurrences inside DUE_DAYS are 'due', so without it the forecast reached
+      // exactly one payroll date per store and every future one silently reverted to
+      // an average of past draws — the opposite of what a forward-looking cash figure
+      // is for.
+      const expectedDollars = forecastPayroll != null
+        ? forecastPayroll
+        : status === 'upcoming' && rollingAvg != null ? rollingAvg : staticExpected;
 
       // Either kind of match — this tested `match` alone, so every bank-matched
       // occurrence reported a null variance and the UI would have shown a 15% miss
@@ -190,7 +238,7 @@ export function reconcile(
         shifted: o.shifted,
         expected: expectedDollars,
         intervalDays: recurrenceIntervalDays(bill.recurrence),
-        rollingEstimate: status === 'upcoming' && rollingAvg != null,
+        rollingEstimate: forecastPayroll == null && status === 'upcoming' && rollingAvg != null,
         status,
         match: match
           ? { txnId: match.id, amount: matchDollars!, variancePct }

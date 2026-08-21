@@ -39,16 +39,38 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     isLiveConfigured(),
   ]);
 
-  const occurrences = reconcile(bills, sales, txnsByAccount, manualPaid, lookbackISO, horizonISO, now);
+  // The bank feed is now fetched BEFORE reconcile, because reconcile uses it too.
+  // Its QuickBooks path reaches almost nothing — 57 of 68 bills have no `account`
+  // and the rest carry ids that are not QB's — so the feed is what actually clears a
+  // bill. Failure here must not break the page: an empty feed degrades reconcile to
+  // its old QB-only behaviour and drops suggestions to a visible "—", not a 500.
+  let feed: Awaited<ReturnType<typeof getUnifiedTransactions>>['rows'] = [];
+  try {
+    feed = (await getUnifiedTransactions(lookbackISO, horizonISO)).rows;
+  } catch (e) {
+    console.error('[service] bank feed unavailable:', e);
+  }
+  // A bill's PAID status now depends on this feed, so an empty one is not a quiet
+  // no-op: it flips every bank-matched occurrence back to overdue at once. Seen for
+  // real — one call returned 0 rows where the next returned 1,021, and 90 matches
+  // silently became 0. Nothing here can distinguish "no payments" from "no feed",
+  // so it at least says so loudly rather than rendering a page full of false
+  // overdues with no explanation.
+  if (feed.length === 0) {
+    console.error(
+      '[service] bank feed returned ZERO rows — every bank-matched bill will read as '
+      + 'unpaid this render. Treat any spike in overdue as suspect until it returns.');
+  }
 
-  // Suggested matches for still-open occurrences, from the real bank feed
-  // (OpenBudget) — separate from the QB-based auto-match above, and never
-  // auto-applied. Failure here must not break the bills page: no suggestions
-  // is a visible "—" in the UI, not a 500.
+  const occurrences = reconcile(
+    bills, sales, txnsByAccount, manualPaid, lookbackISO, horizonISO, now, feed);
+
+  // Suggestions cover what the three-signal auto-match deliberately would not clear:
+  // right vendor but wrong amount, right amount but outside the window, no alias at
+  // all. Never auto-applied — a human confirms these.
   let suggestions: Record<string, Suggestion> = {};
   try {
-    const { rows: txns } = await getUnifiedTransactions(lookbackISO, horizonISO);
-    suggestions = Object.fromEntries(suggestMatches(occurrences, txns));
+    suggestions = Object.fromEntries(suggestMatches(occurrences, feed));
   } catch (e) {
     console.error('[service] suggestMatches failed:', e);
   }

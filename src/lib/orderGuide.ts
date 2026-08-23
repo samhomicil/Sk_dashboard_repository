@@ -9,6 +9,7 @@ import {
   loadCasePacks, loadWalmartSubs, bucketOf, poolOrders, matchTransfers, daysBetween,
   type Bucket, type CasePack, type WalmartSub, type PooledOrder, type TransferMove, type Route,
 } from './core/sourcing'
+import { HOT_ITEM_VALUE_SHARE, HOT_ITEM_CATEGORIES } from './core/targets'
 
 // Hybrid, delivery-cycle-aware order guide (predictive-ordering "crawl").
 // Trusted-source hybrid — NetChef for STRUCTURE (physical counts, pack, cost), Brink
@@ -135,6 +136,18 @@ export interface OrderGuideRow {
   walmartUnits: number | null
   walmartCost: number | null
   // --- how much to believe the on-hand behind all of this
+  /** On the nightly count template — i.e. someone physically counts this every night,
+   *  so its on-hand is a measurement rather than a carried-forward book figure. This is
+   *  what the order screen scopes itself to: an item nobody counts cannot be called
+   *  short with any confidence. Not recoverable from `onHandBasis`, which collapses
+   *  "not tracked" and "tracked but blank last night" both into 'estimated'. */
+  nightlyTracked: boolean
+  /** Top-value ingredient on the nightly list — see HOT_ITEM_VALUE_SHARE. Computed per
+   *  store, so an item can be hot at Margate and not at Pines. */
+  hot: boolean
+  /** Weekly consumption value (forecast weekly usage × unit cost) — the ranking that
+   *  decides `hot`, surfaced so the screen can say why an item leads the list. */
+  weeklyValue: number
   onHandBasis: OnHandBasis | 'unknown'
   nights: NightSample[]
   lastCountDate: string | null
@@ -420,6 +433,11 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
       walmartItem: wm?.item ?? null,
       walmartUnits: wmUnits || null,
       walmartCost: wmCost,
+      nightlyTracked: !!blend?.nightlyTracked,
+      // Filled in below — hot is a per-store ranking, so it cannot be decided while
+      // looking at one item in isolation.
+      hot: false,
+      weeklyValue: unitCost != null ? round2(fcastWeekly * unitCost) : 0,
       onHandBasis: onHandUnknown ? 'unknown' : (blend?.nightlyTracked ? blend.basis : 'estimated'),
       nights: blend?.nightlyTracked ? blend.nights : [],
       lastCountDate: blend?.lastCountDate ?? null,
@@ -433,6 +451,26 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
       varianceQty: blend ? round2(blend.onHand - (blend.nights.at(-1)?.book ?? blend.onHand)) : 0,
       unitCost, flag,
     })
+  }
+
+  // ---- Which items are "hot", per store.
+  // Hot is a ranking, not a property of one item, so it can only be decided once every
+  // row exists. Candidates are the nightly-counted ingredients (see HOT_ITEM_CATEGORIES);
+  // they are ranked by weekly consumption value and taken until HOT_ITEM_VALUE_SHARE of
+  // the store's total is covered. An item with no known unit cost has no value to rank
+  // on and simply never leads the list — it still appears, below the hot block.
+  for (const store of STORE_NAMES) {
+    const candidates = rows
+      .filter(r => r.store === store && r.nightlyTracked && r.weeklyValue > 0
+                && HOT_ITEM_CATEGORIES.includes((r.subCategory ?? '') as typeof HOT_ITEM_CATEGORIES[number]))
+      .sort((a, b) => b.weeklyValue - a.weeklyValue)
+    const total = candidates.reduce((s, r) => s + r.weeklyValue, 0)
+    let cum = 0
+    for (const r of candidates) {
+      if (cum >= total * HOT_ITEM_VALUE_SHARE) break
+      r.hot = true
+      cum += r.weeklyValue
+    }
   }
 
   // Pool per-store need into whole cases for the SYSTEM. Ordering store by store bought

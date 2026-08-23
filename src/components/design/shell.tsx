@@ -245,6 +245,38 @@ export function Section({
 }
 
 /**
+ * Disclosure — a Section whose body is collapsed until asked for.
+ *
+ * For material that belongs on the screen but must not compete with it: the long tail
+ * under a short list of what actually needs acting on. Built on <details>, so it opens
+ * with the keyboard, is findable by in-page search when open, and needs no state.
+ *
+ * `count` renders in the summary so the block can be judged without opening it — "Show
+ * 34" answers "is there anything in there" on its own.
+ */
+export function Disclosure({
+  label,
+  count,
+  children,
+  defaultOpen = false,
+}: {
+  label: ReactNode
+  count?: number
+  children: ReactNode
+  defaultOpen?: boolean
+}) {
+  return (
+    <details className="sk-disclosure" open={defaultOpen}>
+      <summary>
+        <span className="sk-eyebrow sk-section-label">{label}</span>
+        {count != null && <span className="sk-meta">{count}</span>}
+      </summary>
+      <div className="sk-disclosure-body">{children}</div>
+    </details>
+  )
+}
+
+/**
  * Stat — the summary card: label, figure with an inline qualifier, and the change
  * beneath it. Four across, one row.
  *

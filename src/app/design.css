@@ -334,6 +334,34 @@
   gap: var(--space-4);
   flex-wrap: wrap;
 }
+/* Disclosure — a section that stays shut until asked for. The marker is the app's own
+   caret rather than the browser's, which differs per platform and reads as unstyled. */
+.sk-disclosure { display: flex; flex-direction: column; gap: var(--space-3); }
+.sk-disclosure > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.sk-disclosure > summary::-webkit-details-marker { display: none; }
+.sk-disclosure > summary::before {
+  content: '';
+  width: 0; height: 0;
+  border-left: 5px solid var(--brand);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 120ms ease;
+  flex: none;
+}
+.sk-disclosure[open] > summary::before { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .sk-disclosure > summary::before { transition: none; }
+}
+.sk-disclosure > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.sk-disclosure-body { display: flex; flex-direction: column; gap: var(--space-3); }
+
 .sk-grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
 /* align-items:start — panels take their natural height. Stretching them to match
    leaves a tall empty half whenever one has more to say than the other. */

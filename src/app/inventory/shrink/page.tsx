@@ -21,7 +21,13 @@ import { Section, TakeCard, Tile, Tiles } from '@/components/design/shell'
 import { SegControl } from '@/components/design/controls'
 import { DataTable, type Col, type Row } from '@/components/design/DataTable'
 import type { ShrinkPayload, ShrinkRow } from '@/lib/shrink'
+import type { OrderGuidePayload } from '@/lib/orderGuide'
 import { BIAS_NOTE } from '@/lib/netchefTiers'
+
+/** How many throughput rows to print. A display cap, not a business rule — every item
+ *  still counts toward shrink and toward the order screen; this only decides how far
+ *  down the fastest-movers list is worth reading. */
+const THROUGHPUT_ROWS = 25
 
 const STORE_OPTS = [
   { value: 'All', label: 'All' },
@@ -30,6 +36,111 @@ const STORE_OPTS = [
   { value: 'Margate', label: 'Margate' },
 ] as const
 type StoreOpt = typeof STORE_OPTS[number]['value']
+
+/**
+ * THROUGHPUT — how fast stock moves, and how long what is on the shelf lasts.
+ *
+ * Moved here from Actions & watchlist, which is now only about what is missing. It sits
+ * on the shrink screen because both answer "what happened to the stock" rather than
+ * "what do I buy", and consumption rate is the denominator shrink is measured against.
+ *
+ * IT IS NOT THE SHRINK PERIOD, and says so on screen. Shrink measures one COMPLETED
+ * count period; this is a trailing per-day rate over a rolling window, projected forward.
+ * Presenting them as one timeframe would invite reading a days-of-supply figure as
+ * something the count period established, which it did not. Two windows, labelled.
+ */
+function Throughput({ scope }: { scope: string }) {
+  const [data, setData] = useState<OrderGuidePayload | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/inventory/watchlist')
+      .then(r => r.json())
+      .then(d => (d.error ? setFailed(true) : setData(d)))
+      .catch(() => setFailed(true))
+  }, [])
+
+  // Fastest movers first — the items whose rate actually drives the food line. Scoped to
+  // the nightly-counted set, since a days-of-supply figure over an uncounted item's
+  // carried book number is arithmetic on a guess.
+  const rows = useMemo(() => {
+    if (!data) return []
+    return data.rows
+      .filter(r => r.nightlyTracked && r.forecastWeeklyUsage > 0
+                && (scope === 'All' || r.store === scope))
+      .sort((a, b) => b.weeklyValue - a.weeklyValue)
+      .slice(0, THROUGHPUT_ROWS)
+  }, [data, scope])
+
+  if (failed) return null
+  if (!data) {
+    return (
+      <Section label="Throughput">
+        <div className="sk-card"><p className="sk-flags-empty">Loading consumption rates…</p></div>
+      </Section>
+    )
+  }
+  if (rows.length === 0) return null
+
+  return (
+    <Section
+      label="Throughput · consumption rate and days of supply"
+      aside={<span className="sk-meta">trailing {data.usageWindowDays} days — not the count period above</span>}
+    >
+      <div className="sk-card">
+        <DataTable
+          caption="Weekly consumption, days of supply, and which usage basis each figure rests on"
+          cols={[
+            { key: 'item', head: 'Item', nowrap: true },
+            ...(scope === 'All' ? [{ key: 'store', head: 'Store' }] : []),
+            { key: 'usage', head: 'Wk usage', num: true, derive: 'none' },
+            { key: 'onHand', head: 'On hand', num: true, derive: 'none' },
+            { key: 'days', head: 'Days left', num: true, derive: 'none' },
+            { key: 'basis', head: 'Basis' },
+          ]}
+          rows={rows.map<Row>(r => ({
+            key: `${r.store}|${r.productNumber}`,
+            cells: [
+              <span key="i" title={r.productName}>
+                {r.productName}
+                {r.hot && <span className="pill pill-teal" style={{ marginLeft: 6 }}>hot</span>}
+              </span>,
+              ...(scope === 'All' ? [r.store] : []),
+              <span key="u">{qty(r.forecastWeeklyUsage)} <span className="sk-take-why">{r.unit}</span></span>,
+              qty(r.onHand),
+              /* Days left is the one figure here that is forward-looking; tone it when a
+                 truck cannot plausibly beat it, but the ORDER decision lives on the
+                 watchlist — this is here to explain the rate, not to reissue the verdict. */
+              <span key="d" data-tone={r.flag === 'urgent' ? 'bad' : undefined}>
+                {r.daysOfSupply != null ? r.daysOfSupply.toFixed(1) : '—'}
+              </span>,
+              /* The whole point of showing basis: a count-derived rate and a recipe-derived
+                 one are different kinds of claim and should never look identical. */
+              r.usageBasis === 'theoretical'
+                ? <span key="b" className="pill pill-gray" title={`no usable count history — rate derived from recipes (${qty(r.theoreticalUsage)}/wk)`}>recipe</span>
+                : r.usageBasis === 'theoretical-guard'
+                  ? <span key="b" className="pill pill-yellow" title={`counts implied ${qty(r.countUsage)}/wk against ${qty(r.theoreticalUsage)}/wk from recipes — the count is not believable, so the recipe figure is used`}>count rejected</span>
+                  : <span key="b" className="pill pill-green" title={`from counts; recipes suggest ${qty(r.theoreticalUsage)}/wk`}>counted</span>,
+            ],
+            values: [null, ...(scope === 'All' ? [null] : []),
+                     r.forecastWeeklyUsage, r.onHand, r.daysOfSupply, null],
+          }))}
+        />
+        <p className="sk-take-why" style={{ marginTop: 'var(--space-3)' }}>
+          The {THROUGHPUT_ROWS} items carrying the most weekly consumption value, nightly-counted
+          only. <b>Wk usage</b> is a per-day rate over the trailing {data.usageWindowDays} days
+          scaled to a week and adjusted for the current demand run-rate, so it is what the item
+          is expected to burn now rather than what it burned during the count period above.
+          <b> Days left</b> divides what is on the shelf by that rate. <b>Basis</b> says where
+          the rate came from: counted where there is enough count history, recipe-derived
+          otherwise, and <i>count rejected</i> where a count implied several times what the
+          recipes can account for. This window is not the shrink period — the two answer
+          different questions and are deliberately not reconciled to each other.
+        </p>
+      </div>
+    </Section>
+  )
+}
 
 const money = (n: number) =>
   (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -309,6 +420,8 @@ function Report({ data, summary, rows, total, maxAbs, modelled, scope }: {
           )}
         </div>
       </Section>
+
+      <Throughput scope={scope} />
 
       <Section label="Method">
         <div className="sk-card">

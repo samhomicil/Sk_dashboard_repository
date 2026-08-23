@@ -131,6 +131,52 @@ export const STORE_UPH: Record<string, number> = { pines: 7.5, miramar: 8.4, mar
  */
 export const INVENTORY_PERIOD_MIN_DAYS = 5
 
+/**
+ * WHAT COUNTS AS A "HOT" ITEM.
+ *
+ * There is no hot_item flag in the database. sk-inventory's spec describes the hot
+ * list as "~15–25 highest-impact ingredient SKUs (protein powders, acai base,
+ * strawberry, banana, top frozen fruit)", but nothing ever wrote that list down, and
+ * NetChef's own `min_par` is 0 on all 488 store-items — never configured — so par
+ * levels cannot define it either.
+ *
+ * So hot is DERIVED from what the store actually burns through: rank the items on the
+ * nightly count template by weekly consumption value (forecast weekly usage × unit
+ * cost) and take those making up the top share of it. That is self-maintaining — an
+ * item becomes hot because it started moving, not because someone remembered to tag
+ * it — and it lands close to the spec's number in practice.
+ *
+ * 0.70 is set by measurement, not by picking a round number. Through the live engine on
+ * 2026-08-21 it yields 18 hot items at Margate, 15 at Pines and 12 at Miramar — around
+ * the spec's 15–25 and short enough to read at a glance. The usual 0.80 Pareto point was
+ * tried first and runs about half again as long, which stops being "the things that
+ * matter".
+ *
+ * The candidate pool is smaller than the raw nightly-count list, because core/onHand's
+ * `nightlyTracked` demands a real count history rather than merely appearing on a recent
+ * template — which is why the per-store counts here sit below what a plain 14-day SQL
+ * sweep of one-day periods suggests. Measure through the engine, not against the table,
+ * or the number will look larger than what ships.
+ */
+export const HOT_ITEM_VALUE_SHARE = 0.70
+
+/**
+ * The categories a hot item can come from — NetChef's own `sub_category_name` values.
+ * The test is "does running out stop us serving", not "is it an ingredient".
+ *
+ * 'Retail Goods' (bottled drinks, merchandise) and 'Operational Supplies' are excluded:
+ * running out of a retail bottle costs an upsell, running out of acai base stops the
+ * line. Excluded items are not dropped from the screen, they just sit below the hot
+ * block.
+ *
+ * PACKAGING IS DELIBERATELY IN. Cups, lids and straws carry micro-category 'Smoothie
+ * Packaging' inside 'Smoothie Goods', so they rank as hot — and they should: on
+ * 2026-08-21 both Pines and Margate were at zero 32OZ cups, which stops service just as
+ * hard as running out of fruit. Anyone tempted to filter packaging out by micro-category
+ * should note it was checked and kept.
+ */
+export const HOT_ITEM_CATEGORIES = ['Smoothie Goods', 'Smoothie Bowls', 'Food'] as const
+
 /* ── Overview-only targets ────────────────────────────────────────────────── */
 /**
  * These grade only the Overview dashboard and have no counterpart on another

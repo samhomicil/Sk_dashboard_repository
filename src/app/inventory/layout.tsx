@@ -26,8 +26,12 @@ const TABS = [
   { href: '/inventory/shrink',     label: 'Shrink' },
 ]
 
-/** Tabs that run on their own period rather than the module's calendar window. */
-const OWN_TIMEFRAME = ['/inventory/shrink']
+/** Tabs that run on their own period rather than the module's calendar window.
+ *
+ *  Actions & watchlist joined Shrink here: it answers "what is missing right now, order
+ *  it this week", which a 13-week or YTD window cannot ask. Leaving the control on
+ *  screen offered four periods where only one exists, and the page ignored all of them. */
+const OWN_TIMEFRAME = ['/inventory/shrink', '/inventory/watchlist']
 
 export default function InventoryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

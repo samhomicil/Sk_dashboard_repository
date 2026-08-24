@@ -742,8 +742,16 @@ function BillRow({
             <span style={{ marginLeft: 4, color: 'var(--faint)', fontSize: 11 }}>· {bill.paidFrom}</span>
           )}
         </div>
-        {/* Mobile-only: show amount + schedule inline */}
-        <div className="vmeta sm:hidden" style={{ marginTop: 3, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {/* Mobile-only: schedule + amount inline, because those columns are hidden
+            below 640px. It must NOT show on desktop, where the columns are back and
+            it just prints every row's schedule and amount twice.
+
+            It did exactly that. The class was `sm:hidden` with `display:'flex'` in an
+            inline style, and an inline style outranks any class selector — so the
+            block never hid, at any width. The visibility now lives entirely in CSS
+            (.vmeta-mobile), where the breakpoint that hides the columns also governs
+            the thing standing in for them. */}
+        <div className="vmeta vmeta-mobile">
           <span>{scheduleLabel(bill.recurrence)}</span>
           <span>·</span>
           <span className="tnum">

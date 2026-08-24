@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "./tokens.css";
 @import "./design.css";
+/* Styling for the screens merged from sk-bills that never got their stylesheet.
+   Entirely scoped to .bills-legacy — see the file header. Debt, and it shrinks
+   as each of those screens moves onto the design system. */
+@import "./bills-legacy.css";
 
 /* Expose the design tokens as Tailwind utilities: `bg-surface`, `text-ink-muted`,
    `border-subtle`, `font-mono`. `inline` keeps them referencing the custom

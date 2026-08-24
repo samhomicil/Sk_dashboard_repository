@@ -1,0 +1,536 @@
+/* Legacy bills styling, recovered from sk-bills.
+ *
+ * WHY THIS FILE EXISTS. sk-bills was merged into this app as components only —
+ * its stylesheet stayed behind. /bills/vendors and /transactions therefore
+ * rendered against 54 undefined classes: no table chrome, no badges, no card,
+ * and the "New bill" drawer laid out inline at the foot of the page because
+ * .vk-scrim and .vk-drawer had no rules at all. Sam: "vendor module is broken...
+ * the formatting is broken." It had been broken since the merge.
+ *
+ * These rules are lifted from sk-bills/src/app/globals.css unchanged in
+ * behaviour. Two things were deliberately NOT brought over: the sidebar/nav
+ * classes, because this app redesigned its own shell and re-importing them
+ * would fight it, and the dark-mode block, because the product is light-only.
+ * Raw colours moved to tokens.css as .bills-legacy variables.
+ *
+ * EVERY RULE IS SCOPED under .bills-legacy. Class names like .full, .legend,
+ * .lbl, .d and .arr are far too generic to sit loose in a global stylesheet;
+ * unscoped, .full alone would reach into any screen that ever uses the word.
+ *
+ * THIS IS DEBT. It is not the design system and must not be copied onto a
+ * redesigned screen. As each bills surface moves onto the kit, delete its rules
+ * here and its variables in tokens.css. The file is finished when it is empty.
+ */
+
+.bills-legacy .tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+.bills-legacy .vk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 550;
+  font-size: 13px;
+  padding: 8px 13px;
+  border-radius: var(--r-sm);
+  transition: 0.13s;
+  cursor: pointer;
+  line-height: 1;
+}
+.bills-legacy .vk-btn:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.bills-legacy .vk-btn.primary {
+  background: var(--brand);
+  color: var(--on-solid);
+  border-color: var(--brand);
+}
+.bills-legacy .vk-btn.primary:hover {
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
+}
+.bills-legacy .vk-btn.ghost {
+  box-shadow: none;
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+.bills-legacy .vk-btn.ghost:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+.bills-legacy .vk-btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.bills-legacy .vk-btn.danger {
+  color: var(--danger);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.bills-legacy .vk-btn.danger:hover {
+  background: var(--danger-soft);
+}
+.bills-legacy .vk-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 11px;
+  min-width: 210px;
+}
+.bills-legacy .vk-search input {
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--ink);
+  background: transparent;
+  width: 100%;
+}
+.bills-legacy .vk-search input::placeholder {
+  color: var(--faint);
+}
+.bills-legacy .vk-select,
+.bills-legacy .vk-input,
+.bills-legacy .vk-input-num,
+.bills-legacy .vk-input-date {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 11px;
+  outline: none;
+  width: 100%;
+}
+.bills-legacy .vk-select:focus,
+.bills-legacy .vk-input:focus,
+.bills-legacy .vk-input-num:focus,
+.bills-legacy .vk-input-date:focus {
+  border-color: var(--brand);
+  outline: 3px solid var(--brand-soft);
+  outline-offset: 0;
+}
+.bills-legacy .vk-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--muted);
+}
+.bills-legacy .vk-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow-x: auto;
+}
+.bills-legacy .vk-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.bills-legacy .vk-table th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--faint);
+  text-align: left;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line-2);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  user-select: none;
+}
+.bills-legacy .vk-table th.sortable {
+  cursor: pointer;
+}
+.bills-legacy .vk-table th.sortable:hover {
+  color: var(--muted);
+}
+.bills-legacy .vk-table th .arr {
+  font-size: 9px;
+  margin-left: 3px;
+  opacity: 0.6;
+}
+.bills-legacy .vk-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-2);
+  vertical-align: middle;
+}
+.bills-legacy .vk-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.bills-legacy .vk-table tbody tr:hover {
+  background: var(--surface-2);
+}
+.bills-legacy .vk-table tr.paused {
+  opacity: 0.5;
+}
+.bills-legacy .vname {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.bills-legacy .vmeta {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* The stand-in for the columns that hide on a phone. Paired with
+   .col-hide-mobile below: exactly one of the two is visible at any width, which
+   is the invariant that was broken when this lived in an inline style. */
+.bills-legacy .vmeta-mobile { display: none; margin-top: 3px; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 639px) {
+  .bills-legacy .vmeta-mobile { display: flex; }
+}
+
+.bills-legacy .vk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 7px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.bills-legacy .b-fixed {
+  background: var(--fixed-soft);
+  color: var(--fixed);
+  border-color: var(--fixed-line);
+}
+.bills-legacy .b-est {
+  background: var(--est-soft);
+  color: var(--est);
+  border-color: var(--est-line);
+}
+.bills-legacy .b-var {
+  background: var(--var-soft);
+  color: var(--var);
+  border-color: var(--var-line);
+}
+.bills-legacy .b-cat {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-color: var(--line);
+}
+.bills-legacy .b-auto {
+  background: var(--auto-soft);
+  color: var(--auto);
+  border-color: var(--auto-line);
+}
+.bills-legacy .b-manual {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-color: var(--line);
+}
+.bills-legacy .shift-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--est);
+}
+.bills-legacy .vk-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 20, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.2s;
+  z-index: 40;
+}
+.bills-legacy .vk-scrim.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.bills-legacy .vk-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(500px, 100%);
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+  transform: translateX(100%);
+  transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+.bills-legacy .vk-drawer.show {
+  transform: none;
+}
+.bills-legacy .drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.bills-legacy .drawer-body {
+  padding: 22px;
+  overflow-y: auto;
+  flex: 1;
+}
+.bills-legacy .drawer-foot {
+  padding: 15px 22px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.bills-legacy .vk-formgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.bills-legacy .vk-formgrid .full {
+  grid-column: 1 / -1;
+}
+.bills-legacy .vk-fieldset {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 17px;
+  margin-bottom: 16px;
+}
+.bills-legacy .vk-fieldset > .legend {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 13px;
+  color: var(--ink);
+}
+.bills-legacy .vk-seg {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bills-legacy .vk-seg label {
+  flex: 1;
+  min-width: 92px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  transition: 0.13s;
+  background: var(--surface);
+  cursor: pointer;
+}
+.bills-legacy .vk-seg input {
+  display: none;
+}
+.bills-legacy .vk-seg label.on {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.bills-legacy .vk-preview {
+  background: var(--surface-2);
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+.bills-legacy .vk-preview .ttl {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 11px;
+}
+.bills-legacy .cad-track {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.bills-legacy .cad-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 50px;
+}
+.bills-legacy .cad-pill .d {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.bills-legacy .cad-pill .lbl {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1.2;
+}
+.bills-legacy .cad-pill .lbl b {
+  color: var(--ink);
+  font-weight: 600;
+  display: block;
+}
+.bills-legacy .cad-pill.sh .lbl b {
+  color: var(--est);
+}
+.bills-legacy .vk-toast {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ink);
+  color: var(--on-solid);
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.22s;
+  z-index: 60;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.bills-legacy .vk-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.bills-legacy .vk-helper {
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 5px;
+}
+.bills-legacy .vk-note {
+  font-size: 12px;
+  color: var(--faint);
+  margin-top: 6px;
+}
+@media (max-width: 639px) {
+  .bills-legacy .pb-safe-mobile {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom) + 16px) !important;
+  }
+}
+@media (max-width: 639px) {
+  .bills-legacy .vk-btn {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+  .bills-legacy .vk-btn.sm {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .bills-legacy .vk-search {
+    min-width: 0;
+    flex: 1;
+  }
+  .bills-legacy .vk-panel {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    overflow-x: visible;
+  }
+  .bills-legacy .vk-table {
+    display: block;
+  }
+  .bills-legacy .vk-table thead {
+    display: none;
+  }
+  .bills-legacy .vk-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .bills-legacy .vk-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 2px 8px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line-2);
+    border-radius: 0;
+    background: var(--surface);
+  }
+  .bills-legacy .vk-table tr:hover {
+    background: var(--surface-2);
+  }
+  .bills-legacy .vk-table td {
+    padding: 0;
+    border: none;
+    vertical-align: top;
+  }
+  .bills-legacy .vk-table td:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .bills-legacy .vk-table td:last-child {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+  }
+  .bills-legacy .vk-table td:nth-last-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+    padding-top: 4px;
+  }
+  .bills-legacy .vk-table td.col-hide-mobile {
+    display: none;
+  }
+  .bills-legacy .vk-drawer {
+    width: 100%;
+    border-radius: 0;
+  }
+  .bills-legacy .drawer-body {
+    padding: 16px;
+  }
+  .bills-legacy .drawer-head {
+    padding: 16px;
+  }
+  .bills-legacy .vk-formgrid {
+    grid-template-columns: 1fr;
+  }
+  .bills-legacy .vk-formgrid .full {
+    grid-column: 1;
+  }
+  .bills-legacy .vk-toast {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .bills-legacy .mobile-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .bills-legacy .mobile-toolbar .vk-search {
+    min-width: 0;
+  }
+  .bills-legacy .mobile-toolbar > .vk-btn.primary {
+    width: 100%;
+    justify-content: center;
+  }
+  .bills-legacy .col-hide-mobile {
+    display: none !important;
+  }
+}

@@ -117,7 +117,9 @@ export default function TransactionsClient() {
   const rows = filtered.slice(0, visible);
 
   return (
-    <main className="pb-safe-mobile">
+    /* Only for pb-safe-mobile here — this screen uses none of the vk-* chrome —
+       but the class is what defines it. See src/app/bills-legacy.css. */
+    <main className="bills-legacy pb-safe-mobile">
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-2.5 border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur sm:px-7">
         <h1 className="text-[22px] font-bold text-slate-900">Transactions</h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">

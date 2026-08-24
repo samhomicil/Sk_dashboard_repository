@@ -135,3 +135,70 @@
 
 /* Every figure in this product wears tabular numerals. Non-negotiable #7. */
 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ============================================================================
+   LEGACY BILLS PALETTE — debt, not design. Delete a line at a time.
+
+   When sk-bills merged into this app its components came across but its
+   stylesheet did not, so /bills/vendors and /transactions rendered with 54
+   undefined classes and 24 undefined variables: no card, no drawer, no table
+   chrome, and the "New bill" drawer dumped inline at the foot of the page
+   because .vk-scrim and .vk-drawer did not exist. These are the variables that
+   went missing, at their original values.
+
+   SCOPED TO .bills-legacy ON PURPOSE. Several names here — --muted, --line,
+   --danger, --bg, --surface-2 — are generic enough to collide with anything
+   added to the design system later. Nothing outside these screens should be
+   able to reach them, so they hang off the wrapper class rather than :root.
+   (Checked before writing: the design system references none of these names
+   today. That is exactly the kind of fact that stops being true quietly.)
+
+   These are NOT design-system tokens and must not be used on redesigned
+   surfaces. As each bills screen moves onto the kit, its variables leave here.
+   ========================================================================= */
+.bills-legacy {
+  --bg: #F7F8FA;
+  --surface-2: #F3F5F8;
+  --surface-3: #ECEFF3;
+  --line: #E5E9ED;
+  --line-2: #EFF2F5;
+  --muted: #5B6770;
+  --faint: #97A1A9;
+
+  --brand-strong: #0A653C;
+  --brand-soft: #E6F3EC;
+  --danger: #C8372B;
+  --danger-soft: #FBEAE7;
+
+  /* The three bill kinds, each with a fill and a border: fixed, estimate,
+     and percent-of-sales. The badge colours the Vendors table is built on. */
+  --fixed: #0E7C4A;
+  --fixed-line: #C6E4D2;
+  --fixed-soft: #E6F3EC;
+  --est: #B26B00;
+  --est-line: #ECD7A8;
+  --est-soft: #FBF0DC;
+  --var: #5B53C4;
+  --var-line: #D2CDF2;
+  --var-soft: #ECEAFB;
+
+  /* Auto-pay badge. A fourth status colour, distinct from the three bill kinds
+     above because "how it is paid" is a different axis from "how it is sized". */
+  --auto: #2563eb;
+  --auto-line: #cbddf7;
+  --auto-soft: #eaf1fb;
+
+  /* Ink on a solid fill, and the one border a hover darkens to. Named here
+     rather than left inline, since a bare #fff is how a light-only assumption
+     survives into a theme that has to answer for it. */
+  --on-solid: #ffffff;
+  --line-strong: #cfd6dc;
+
+  --r: 12px;
+  --r-sm: 9px;
+  /* sk-bills' two drop shadows are deliberately NOT carried over. The system has
+     no drop shadows — 1px borders only — so the button/input elevation became a
+     border, the focus ring became a real outline, and the drawer leans on its
+     scrim plus a left border. design-lint enforces this; importing the shadows
+     wholesale pushed no-shadow from 4 to 10. */
+}

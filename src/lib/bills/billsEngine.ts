@@ -163,7 +163,16 @@ const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const WDFULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export function scheduleLabel(r: RecurrenceRule): string {
-  const ord = (n: number) => n === -1 ? 'last' : ({ 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' } as any)[n] || n + 'th';
+  // Real ordinals. This served two callers with different ranges — nth-weekday
+  // (1–4) and day-of-month (1–31) — and only spelled out 1 through 4, so every
+  // bill dated past the 20th read "21th", "22th", "23th". The 11/12/13 exception
+  // is the part hand-rolled ordinals usually miss: 13 is "13th", not "13rd".
+  const ord = (n: number) => {
+    if (n === -1) return 'last';
+    const teen = n % 100 >= 11 && n % 100 <= 13;
+    const suffix = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+    return `${n}${suffix}`;
+  };
   switch (r.type) {
     case 'monthly_day': return `Monthly · ${ord(r.day)}`;
     case 'monthly_last_day': return 'Monthly · last day';

@@ -18,7 +18,10 @@ export default async function VendorsPage() {
   ]);
 
   return (
-    <main className="pb-safe-mobile">
+    /* bills-legacy carries this screen's styling AND its CSS variables — it is
+       scoped to this class, so removing it renders the page unstyled. See
+       src/app/bills-legacy.css. */
+    <main className="bills-legacy pb-safe-mobile">
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white/90 px-5 py-3.5 backdrop-blur sm:px-7">
         <div>
           <h1 className="text-[22px] font-bold text-slate-900">Vendors</h1>

@@ -344,7 +344,15 @@ function Style() {
     .fin .lnamt{font-size:11.5px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums;}
 .fin tfoot td{border-top:2px solid var(--line);background:var(--elev);}.fin tfoot .rowlab{background:var(--elev);padding:11px 14px;font-weight:700;}.fin tfoot .cell{padding:11px 14px;}
 .fin .fundbody{padding:6px 16px 14px;}.fin .allgood{color:var(--good);font-weight:600;padding:8px 0;}
-.fin table.fund{min-width:0;}.fin table.fund thead th{position:static;text-transform:none;letter-spacing:0;font-size:11px;}.fin table.fund .rowlab{min-width:0;position:static;border-right:none;padding:8px 14px 8px 0;display:flex;align-items:center;gap:7px;}.fin table.fund .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}.fin table.fund td.cell{padding:8px 0;border-top:1px solid var(--line2);}
+.fin table.fund{min-width:0;}.fin table.fund thead th{position:static;text-transform:none;letter-spacing:0;font-size:11px;}.fin table.fund .rowlab{min-width:0;position:static;border-right:none;padding:8px 14px 8px 0;}
+/* The dot is spaced with margin, NOT by making the cell a flex container.
+   display:flex on a th/td drops the cell out of the table layout algorithm,
+   so the three columns stopped aligning: the header wrapped onto two lines
+   ('Account' fell below 'By'/'Amount'), date and store stacked instead of
+   sitting side by side, and the borders ran to the wrong widths. */
+.fin table.fund .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:middle;}.fin table.fund td.cell{padding:8px 0;}/* The row rule goes on every cell, not just the amount. On .cell alone it drew a
+   line under one third of the row — invisible while the flex bug had the columns
+   collapsed, obvious the moment they lined up. */.fin table.fund tbody td{border-top:1px solid var(--line2);}
 .fin .foot{color:var(--faint);font-size:11.5px;margin-top:14px;line-height:1.65;max-width:1080px;}.fin .foot b{color:var(--muted);font-weight:640;}
     @media (max-width:760px){.fin .tiles{grid-template-columns:repeat(2,1fr);}}
     `}</style>

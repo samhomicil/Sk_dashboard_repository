@@ -304,25 +304,31 @@ function Style() {
       --good:var(--status-good);--good-bg:color-mix(in srgb,var(--status-good) 12%,var(--surface));--crit:var(--status-bad);--crit-bg:color-mix(in srgb,var(--status-bad) 10%,var(--surface));--pos:var(--status-good);--neg:var(--status-bad);
       --store:var(--brand);--store-tint:color-mix(in srgb,var(--brand) 10%,var(--surface));--shadow:none;
       background:var(--bg);color:var(--ink);min-height:100vh;padding:24px 20px 60px;font:14px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
+/* Width comes from the design system's --content-max-width (1440px), the same
+   bound .sk-page-inner puts on every other screen. This screen had 1080px typed
+   into six separate rules, so it rendered 360px narrower than the rest of the app
+   on any wide display — and being 360px short of a 28-day cash table is not a
+   cosmetic difference. .fin sits outside .sk-page-inner, so the bound has to be
+   stated here; it should be stated once, from the token, not typed per block. */
 .fin *{box-sizing:border-box;}.fin table{font-variant-numeric:tabular-nums;}.fin .mv, .fin .bal, .fin .tval, .fin .dv{font-variant-numeric:tabular-nums;}
 .fin .muted{color:var(--muted);}.fin code{background:var(--elev);padding:1px 5px;border-radius:4px;font-size:12px;}
 .fin .eyebrow{text-transform:uppercase;letter-spacing:.09em;font-size:10.5px;font-weight:700;color:var(--faint);}
-.fin-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px;max-width:1080px;}
+.fin-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px;max-width:var(--content-max-width);margin-left:auto;margin-right:auto;}
 .fin h1{font-size:21px;font-weight:680;margin:2px 0 3px;letter-spacing:-.01em;}.fin .sub{color:var(--muted);font-size:13px;max-width:52ch;}
 .fin .tabs{display:flex;gap:6px;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;}
 .fin .tabs .tab{flex:0 0 auto;}.fin .tab{border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 13px/1 inherit;padding:9px 14px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:8px;}
 @media (hover:hover){.fin .tab:hover{color:var(--ink);}}.fin .tab .dot{width:6px;height:6px;border-radius:50%;}.fin .tab[aria-selected="true"]{color:var(--ink);border-color:var(--store);background:var(--store-tint);box-shadow:inset 0 -2px 0 var(--store);}
 .fin .tabneed{font-size:9px;font-weight:800;color:var(--crit);background:var(--crit-bg);padding:1px 5px;border-radius:9px;letter-spacing:.03em;text-transform:uppercase;}
-.fin .warn{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit);border-radius:9px;padding:9px 13px;margin:0 0 14px;font-size:13px;max-width:1080px;}
-.fin .take{display:flex;align-items:center;gap:12px;margin:0 0 20px;padding:13px 16px;border-radius:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--store);max-width:1080px;flex-wrap:wrap;}
+.fin .warn{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit);border-radius:9px;padding:9px 13px;margin:0 0 14px;font-size:13px;max-width:var(--content-max-width);margin-left:auto;margin-right:auto;}
+.fin .take{display:flex;align-items:center;gap:12px;margin:0 0 20px;padding:13px 16px;border-radius:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--store);max-width:var(--content-max-width);margin-left:auto;margin-right:auto;flex-wrap:wrap;}
 .fin .take .big{font-weight:600;}.fin .take .lede{color:var(--muted);}
 .fin .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}.fin .pill.good{background:var(--good-bg);color:var(--good);}.fin .pill.crit{background:var(--crit-bg);color:var(--crit);}
-.fin .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;max-width:1080px;}
+.fin .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;max-width:var(--content-max-width);margin-left:auto;margin-right:auto;}
 .fin .tile{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px 14px;}
 .fin .tnm{font-size:11.5px;font-weight:640;color:var(--muted);margin-bottom:5px;}
 .fin .tval{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1;}.fin .tval.pos{color:var(--pos);}.fin .tval.neg{color:var(--neg);}.fin .tval.good{color:var(--good);}.fin .tval.crit{color:var(--crit);}
 .fin .tsub{font-size:11px;color:var(--faint);margin-top:5px;}
-.fin .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:22px;max-width:1080px;padding:0;}
+.fin .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:22px;max-width:var(--content-max-width);margin-left:auto;margin-right:auto;padding:0;}
 .fin .cap{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 16px 11px;border-bottom:1px solid var(--line2);flex-wrap:wrap;}.fin .cap .t{font-weight:660;font-size:14px;}.fin .tag{font-size:9.5px;color:var(--faint);font-weight:600;margin-left:6px;text-transform:none;letter-spacing:0;}
 .fin .scroll{overflow-x:auto;}.fin table{border-collapse:collapse;width:100%;min-width:720px;}.fin th, .fin td{text-align:right;padding:0;}
 .fin thead th{position:sticky;top:0;background:var(--surface);z-index:1;padding:9px 14px 8px;border-bottom:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);white-space:nowrap;}
@@ -352,8 +358,11 @@ function Style() {
    sitting side by side, and the borders ran to the wrong widths. */
 .fin table.fund .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:middle;}.fin table.fund td.cell{padding:8px 0;}/* The row rule goes on every cell, not just the amount. On .cell alone it drew a
    line under one third of the row — invisible while the flex bug had the columns
-   collapsed, obvious the moment they lined up. */.fin table.fund tbody td{border-top:1px solid var(--line2);}
-.fin .foot{color:var(--faint);font-size:11.5px;margin-top:14px;line-height:1.65;max-width:1080px;}.fin .foot b{color:var(--muted);font-weight:640;}
+   collapsed, obvious the moment they lined up. */.fin table.fund tbody td{border-top:1px solid var(--line2);}/* The total's rule has to be stated for THIS table: the generic .fin td.cell
+   (0,2,1) outranks .fin tfoot td (0,1,2) on class count, so the amount cell kept
+   the thin body border while the two beside it took the 2px total rule — a line
+   that stopped two thirds of the way across. */.fin table.fund tfoot td{border-top:2px solid var(--line);}
+.fin .foot{color:var(--faint);font-size:11.5px;margin-top:14px;line-height:1.65;max-width:var(--content-max-width);margin-left:auto;margin-right:auto;}.fin .foot b{color:var(--muted);font-weight:640;}
     @media (max-width:760px){.fin .tiles{grid-template-columns:repeat(2,1fr);}}
     `}</style>
   )

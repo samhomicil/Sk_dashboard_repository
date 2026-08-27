@@ -35,6 +35,7 @@ export default async function VendorsPage() {
           store="All"
           now={new Date()}
           occ={dash.occurrences}
+          billGroups={dash.billGroups}
         />
       </div>
     </main>

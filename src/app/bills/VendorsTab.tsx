@@ -320,12 +320,19 @@ export default function VendorsTab({
   store,
   now,
   occ,
+  billGroups,
 }: {
   bills: ClientBill[];
   sales: SalesData;
   store: string;
   now: Date;
   occ: import('@/lib/bills/reconcile').ReconciledOccurrence[];
+  /** billId -> the full set of bills settled by ONE real payment (see
+   *  billGroups.ts). The Bills overview has merged these into a single row since
+   *  it was asked for; this screen did not, so Pines' rent and its water bill —
+   *  one draft — read as two unrelated obligations here while reading as one
+   *  there. Same data, two answers, depending on which tab you opened. */
+  billGroups: Record<string, string[]>;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -403,6 +410,32 @@ export default function VendorsTab({
     });
     return result;
   }, [scopedBills, search, filterCats, filterType, filterPay, sortKey, sortDir, nextOccs]);
+
+  // Bills that leave the bank as ONE payment collapse to one row, matching what
+  // the Bills overview already does. The primary carries the group's combined
+  // amount; the others fold underneath it and are reachable by expanding.
+  //
+  // A group only merges when EVERY member survived the filters. Filtering to
+  // "% of Sales" and then showing a merged row whose total silently includes a
+  // Fixed member would report a number the filter says you are not looking at —
+  // so in that case the survivors list individually, unmerged.
+  const rows = useMemo(() => {
+    const present = new Set(shown.map((b) => b.id));
+    const byId = new Map(shown.map((b) => [b.id, b]));
+    const consumed = new Set<string>();
+    const out: { bill: ClientBill; members: ClientBill[] }[] = [];
+    for (const bill of shown) {
+      if (consumed.has(bill.id)) continue;
+      const group = billGroups[bill.id];
+      const whole = group && group.every((id) => present.has(id));
+      if (!whole) { out.push({ bill, members: [] }); continue; }
+      if (group[0] !== bill.id) continue;          // fold into its primary below
+      const members = group.map((id) => byId.get(id)).filter((b): b is ClientBill => !!b);
+      members.forEach((m) => consumed.add(m.id));
+      out.push({ bill, members: members.length > 1 ? members : [] });
+    }
+    return out;
+  }, [shown, billGroups]);
 
   const toggleSort = (key: 'vendor' | 'amount' | 'next') => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -638,7 +671,7 @@ export default function VendorsTab({
                 </td>
               </tr>
             )}
-            {shown.map((bill) => {
+            {rows.map(({ bill, members }) => {
               const next = nextOccs.get(bill.id) ?? null;
               return (
                 <BillRow
@@ -648,9 +681,12 @@ export default function VendorsTab({
                   sales={sales}
                   storeFilter={filterStore}
                   billOcc={occ.filter(o => o.billId === bill.id)}
+                  members={members}
                   onEdit={() => openEdit(bill)}
                   onDuplicate={() => openDuplicate(bill)}
                   onDelete={() => handleDelete(bill)}
+                  onEditMember={openEdit}
+                  onDeleteMember={handleDelete}
                 />
               );
             })}
@@ -684,21 +720,39 @@ function BillRow({
   sales,
   storeFilter,
   billOcc,
+  members,
   onEdit,
   onDuplicate,
   onDelete,
+  onEditMember,
+  onDeleteMember,
 }: {
   bill: ClientBill;
   next: { due: Date; original: Date; shifted: boolean } | null;
   sales: SalesData;
   storeFilter: string;
   billOcc: import('@/lib/bills/reconcile').ReconciledOccurrence[];
+  /** The bills this one is settled together with, INCLUDING itself. Empty when
+   *  this row stands alone — so `members.length > 1` is the merged case. */
+  members: ClientBill[];
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onEditMember: (b: ClientBill) => void;
+  onDeleteMember: (b: ClientBill) => void;
 }) {
   const router = useRouter();
   const [toggling, setToggling] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const merged = members.length > 1;
+  // A merged row states the whole payment, since that is the thing that leaves
+  // the bank. Percent bills are deliberately NOT summed into it: 6% + 3% is 9%
+  // of nothing until sales exist, and printing "9%" beside a dollar figure would
+  // read as a rate someone could act on. Mixed groups fall back to the primary's
+  // own amount and let the breakdown carry the detail.
+  const allFixed = merged && members.every((m) => m.amountType !== 'percent');
+  const groupTotal = allFixed ? members.reduce((s, m) => s + m.amountValue, 0) : null;
 
   // Find the most-recent non-upcoming occurrence (current or past due)
   const todayISO = iso(new Date());
@@ -720,16 +774,40 @@ function BillRow({
     router.refresh();
     setToggling(false);
   }
+  // On a merged row this must total the SAME set the Amount column totals, or the
+  // row reports a combined figure beside a single member's next draft and the two
+  // silently disagree. Percent members resolve to real dollars here (sales for the
+  // period are known), so unlike the Amount column a mixed group can be summed —
+  // but only when every member resolved. One unknown member makes the total a
+  // guess, and it says "needs sales" rather than printing a short number.
   const nextAmt = useMemo(() => {
     if (!next) return null;
-    return resolveAmount(bill as unknown as Bill, sales, ymOf(next.due), iso(next.due));
-  }, [bill, next, sales]);
+    const set = members.length > 1 ? members : [bill];
+    const parts = set.map((m) =>
+      resolveAmount(m as unknown as Bill, sales, ymOf(next.due), iso(next.due)));
+    if (parts.some((p) => !p?.known)) return { val: null, known: false };
+    return { val: parts.reduce((s, p) => s + (p!.val ?? 0), 0), known: true };
+  }, [bill, members, next, sales]);
 
   return (
+    <>
     <tr className={bill.active === false ? 'paused' : ''}>
       {/* Vendor */}
       <td>
-        <div className="vname">{bill.vendor}</div>
+        <div className="vname">
+          {bill.vendor}
+          {merged && (
+            /* Same affordance the Bills overview uses for a merged row: the count
+               of what else this payment covers, click to see the breakdown. */
+            <button
+              type="button"
+              className="vk-badge b-cat groupchip"
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+              title={`One payment also covers: ${members.filter((m) => m.id !== bill.id).map((m) => m.vendor).join(', ')} — click to ${open ? 'hide' : 'see'} the breakdown`}
+            >+{members.length - 1}</button>
+          )}
+        </div>
         <div className="vmeta">
           {storeFilter === 'All' && (
             <>
@@ -777,10 +855,15 @@ function BillRow({
           </span>
         ) : (
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="tnum">{money2(bill.amountValue)}</span>
+            {/* On a merged row this is the whole draft, not this bill's share —
+                the figure that leaves the bank. The share is in the breakdown. */}
+            <span className="tnum">{money2(groupTotal ?? bill.amountValue)}</span>
             <span className={`vk-badge ${bill.amountType === 'fixed' ? 'b-fixed' : 'b-est'}`}>
               {bill.amountType === 'fixed' ? 'Fixed' : 'Estimate'}
             </span>
+            {groupTotal != null && (
+              <span className="vk-badge b-cat" title="combined total of the bills settled by this one payment">combined</span>
+            )}
           </span>
         )}
       </td>
@@ -869,6 +952,50 @@ function BillRow({
         <button className="vk-btn ghost sm" onClick={onEdit}>Edit</button>
         <button className="vk-btn ghost sm" onClick={onDuplicate} title="Duplicate bill profile">⧉</button>
         <button className="vk-btn danger sm" onClick={onDelete}>Delete</button>
+      </td>
+    </tr>
+    {merged && open && (
+      <GroupBreakdown members={members} onEditMember={onEditMember} onDeleteMember={onDeleteMember} />
+    )}
+    </>
+  );
+}
+
+/** The members of a merged row, revealed by the +N chip.
+ *
+ *  This screen is where bills are CONFIGURED, which is why merging here cannot be
+ *  the flat single row the Bills overview uses: every underlying bill still needs
+ *  its own Edit and Delete, and a merged row that hid them would make a bill
+ *  unreachable from the only screen that maintains it. So the group collapses for
+ *  reading and expands for editing. */
+function GroupBreakdown({
+  members,
+  onEditMember,
+  onDeleteMember,
+}: {
+  members: ClientBill[];
+  onEditMember: (b: ClientBill) => void;
+  onDeleteMember: (b: ClientBill) => void;
+}) {
+  return (
+    <tr className="groupdetail">
+      <td colSpan={8}>
+        <div className="gdwrap">
+          <div className="gdhead">Settled by one payment</div>
+          {members.map((m) => (
+            <div key={m.id} className="gdrow">
+              <span className="gdname">{m.vendor}</span>
+              <span className="gdcat"><span className="vk-badge b-cat">{m.category}</span></span>
+              <span className="tnum gdamt">
+                {m.amountType === 'percent' ? `${m.amountValue}% of sales` : money2(m.amountValue)}
+              </span>
+              <span className="gdact">
+                <button className="vk-btn ghost sm" onClick={() => onEditMember(m)}>Edit</button>
+                <button className="vk-btn danger sm" onClick={() => onDeleteMember(m)}>Delete</button>
+              </span>
+            </div>
+          ))}
+        </div>
       </td>
     </tr>
   );

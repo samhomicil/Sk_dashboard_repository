@@ -182,8 +182,24 @@ export const SPEC: SpecEntry[] = [
     amountMin: 150, amountMax: 180, priority: 80, confirmed: true,
     note: 'Margate card, $162.75 exactly. Pines is charged Crunch too but has no bill.' },
   // The "Storage Unit" bill is Extra Space Storage; the vendor label never says so.
+  // Extra Space unit 1068. The $146.26-vs-$146.48 note below was the small half of
+  // the problem; the real one was that $146.26 was a PROMOTIONAL rate. It went to
+  // $170.26 once in June and $196.66 on 2026-08-10, so the bill sat ~$50/month light
+  // until corrected.
+  //
+  // The account moved repeatedly, which is why this rarely reconciled: across 2026 the
+  // same charge was paid from Miramar checking (Jan), Margate's Chase card (Mar x2),
+  // Margate checking (May), Pines checking (Jun 8), then Miramar's Capital One
+  // (Jun 30, Aug 10). Sam has since fixed it on the Capital One card, so the Miramar
+  // pin is right going forward — a charge appearing on another store again means the
+  // account moved, not that this rule is too narrow.
+  //
+  // The band spans promo through current deliberately; tighten it once a second
+  // charge confirms $196.66 is the standing rate.
   { pattern: 'EXTRA SPACE', vendorLike: 'Storage', store: 'Miramar',
-    priority: 80, confirmed: true, note: 'EXTRA SPACE 1068 on the Miramar card; $146.26 vs a $146.48 bill' },
+    amountMin: 140, amountMax: 220, priority: 80, confirmed: true,
+    note: 'Extra Space unit 1068 on Miramar\'s Capital One 7879. Promo $146.26 -> '
+        + '$196.66 (2026-08-10). Bill corrected from $146.48/day-26 to $196.66/day-1.' },
   // PARKED 2026-08-08. Descriptor reads "ADP PAYROLL FEES DES:ADP FEES", but the
   // charge is EXACTLY $218.60 on the 8th of each month while the payroll it would
   // supposedly be a fee on swung from $12.7k to $21.3k (+66%). A usage-based

@@ -67,8 +67,16 @@ export async function GET() {
     for (const day of s.days) if (day.balance < low) { low = day.balance; lowDate = day.d }
     const end = s.days.length ? s.days[s.days.length - 1].balance : 0
     const bal = balByStore.get(s.store)
+    // `s.stale` is baked into sk_bills.Forecast at whatever moment forecast.py was
+    // last run — that job isn't on a schedule, so its stale flag can itself go stale
+    // (it did: flagged Margate fine on 9/2, then sat there reading "fine" through a
+    // day OpenBudget's actual sync fell behind). getLiveBalances() reads the same
+    // cache /api/balances and Bills already trust and is graded at request time, so
+    // prefer it whenever this store has a row; only fall back to the snapshot when
+    // there's no QbBalance row at all (feed never synced for this store).
+    const stale = bal ? bal.stale : s.stale
     return {
-      store: s.store, balSrc: s.balSrc, stale: s.stale,
+      store: s.store, balSrc: s.balSrc, stale,
       start, low, lowDate, end,
       need: Math.max(0, -low), needBy: low < 0 ? lowDate : null,
       // Optional — see balByStore comment above. undefined (not 0) when missing,

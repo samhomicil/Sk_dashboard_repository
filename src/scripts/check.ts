@@ -171,8 +171,21 @@ console.log('\nMetric sources')
 console.log('\nSecurity')
 {
   const proxy = src('proxy.ts')
-  const ownerApis = [...proxy.matchAll(/'(\/api\/[a-z-]+)'/g)].map(m => m[1])
-    .filter(p => proxy.split('OWNER_APIS')[1]?.split(']')[0]?.includes(p))
+  // Read the OWNER_APIS block ITSELF, and allow multi-segment paths.
+  //
+  // The old form scanned the whole file for single-segment '/api/x' matches and then
+  // asked whether the block CONTAINED that string. Two bugs fell out of that. A
+  // nested entry like '/api/employees/roster' could never be captured (the character
+  // class had no '/'), so it was never checked at all; and because the containment
+  // test was a substring match, adding that entry made '/api/employees' — a manager
+  // route — look owner-gated, and the check failed on a file that was correct.
+  // Match the block, take whole quoted paths, compare on path boundaries.
+  // stripComments FIRST. A comment inside the block that quotes a path — e.g. one
+  // saying "'/api/employees' must NOT be listed" — is otherwise read as an entry,
+  // and the check then fails on the very route the comment exists to protect. Same
+  // trap as the target-literal scan, which is why that one reads f.code too.
+  const block = stripComments(proxy).split('OWNER_APIS')[1]?.split(']')[0] ?? ''
+  const ownerApis = [...block.matchAll(/'(\/api\/[a-z0-9/-]+)'/g)].map(m => m[1])
   const missing: string[] = []
   for (const api of ownerApis) {
     const routes = FILES.filter(f => f.rel.startsWith(`app${api}/`) && f.rel.endsWith('route.ts'))

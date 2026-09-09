@@ -36,6 +36,16 @@ const OWNER_APIS = [
   // matters more now that an agent token can present credentials: the middleware is
   // where a manager-scope token gets turned away.
   '/api/budget', '/api/balances',
+  // Individual wage rates. requireOwner() was already in the handler, but the
+  // middleware gate was missing — the exact half-protected shape the comment above
+  // describes. It became load-bearing when the agent API began exposing this route
+  // as the `roster` module: the middleware is where a manager-scope agent token is
+  // turned away. /profile is the same shape — its own comment cites pay rates and
+  // minors' dates of birth — and was likewise guarded in-handler only.
+  //
+  // NOTE the specificity: the parent /api/employees must NOT be listed, or the
+  // manager-facing labor module behind it would be owner-gated too.
+  '/api/employees/roster', '/api/employees/profile',
 ]
 
 function isOwnerOnly(pathname: string): boolean {

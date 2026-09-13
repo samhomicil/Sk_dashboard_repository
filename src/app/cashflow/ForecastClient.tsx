@@ -16,15 +16,9 @@ const TINT: Record<string, string> = {
 interface Line { label: string; amt: number; kind: 'in' | 'out'; note: string }
 interface Day { d: string; inflow: number; outflow: number; balance: number; lines?: Line[] }
 interface StoreF {
-  store: Store; balSrc: string; stale: boolean
+  store: Store; balSrc: string
   start: number; low: number; lowDate: string; end: number
-  bankNow?: number; anchorDrift?: number
   need: number; needBy: string | null; days: Day[]
-  // Checking/savings split behind `start` — a snapshot of TODAY from
-  // sk_bills.QbBalance, not part of the day-by-day projection. Genuinely
-  // optional: undefined when that table has no row for this store (feed
-  // never synced, etc.) — never assume it's there.
-  checking?: number; savings?: number
 }
 interface Payload { ok: boolean; asOf: string | null; stores: StoreF[] }
 
@@ -85,41 +79,16 @@ export default function ForecastClient() {
   const totalIn = sel.days.reduce((s, d) => s + d.inflow, 0)
   const totalOut = sel.days.reduce((s, d) => s + d.outflow, 0)
   const n = sel.days.length
-  const staleStores = stores.filter(s => s.stale)
   const funding = stores.filter(s => s.need > 0)
     .map(s => ({ store: s.store, need: s.need, by: s.needBy! }))
     .sort((a, b) => a.by.localeCompare(b.by) || b.need - a.need)
   const totalNeed = funding.reduce((s, f) => s + f.need, 0)
 
-  // Breakdown only when the sync actually gave us both parts — a store with
-  // checking but no savings account (e.g. Pines) still has a real, non-zero
-  // split worth showing; a store with neither should fall back to the plain
-  // "live bank balance" label rather than print "checking $0 · savings $0".
-  const hasSplit = sel.checking != null && sel.savings != null
-  // The headline and this subtitle must come from ONE source or they contradict each
-  // other; both are now the live QbBalance figures. `start` stays the projection's
-  // anchor and is reported separately when it has drifted.
-  const bankNow = sel.bankNow ?? sel.start
-  const drift = sel.anchorDrift
-  const driftMatters = drift != null && Math.abs(drift) >= 100
-  const bankSub = sel.stale
-    ? 'bank feed stale'
-    : hasSplit
-      ? `checking ${dMoney(sel.checking!)} · savings ${dMoney(sel.savings!)}`
-      : 'live bank balance'
-
-  // Says the live balance, then flags when the projection behind the rest of the
-  // sentence is anchored somewhere else — otherwise a reader reconciles the tiles
-  // themselves and concludes the screen is broken, which is what happened.
-  const take = (sel.need > 0
-    ? `${sel.store} has ${dMoney(bankNow)} in the bank today and, on the current pace, dips to ${dMoney(sel.low)} on ${monDay(sel.lowDate)} — move ${dMoney(sel.need)} in before then to stay above zero.`
-    : `${sel.store} has ${dMoney(bankNow)} today and stays positive the whole ${n} days — the tightest it gets is ${dMoney(sel.low)} on ${monDay(sel.lowDate)}. It self-funds.`)
-    + (driftMatters
-      ? ` The projection below still starts from ${dMoney(sel.start)} — it was built when the balance was ${drift! > 0 ? 'lower' : 'higher'}, so re-run the forecast before acting on the dates.`
-      : '')
+  const take = sel.need > 0
+    ? `${sel.store} starts at ${dMoney(sel.start)} and, on the current pace, dips to ${dMoney(sel.low)} on ${monDay(sel.lowDate)} — move ${dMoney(sel.need)} in before then to stay above zero.`
+    : `${sel.store} starts at ${dMoney(sel.start)} and stays positive the whole ${n} days — the tightest it gets is ${dMoney(sel.low)} on ${monDay(sel.lowDate)}. It self-funds.`
 
   const tiles = [
-    { nm: 'In the bank now', v: dMoney(bankNow), cls: '', sub: bankSub },
     { nm: 'Lowest point', v: dMoney(sel.low), cls: sel.low < 0 ? 'crit' : 'good', sub: monDay(sel.lowDate) },
     { nm: `Money in · ${n}d`, v: dMoney(totalIn), cls: '', sub: 'card + cash + delivery' },
     { nm: `Money out · ${n}d`, v: dMoney(totalOut), cls: '', sub: 'payroll + bills + food' },
@@ -142,10 +111,6 @@ export default function ForecastClient() {
           ))}
         </div>
       </header>
-
-      {staleStores.length > 0 && (
-        <div className="warn">⚠ Stale bank feed: {staleStores.map(s => s.store).join(', ')} — check the OpenBudget connection in Settings before trusting these numbers.</div>
-      )}
 
       <div className="take">
         <span className={'pill ' + (sel.need > 0 ? 'crit' : 'good')}>{sel.need > 0 ? 'Needs funding' : 'Self-funds'}</span>
@@ -319,11 +284,10 @@ function Style() {
 .fin .tabs .tab{flex:0 0 auto;}.fin .tab{border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 13px/1 inherit;padding:9px 14px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:8px;}
 @media (hover:hover){.fin .tab:hover{color:var(--ink);}}.fin .tab .dot{width:6px;height:6px;border-radius:50%;}.fin .tab[aria-selected="true"]{color:var(--ink);border-color:var(--store);background:var(--store-tint);box-shadow:inset 0 -2px 0 var(--store);}
 .fin .tabneed{font-size:9px;font-weight:800;color:var(--crit);background:var(--crit-bg);padding:1px 5px;border-radius:9px;letter-spacing:.03em;text-transform:uppercase;}
-.fin .warn{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit);border-radius:9px;padding:9px 13px;margin:0 0 14px;font-size:13px;max-width:var(--content-max-width);margin-left:auto;margin-right:auto;}
 .fin .take{display:flex;align-items:center;gap:12px;margin:0 0 20px;padding:13px 16px;border-radius:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--store);max-width:var(--content-max-width);margin-left:auto;margin-right:auto;flex-wrap:wrap;}
 .fin .take .big{font-weight:600;}.fin .take .lede{color:var(--muted);}
 .fin .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}.fin .pill.good{background:var(--good-bg);color:var(--good);}.fin .pill.crit{background:var(--crit-bg);color:var(--crit);}
-.fin .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;max-width:var(--content-max-width);margin-left:auto;margin-right:auto;}
+.fin .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;max-width:var(--content-max-width);margin-left:auto;margin-right:auto;}
 .fin .tile{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px 14px;}
 .fin .tnm{font-size:11.5px;font-weight:640;color:var(--muted);margin-bottom:5px;}
 .fin .tval{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1;}.fin .tval.pos{color:var(--pos);}.fin .tval.neg{color:var(--neg);}.fin .tval.good{color:var(--good);}.fin .tval.crit{color:var(--crit);}

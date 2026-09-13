@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/owner-guard'
-import { getLiveBalances } from '@/lib/bills/balances'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,6 +9,16 @@ export const dynamic = 'force-dynamic'
  * Owner-only. Serves the per-store cash forecast rendered by /cashflow.
  * Reads sk_bills.Forecast (the daily ledger written by the local forecast.py job —
  * OpenBudget-anchored, DOW+T+2 income, dated payroll/food/corporate/bills).
+ *
+ * This used to also overlay a live "in the bank now" figure fetched from
+ * getLiveBalances() at request time — checking/savings split, a stale-feed flag,
+ * an anchor-drift warning when it disagreed with the forecast's own anchor. Sam:
+ * remove it, it's not working as expected. It wasn't: the live figure and the
+ * forecast's anchor are two independent snapshots that can legitimately disagree
+ * by however long OpenBudget's own sync lagged, and no amount of freshness-grading
+ * made that read as anything but "the numbers don't match" on the page itself.
+ * The projection below (start/low/end/funding) is unaffected — it's built entirely
+ * from sk_bills.Forecast's own anchor and the transaction flow, never the live feed.
  */
 type Row = {
   store: string; d: Date; inflow: number; outflow: number;
@@ -32,16 +41,6 @@ export async function GET() {
        FROM sk_bills.Forecast ORDER BY store, d`,
   )
   if (!rows.length) return NextResponse.json({ ok: true, asOf: null, stores: [] })
-
-  // The Forecast table only carries one combined anchor number (`start`, below,
-  // is even reconstructed backward from day-0's balance). The checking/savings
-  // split behind "in the bank now" lives only in sk_bills.QbBalance — fetched
-  // separately here (via the same getLiveBalances() Bills and /api/balances
-  // use) rather than persisted per-day, since it's a snapshot of TODAY, not
-  // part of the projection. Genuinely optional: a store can be mid-forecast
-  // with no QbBalance row (feed never synced, wrong store name, whatever) —
-  // callers must not assume this is present.
-  const balByStore = new Map((await getLiveBalances()).map((b) => [b.store, b]))
 
   const iso = (x: Date) => new Date(x).toISOString().slice(0, 10)
   const byStore = new Map<string, {
@@ -66,38 +65,10 @@ export async function GET() {
     let low = Infinity, lowDate = ''
     for (const day of s.days) if (day.balance < low) { low = day.balance; lowDate = day.d }
     const end = s.days.length ? s.days[s.days.length - 1].balance : 0
-    const bal = balByStore.get(s.store)
-    // `s.stale` is baked into sk_bills.Forecast at whatever moment forecast.py was
-    // last run — that job isn't on a schedule, so its stale flag can itself go stale
-    // (it did: flagged Margate fine on 9/2, then sat there reading "fine" through a
-    // day OpenBudget's actual sync fell behind). getLiveBalances() reads the same
-    // cache /api/balances and Bills already trust and is graded at request time, so
-    // prefer it whenever this store has a row; only fall back to the snapshot when
-    // there's no QbBalance row at all (feed never synced for this store).
-    const stale = bal ? bal.stale : s.stale
     return {
-      store: s.store, balSrc: s.balSrc, stale,
+      store: s.store, balSrc: s.balSrc,
       start, low, lowDate, end,
       need: Math.max(0, -low), needBy: low < 0 ? lowDate : null,
-      // Optional — see balByStore comment above. undefined (not 0) when missing,
-      // so the UI can tell "no data" apart from "genuinely $0 in checking".
-      checking: bal?.checking, savings: bal?.savings,
-      // WHAT IS ACTUALLY IN THE BANK RIGHT NOW, which is NOT `start`.
-      //
-      // `start` is the projection's anchor, frozen when forecast.py last ran (06:40
-      // daily). bankNow and the checking/savings split are read from QbBalance at
-      // request time. The tile labelled "in the bank now" was printing `start` above
-      // a split read live, so the headline and its own subtitle disagreed whenever
-      // the balance moved after the forecast ran — on 2026-08-21 it showed Margate
-      // $8,330.46 over a split totalling $4,473.75, and Miramar $3,693.01 over
-      // -$377.28. A figure labelled "now" has to be now; the anchor is a modelling
-      // input, not a statement about the present.
-      bankNow: bal?.cashTotal,
-      // How far the projection's anchor has drifted from the live balance. Small is
-      // normal — a few hours of card settlements. Large means the forecast is
-      // anchored to a stale snapshot and its whole path is off by that amount, which
-      // is worth saying rather than leaving the reader to subtract two tiles.
-      anchorDrift: bal?.cashTotal != null ? bal.cashTotal - start : undefined,
       days: s.days,
     }
   })

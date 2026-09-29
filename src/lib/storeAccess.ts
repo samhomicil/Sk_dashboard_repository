@@ -13,7 +13,7 @@ import type { Store } from './types'
  * route handlers, so the rule is written once.
  *
  * The map can be extended without a deploy of code — STORE_ACCESS, comma-separated
- * `email:store` pairs (e.g. `gm@example.com:pines`) — but Vercel only applies env changes
+ * `email:store` pairs (e.g. `gm@example.com:pines`, or `:all` for a multi-store manager) — but Vercel only applies env changes
  * on the next deployment, like every other variable. Entries there are ADDED to the
  * defaults below and win on conflict.
  */
@@ -27,8 +27,13 @@ export const STORE_NAME: Record<StoreKey, string> = {
   pines: 'Pines', miramar: 'Miramar', margate: 'Margate',
 }
 
-const DEFAULT_STORE_ACCESS: Record<string, StoreKey> = {
-  'ops@smoothiekingmargate.com':   'margate',
+/** A store key, or 'all' for a manager who covers every store (still not an owner). */
+export type Assignment = StoreKey | 'all'
+
+const DEFAULT_STORE_ACCESS: Record<string, Assignment> = {
+  // Dan, the original manager, uses this login across all three stores (Sam, 2026-09-29).
+  // 'all' widens the STORES a manager sees — it does not grant owner (financial) access.
+  'ops@smoothiekingmargate.com':   'all',
   'admin@smoothiekingmargate.com': 'margate',
   'ops@smoothiekingmiramar.com':   'miramar',
   'admin@smoothiekingmiramar.com': 'miramar',
@@ -40,17 +45,17 @@ function isStoreKey(s: string): s is StoreKey {
   return (STORE_KEYS as readonly string[]).includes(s)
 }
 
-export function storeAccessMap(): Record<string, StoreKey> {
-  const out: Record<string, StoreKey> = { ...DEFAULT_STORE_ACCESS }
+export function storeAccessMap(): Record<string, Assignment> {
+  const out: Record<string, Assignment> = { ...DEFAULT_STORE_ACCESS }
   for (const pair of (process.env.STORE_ACCESS ?? '').split(',')) {
     const [email, store] = pair.split(':').map(s => s?.trim().toLowerCase())
-    if (email && store && isStoreKey(store)) out[email] = store
+    if (email && store && (store === 'all' || isStoreKey(store))) out[email] = store as Assignment
   }
   return out
 }
 
 /**
- * 'all'   — unrestricted (owners, agent tokens)
+ * 'all'   — every store (owners, agent tokens, and managers assigned 'all')
  * a store — locked to that store
  * null    — signed in, but assigned to no store: no store data
  */

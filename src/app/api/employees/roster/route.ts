@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { requireOwner } from '@/lib/owner-guard'
+import { requireStore } from '@/lib/store-guard'
+import { STORE_NAME } from '@/lib/storeAccess'
 import {
   getRoster, getProductivity, getAttendance, getInStoreGross, getDobMap,
   getExceptions, getCash,
@@ -13,19 +14,28 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 function iso(d: Date) { return d.toISOString().slice(0, 10) }
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET(req: NextRequest) {
   // Fail CLOSED, independently of proxy.ts. A preview deployment without AUTH env
   // vars fails the middleware gate OPEN — which briefly served this route's full
   // roster, including minors' dates of birth and pay rates, on a public URL.
   // Employee PII must never depend on the middleware running.
-  const gate = await requireOwner()
-  if (gate) return gate
-
+  //
+  // Managers may read the crew, pay included — they do the hiring (Sam, 2026-09-29).
+  // A store's own login is locked to its own crew; requireStore() refuses a session
+  // it cannot place, so an unauthenticated caller still gets nothing.
   const sp = req.nextUrl.searchParams
-  const store = sp.get('store') ?? 'all'
+  const scoped = await requireStore(sp.get('store')); if (scoped instanceof Response) return scoped
+  // The employee queries take the store's display name ('Miramar') and interpolate it,
+  // so only a clamped, known value may reach them.
+  const store = scoped === 'all' ? 'all' : STORE_NAME[scoped]
   const end = sp.get('end') ?? iso(new Date(Date.now() - 86400000))
   const start = sp.get('start') ?? iso(new Date(new Date(end).getTime() - 27 * 86400000))
+  // Interpolated into SQL as well — accept calendar dates only.
+  if (!ISO_DATE.test(start) || !ISO_DATE.test(end)) {
+    return Response.json({ error: 'start and end must be YYYY-MM-DD' }, { status: 400 })
+  }
 
   try {
     const st = store === 'all' ? undefined : store

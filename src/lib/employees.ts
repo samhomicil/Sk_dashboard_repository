@@ -449,7 +449,7 @@ export async function getProfile(
       by: string | null; reason: string | null; del: number
     }[]>(`
       SELECT CONVERT(char(10), business_date, 23) AS d, edited_field AS f,
-             original_value AS ov, new_value AS nv, edited_by AS by,
+             original_value AS ov, new_value AS nv, edited_by AS [by],   -- BY is reserved in T-SQL
              reason, CAST(ISNULL(deleted,0) AS int) AS del
       FROM smoothieking.labor_edits
       WHERE ${K('employee')} = N'${k}' AND business_date ${win}

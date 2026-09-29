@@ -29,7 +29,9 @@ function load(): DaypartFile | null {
 export function getMenuMixDaypart(store: string): DaypartPayload | null {
   const d = load()
   if (!d) return null
-  const key = d.daypart[store] ? store : 'all'
+  // A named store with no data gets an empty payload, never the 'all' rollup —
+  // falling back would show a store-locked login every store's mix.
+  const key = store === 'all' || d.daypart[store] ? store : '__none__'
   const payload: DaypartPayload = {
     refreshedAt: d.refreshedAt,
     windowStart: d.windowStart,

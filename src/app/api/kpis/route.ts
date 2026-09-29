@@ -5,6 +5,7 @@ import { loadCogsCache, sqlCogsPct } from '@/lib/cogsCache'
 import { query, dateFilter } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
+import { requireStore } from '@/lib/store-guard'
 
 const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
 
@@ -52,7 +53,8 @@ function sfWm(store: Store) {
 
 export async function GET(req: NextRequest) {
   const p       = req.nextUrl.searchParams
-  const store   = (p.get('store')  ?? 'all') as Store
+  const scoped = await requireStore(p.get('store')); if (scoped instanceof Response) return scoped
+  const store = scoped as Store
   const period  = (p.get('period') ?? 'weekly') as Period
   const start   = p.get('start')   ?? ''
   const end     = p.get('end')     ?? ''

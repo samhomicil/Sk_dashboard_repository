@@ -14,6 +14,7 @@ import { UnknownValue, NotMeasured } from '@/components/design/states'
 import type { StaffingData, StaffingCell, EmployeeRow, Store, StoreRow } from '@/lib/types'
 import { Page, PageBar, Section, Stat, Grid4, FlagList, type Flag } from '@/components/design/shell'
 import { SegControl, TargetBar } from '@/components/design/controls'
+import { useStoreLock } from '@/components/useStoreLock'
 import {
   LABOR_TARGET, DRAWER_VARIANCE_LIMIT, VOID_LIMIT_PCT, VOID_VS_SHIFT_MULTIPLE,
 } from '@/lib/core/targets'
@@ -140,6 +141,8 @@ export default function EmployeesPage() {
 
 function EmployeesInner() {
   const [store, setStore] = useState<(typeof STORES)[number]>('all')
+  const lock = useStoreLock()
+  useEffect(() => { if (lock) setStore((lock[0].toUpperCase() + lock.slice(1)) as (typeof STORES)[number]) }, [lock])
   const [data, setData] = useState<Payload | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
@@ -261,12 +264,12 @@ function EmployeesInner() {
         {/* No `meta` range line: Timeframe already prints the window, and printing it
             twice in one bar invites the two to disagree — which is exactly what was
             happening before they were given a single default. */}
-        <SegControl
+        {!lock && <SegControl
           label="Store"
           options={STORES.map(sv => ({ value: sv, label: sv === 'all' ? 'All Stores' : sv }))}
           value={store}
           onChange={setStore}
-        />
+        />}
         <Timeframe />
       </PageBar>
 

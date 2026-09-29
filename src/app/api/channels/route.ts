@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server'
 import { cacheChannelsAsync } from '@/lib/cache'
 import type { Store, Period } from '@/lib/types'
+import { requireStore } from '@/lib/store-guard'
 
 export async function GET(req: NextRequest) {
-  const store  = (req.nextUrl.searchParams.get('store')  ?? 'all')    as Store
+  const scoped = await requireStore(req.nextUrl.searchParams.get('store')); if (scoped instanceof Response) return scoped
+  const store = scoped as Store
   const period = (req.nextUrl.searchParams.get('period') ?? 'weekly') as Period
   const data   = await cacheChannelsAsync(store, period)
   if (!data) return Response.json({ error: 'no_cache' }, { status: 503 })

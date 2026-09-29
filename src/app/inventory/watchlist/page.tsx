@@ -30,6 +30,7 @@ import { Grid11, Section, TakeCard, Disclosure } from '@/components/design/shell
 import { SegControl } from '@/components/design/controls'
 import { DataTable, type Col, type Row } from '@/components/design/DataTable'
 import { HOT_ITEM_VALUE_SHARE } from '@/lib/core/targets'
+import { useStoreLock } from '@/components/useStoreLock'
 
 const num = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 })
 const money = (n: number) => '$' + Math.round(n).toLocaleString()
@@ -92,6 +93,8 @@ export default function OrderNeedsPage() {
   const [data, setData] = useState<OrderGuidePayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [store, setStore] = useState<StoreOpt>('All')
+  const lock = useStoreLock()
+  useEffect(() => { if (lock) setStore((lock[0].toUpperCase() + lock.slice(1)) as StoreOpt) }, [lock])
 
   useEffect(() => {
     fetch('/api/inventory/watchlist')
@@ -164,7 +167,7 @@ export default function OrderNeedsPage() {
   return (
     <>
       <div className="sk-filterbar">
-        <SegControl label="Store" options={[...STORE_OPTS]} value={store} onChange={setStore} />
+        {!lock && <SegControl label="Store" options={[...STORE_OPTS]} value={store} onChange={setStore} />}
         {data.weatherLift > 1.02 && (
           <span className="pill pill-yellow">Heat +{Math.round((data.weatherLift - 1) * 100)}% demand</span>
         )}

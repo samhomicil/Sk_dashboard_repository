@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { query } from '@/lib/db'
 import type { Store } from '@/lib/types'
+import { requireStore } from '@/lib/store-guard'
 
 // Jolt photo-quality — did the SOP get done to standard, not just "a photo was uploaded"?
 // Verdicts come from the daily in-flight vision scorer (smoothieking.jolt_image_quality).
@@ -43,7 +44,8 @@ function counts(items: Raw[]) {
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
-  const store = (sp.get('store') || 'all').toLowerCase() as Store
+  const scoped = await requireStore(sp.get('store')); if (scoped instanceof Response) return scoped
+  const store = scoped as Store
   const dw = dateWhere(sp.get('start'), sp.get('end'))
   try {
     const raw = await query<Raw[]>(`

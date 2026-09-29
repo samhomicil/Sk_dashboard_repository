@@ -7,6 +7,9 @@ declare module 'next-auth' {
     user: {
       id?: string
       role?: 'owner' | 'manager'
+      // The one store this login may see. undefined = every store (owners);
+      // null = signed in but assigned to no store.
+      store?: 'pines' | 'miramar' | 'margate' | null
     } & DefaultSession['user']
   }
 }

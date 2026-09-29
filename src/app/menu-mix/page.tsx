@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { MenuMixPayload, ProductSummary, CategorySummary } from '@/lib/menuMixUtils'
 import { parseSize, parseFlavor, blendedCogs } from '@/lib/menuMixUtils'
 import DaypartTrends from '@/components/DaypartTrends'
+import { useStoreLock } from '@/components/useStoreLock'
 
 // ── Formatting ────────────────────────────────────────────────────
 const money  = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
@@ -494,6 +495,8 @@ function ModifiersSection({ mods, coreUnits, days }: { mods: ProductSummary[]; c
 export default function MenuMixPage() {
   const [period,  setPeriod]  = useState('l90d')
   const [store,   setStore]   = useState('all')
+  const lock = useStoreLock()
+  useEffect(() => { if (lock) setStore(lock) }, [lock])
   const [data,    setData]    = useState<MenuMixPayload | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -537,14 +540,14 @@ export default function MenuMixPage() {
               </button>
             ))}
           </div>
-          <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
+          {!lock && <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
             {STORE_OPTIONS.map(o => (
               <button key={o.key} onClick={() => setStore(o.key)}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${store === o.key ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
                 {o.label}
               </button>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
 

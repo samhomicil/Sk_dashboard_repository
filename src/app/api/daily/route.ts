@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { cacheDailyAsync } from '@/lib/cache'
 import { query, dateFilter } from '@/lib/db'
 import type { Store, DailyRow } from '@/lib/types'
+import { requireStore } from '@/lib/store-guard'
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
@@ -88,7 +89,8 @@ async function buildRange(store: Store, start: string, end: string): Promise<Dai
 
 export async function GET(req: NextRequest) {
   const p       = req.nextUrl.searchParams
-  const store   = (p.get('store')   ?? 'all') as Store
+  const scoped = await requireStore(p.get('store')); if (scoped instanceof Response) return scoped
+  const store = scoped as Store
   const start   = p.get('start')   ?? ''
   const end     = p.get('end')     ?? ''
   const pyStart = p.get('pyStart') ?? ''

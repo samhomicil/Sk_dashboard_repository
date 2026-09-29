@@ -27,6 +27,7 @@ import { Page, PageBar, Section, Stat, Grid4, Grid11 } from '@/components/design
 import { SegControl, TargetBar } from '@/components/design/controls'
 import { UnknownValue } from '@/components/design/states'
 import { DataTable, type Col, type Row } from '@/components/design/DataTable'
+import { useStoreLock } from '@/components/useStoreLock'
 import {
   buildViews, summarize, actionFor, laborTone, bulletTone, shortDay, money, sMoney, sPct, sHrs,
   type OpsPayload, type View, type Summary,
@@ -50,6 +51,8 @@ export default function OpsReportPage() {
   const [data, setData] = useState<OpsPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [store, setStore] = useState('all')
+  const lock = useStoreLock()
+  useEffect(() => { if (lock) setStore(lock) }, [lock])
   const [week, setWeek] = useState<'this' | 'next'>('this')
 
   // Render-phase adjustment on week toggle: a week already viewed this session
@@ -84,7 +87,7 @@ export default function OpsReportPage() {
         title="Weekly Operations Report"
         meta={data ? `${v?.name ?? ''} · ${data.weekLabel} · ${data.weekMode === 'next' ? 'next-week plan, all forecast' : 'actual to today, forecast after'}` : null}
       >
-        <SegControl label="Store" options={STORE_OPTS} value={store} onChange={setStore} />
+        {!lock && <SegControl label="Store" options={STORE_OPTS} value={store} onChange={setStore} />}
         <SegControl label="Week" options={WEEK_OPTS} value={week} onChange={setWeek} strong />
       </PageBar>
 

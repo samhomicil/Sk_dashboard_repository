@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { query } from '@/lib/db'
 import type { Store } from '@/lib/types'
+import { requireStore } from '@/lib/store-guard'
 
 // SOCi reputation + social — pulled from smoothieking.soci_daily by /Users/sam/soci-extractor.
 // Read-only daily snapshot. SOCi issues one login per account and only Margate is connected,
@@ -60,7 +61,8 @@ export interface SociData {
 }
 
 export async function GET(req: NextRequest) {
-  const store = (req.nextUrl.searchParams.get('store') || 'all').toLowerCase() as Store
+  const scoped = await requireStore(req.nextUrl.searchParams.get('store')); if (scoped instanceof Response) return scoped
+  const store = scoped as Store
 
   const empty: SociData = {
     store: 'Margate', snapshotDate: '', avgRating: null,

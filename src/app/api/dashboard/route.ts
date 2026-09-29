@@ -15,6 +15,7 @@ import { GET as getJolt } from '../jolt/route'
 import { GET as getJoltQuality } from '../jolt-quality/route'
 import { GET as getGuestSat } from '../guest-satisfaction/route'
 import { GET as getSoci } from '../soci/route'
+import { requireStore } from '@/lib/store-guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,9 @@ const sub = async (h: (req: NextRequest) => Promise<Response> | Response, path: 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const g = (k: string) => sp.get(k) ?? ''
-  const store = g('store') || 'all'
+  // Clamp once here; every sub-handler re-checks against the same session.
+  const scoped = await requireStore(g('store')); if (scoped instanceof Response) return scoped
+  const store: string = scoped
   const period = g('period') || 'weekly'
   const base = { store, period, start: g('start'), end: g('end'), pyStart: g('pyStart'), pyEnd: g('pyEnd') }
   const range = { store, start: base.start, end: base.end }

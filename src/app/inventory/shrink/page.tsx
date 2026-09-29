@@ -23,6 +23,7 @@ import { DataTable, type Col, type Row } from '@/components/design/DataTable'
 import type { ShrinkPayload, ShrinkRow } from '@/lib/shrink'
 import type { OrderGuidePayload } from '@/lib/orderGuide'
 import { BIAS_NOTE } from '@/lib/netchefTiers'
+import { useStoreLock } from '@/components/useStoreLock'
 
 /** How many throughput rows to print. A display cap, not a business rule — every item
  *  still counts toward shrink and toward the order screen; this only decides how far
@@ -210,6 +211,8 @@ export default function ShrinkPage() {
   const [data, setData] = useState<ShrinkPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [store, setStore] = useState<StoreOpt>('All')
+  const lock = useStoreLock()
+  useEffect(() => { if (lock) setStore((lock[0].toUpperCase() + lock.slice(1)) as StoreOpt) }, [lock])
   const [reliableOnly, setReliableOnly] = useState(true)
   const [shortOnly, setShortOnly] = useState(true)
   const [period, setPeriod] = useState<string>('')
@@ -245,7 +248,7 @@ export default function ShrinkPage() {
           would stack two of them. These are this SCREEN's filters, which is where
           they belong — the module's calendar timeframe does not govern shrink. */}
       <div className="sk-filterbar">
-        <SegControl label="Store" options={[...STORE_OPTS]} value={store} onChange={setStore} />
+        {!lock && <SegControl label="Store" options={[...STORE_OPTS]} value={store} onChange={setStore} />}
         {data && (
           <select
             className="sk-select"

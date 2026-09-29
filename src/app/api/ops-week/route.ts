@@ -8,6 +8,7 @@ import { buildRateFor } from '@/lib/core/labor'
 import { buildForecaster, orderSplit, deriveCogsTarget } from '@/lib/core/forecast'
 import { allKeyed } from '@/lib/core/keyed'
 import { cogsWeeklySeries, type CogsWindow } from '@/lib/core/cogs'
+import { requireScope } from '@/lib/store-guard'
 
 // Mid-week ops report data layer.
 // Emits the {week, stores, ...} contract the /ops-report page renders. All numbers
@@ -88,6 +89,7 @@ async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
 }
 
 export async function GET(req: Request) {
+  const scope = await requireScope(); if (scope instanceof Response) return scope
   const weekMode = new URL(req.url).searchParams.get('week') === 'next' ? 'next' : 'this'
   const today = etToday()
   const dow = dowOf(today)
@@ -273,7 +275,9 @@ export async function GET(req: Request) {
 
   const round1 = (n: number) => Math.round(n * 10) / 10
 
-  const stores = STORES.map(s => {
+  // A store-locked login gets only its own store (and a blend of just that store).
+  const visible = scope === 'all' ? STORES : STORES.filter(s => s.key === scope)
+  const stores = visible.map(s => {
     const sp: number[] = [], sa: number[] = [], py: number[] = [], hp: number[] = [], ha: number[] = []
     const lc: number[] = [], lcp: number[] = []
     weekDates.forEach(d => {

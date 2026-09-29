@@ -6,13 +6,15 @@ import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 
 const INVENTORY_SUB = [
-  { label: 'Overview',            href: '/inventory' },
-  { label: 'By Category',         href: '/inventory/categories' },
-  { label: 'By Store',            href: '/inventory/stores' },
-  { label: 'By Vendor',           href: '/inventory/vendors' },
-  { label: 'Actions & watchlist', href: '/inventory/watchlist' },
-  { label: 'Shrink',              href: '/inventory/shrink' },
+  { label: 'Overview',            href: '/inventory',            group: true },
+  { label: 'By Category',         href: '/inventory/categories', group: true },
+  { label: 'By Store',            href: '/inventory/stores',     group: true },
+  { label: 'By Vendor',           href: '/inventory/vendors',    group: true },
+  { label: 'Actions & watchlist', href: '/inventory/watchlist',  group: false },
+  { label: 'Shrink',              href: '/inventory/shrink',     group: false },
 ]
+// `group` pages show combined purchasing across all stores — hidden from a store's own
+// login (proxy.ts redirects them too; the APIs behind them refuse single-store logins).
 
 // Owner-only financial modules (rendered only when session role === 'owner').
 const FINANCIALS_SUB = [
@@ -28,6 +30,8 @@ const FINANCIALS_SUB = [
 export default function AppSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
+  const storeLocked = !!session?.user?.store
+  const inventorySub = INVENTORY_SUB.filter(s => !(storeLocked && s.group))
   const [collapsed, setCollapsed]         = useState(false)
   const [inventoryOpen, setInventoryOpen] = useState(pathname.startsWith('/inventory'))
   const [mobileOpen, setMobileOpen]       = useState(false)
@@ -125,7 +129,7 @@ export default function AppSidebar() {
           <span className="sk-lbl">Weekly Ops</span>
         </Link>
 
-        <Link href="/inventory" className={item(onInventory, onInventory ? 'section' : '')}>
+        <Link href={storeLocked ? '/inventory/watchlist' : '/inventory'} className={item(onInventory, onInventory ? 'section' : '')}>
           <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 7l9-4 9 4-9 4-9-4z" /><path d="M3 7v10l9 4 9-4V7" /><path d="M12 11v10" />
           </svg>
@@ -140,7 +144,7 @@ export default function AppSidebar() {
         </Link>
         <div className={`sk-subnav${inventoryOpen ? ' open' : ''}`}>
           <div className="sk-subwrap">
-            {INVENTORY_SUB.map(s => {
+            {inventorySub.map(s => {
               const active = s.href === '/inventory' ? pathname === '/inventory' : pathname.startsWith(s.href)
               return (
                 <Link key={s.href} href={s.href} className={`sk-subitem${active ? ' active' : ''}`}>

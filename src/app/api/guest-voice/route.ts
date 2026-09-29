@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { query } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store } from '@/lib/types'
+import { requireStore } from '@/lib/store-guard'
 
 // Detail behind the Ops Health "Guest Voice" tiles.
 //
@@ -106,7 +107,8 @@ const EMPTY: GuestVoiceDetail = {
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
-  const store = (sp.get('store') || 'all').toLowerCase() as Store
+  const scoped = await requireStore(sp.get('store')); if (scoped instanceof Response) return scoped
+  const store = scoped as Store
   const start = sp.get('start')
   const end = sp.get('end')
   if (!start || !end || !iso.test(start) || !iso.test(end)) return Response.json(EMPTY)

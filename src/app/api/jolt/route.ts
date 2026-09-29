@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { query } from '@/lib/db'
 import type { Store } from '@/lib/types'
+import { requireStore } from '@/lib/store-guard'
 
 // Jolt completion (rolling 7-day tables kept fresh by the jolt-daily cloud job).
 // Per-location rollup (Complete / On-Time / Late / Missed) with nested per-checklist
@@ -46,7 +47,8 @@ function dateWhere(start: string | null, end: string | null) {
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
-  const store = (sp.get('store') || 'all').toLowerCase() as Store
+  const scoped = await requireStore(sp.get('store')); if (scoped instanceof Response) return scoped
+  const store = scoped as Store
   const dw = dateWhere(sp.get('start'), sp.get('end'))
   try {
     const raw = await query<Raw[]>(`

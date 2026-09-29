@@ -1,6 +1,7 @@
 import { auth, isOwner } from '@/auth'
 import { NextResponse } from 'next/server'
 import { agentRole } from '@/lib/agentAuth'
+import { scopeFor } from '@/lib/storeAccess'
 
 /**
  * Route gate (Next.js 16 "proxy" — the renamed middleware convention).
@@ -12,6 +13,9 @@ import { agentRole } from '@/lib/agentAuth'
  *      A manager (allowed to sign in, but not an owner) hitting a financial page
  *      is redirected home; a financial API returns 403 JSON. This is the security
  *      boundary — never rely on hiding nav alone.
+ *   3. Store gate — a store's own login (storeAccess.ts) sees only that store:
+ *      ?store= is forced to it on every data API, group-total APIs are refused,
+ *      and a signed-in manager with no store assignment gets no store data.
  *
  * Public exceptions (handled by the matcher — they never reach here):
  *   - /api/auth/*          NextAuth's own sign-in / callback / session routes
@@ -47,6 +51,22 @@ const OWNER_APIS = [
   // manager-facing labor module behind it would be owner-gated too.
   '/api/employees/roster', '/api/employees/profile',
 ]
+
+// Group-total APIs with no single-store version (combined purchasing). A store-locked
+// login is refused outright rather than shown every store's spend. The handlers call
+// requireAllStores() as the second gate.
+const ALL_STORES_ONLY_APIS = [
+  '/api/inventory/overview', '/api/inventory/categories',
+  '/api/inventory/vendors', '/api/inventory/live',
+]
+// Inventory pages built on combined purchasing (they all read /api/inventory/live).
+// A store-locked login is sent to its own order guide instead of an error screen.
+const ALL_STORES_ONLY_PAGES = ['/inventory', '/inventory/categories', '/inventory/stores', '/inventory/vendors']
+// Carry no store data (cache freshness only) — reachable by an unassigned login.
+const STORELESS_APIS = ['/api/meta', '/api/health']
+
+const under = (list: string[], pathname: string) =>
+  list.some(p => pathname === p || pathname.startsWith(p + '/'))
 
 function isOwnerOnly(pathname: string): boolean {
   const hit = (p: string) => pathname === p || pathname.startsWith(p + '/')
@@ -84,6 +104,33 @@ export default auth(async (req) => {
       return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     }
     return NextResponse.redirect(new URL('/', req.nextUrl.origin))
+  }
+
+  // 3) store gate — a store's own login sees only that store. Every data API reads its
+  //    store from ?store=, so the param is forced to the caller's store here; the
+  //    handlers re-derive it from the session (store-guard.ts) as the second gate.
+  if (!pathname.startsWith('/api') && ALL_STORES_ONLY_PAGES.includes(pathname)) {
+    const email = req.auth.user?.email
+    if (scopeFor(email, isOwner(email)) !== 'all') {
+      return NextResponse.redirect(new URL('/inventory/watchlist', req.nextUrl.origin))
+    }
+  }
+  if (pathname.startsWith('/api') && !under(STORELESS_APIS, pathname)) {
+    const email = req.auth.user?.email
+    const scope = scopeFor(email, isOwner(email))
+    if (scope === null) {
+      return NextResponse.json({ error: 'forbidden', reason: 'no store is assigned to this login' }, { status: 403 })
+    }
+    if (scope !== 'all') {
+      if (under(ALL_STORES_ONLY_APIS, pathname)) {
+        return NextResponse.json({ error: 'forbidden', reason: 'group totals are not available to a single-store login' }, { status: 403 })
+      }
+      if (req.nextUrl.searchParams.get('store') !== scope) {
+        const url = req.nextUrl.clone()
+        url.searchParams.set('store', scope)
+        return NextResponse.rewrite(url)
+      }
+    }
   }
 })
 

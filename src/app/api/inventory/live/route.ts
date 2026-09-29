@@ -1,6 +1,7 @@
 import { buildPurchasingLive } from '@/lib/purchasing-live'
 import { resolveDateRange } from '@/lib/dates'
 import type { Period } from '@/lib/types'
+import { requireAllStores } from '@/lib/store-guard'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -8,6 +9,8 @@ export const revalidate = 0
 const PERIODS = new Set<Period>(['weekly', 'monthly', 'quarterly', 'ytd', 'custom'])
 
 export async function GET(req: Request) {
+  // Group totals with no single-store version — owners only.
+  const gate = await requireAllStores(); if (gate) return gate
   const url = new URL(req.url)
   let start = url.searchParams.get('start') ?? ''
   let end = url.searchParams.get('end') ?? ''

@@ -16,6 +16,7 @@ import { STORE_LABELS } from '@/lib/config'
 import type { Store, Period } from '@/lib/types'
 import { PageBar } from '@/components/design/shell'
 import { SegControl } from '@/components/design/controls'
+import { useStoreLock } from './useStoreLock'
 
 const RANGES: { value: Period; label: string }[] = [
   { value: 'custom', label: 'Daily' },
@@ -56,6 +57,7 @@ export default function OverviewBar({
   refreshing: boolean
   refreshMsg: string | null
 }) {
+  const lock = useStoreLock()
   const [cStart, setCStart] = useState(dates.start)
   const [cEnd, setCEnd] = useState(dates.end)
 
@@ -87,7 +89,7 @@ export default function OverviewBar({
           </>
         }
       >
-        <SegControl label="Store" options={STORES} value={store} onChange={onStore} />
+        {!lock && <SegControl label="Store" options={STORES} value={store} onChange={onStore} />}
         <SegControl label="Range" options={RANGES} value={period} onChange={onPeriod} />
       </PageBar>
 

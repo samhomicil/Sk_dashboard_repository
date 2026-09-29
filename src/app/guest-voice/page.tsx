@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { swrGet, swrSet } from '@/lib/swrCache'
 import type { GuestVoiceDetail, ThemeRow, CommentRow, CompareBlock } from '@/app/api/guest-voice/route'
+import { useStoreLock } from '@/components/useStoreLock'
 
 const STORES = ['all', 'margate', 'pines', 'miramar'] as const
 const STORE_LABEL: Record<string, string> = {
@@ -261,6 +262,8 @@ export default function GuestVoicePage() {
   const [data, setData] = useState<GuestVoiceDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [store, setStore] = useState<string>('margate')
+  const lock = useStoreLock()
+  useEffect(() => { if (lock) setStore(lock) }, [lock])
   const [days, setDays] = useState<string>('30')
 
   // Render-phase adjustment on filter change: a store/window combo already viewed
@@ -315,14 +318,14 @@ export default function GuestVoicePage() {
               </button>
             ))}
           </div>
-          <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
+          {!lock && <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
             {STORES.map(k => (
               <button key={k} onClick={() => setStore(k)}
                 className={`px-3 py-1.5 text-xs font-medium ${store === k ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
                 {STORE_LABEL[k]}
               </button>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import type { Store, Period, DateRange, KpiData, TrendPoint, StoreRow, EmployeeR
 import type { SopData, SopQualityData } from './joltTypes'
 import type { GuestSummary } from '@/app/api/guest-satisfaction/route'
 import type { SociData } from '@/app/api/soci/route'
+import { useStoreLock } from './useStoreLock'
 
 interface DashboardState {
   store:    Store
@@ -45,6 +46,8 @@ function qs(params: Record<string, string>) {
 }
 
 export function useDashboard() {
+  const lock = useStoreLock()
+  const lockRef = useRef<Store | null>(lock)
   const [state, setState] = useState<DashboardState>({
     store:  'all',
     period: 'weekly',
@@ -117,7 +120,9 @@ export function useDashboard() {
       // Prewarm the other store tabs for this window in the background so the
       // first flip to them is instant too (server + client caches both warm up).
       if (s.period !== 'custom') {
-        const others = (['all', 'pines', 'miramar', 'margate'] as Store[])
+        // A store-locked login has no other tabs to warm (the server would return its own
+        // store for every one of them anyway).
+        const others = (lockRef.current ? [] : (['all', 'pines', 'miramar', 'margate'] as Store[]))
           .filter(st => st !== s.store && !swrGet(dashKey(st, s)))
         others.forEach(st => { fetchCombo(st, s).catch(() => {}) })
       }
@@ -129,6 +134,12 @@ export function useDashboard() {
   useEffect(() => {
     fetchAll(state)
   }, [state, fetchAll])
+
+  // A store's own login is pinned to that store (the server enforces this regardless).
+  useEffect(() => {
+    lockRef.current = lock
+    if (lock) setState(prev => (prev.store === lock ? prev : { ...prev, store: lock }))
+  }, [lock])
 
   function setStore(store: Store) {
     setState(prev => ({ ...prev, store }))

@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth'
 import Google from 'next-auth/providers/google'
+import { scopeFor } from '@/lib/storeAccess'
 
 // Allowlist enforcement. A Google account may sign in only if its email is on
 // the ALLOWED_EMAILS list (comma-separated env, editable in Vercel without a
@@ -72,7 +73,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Derive role from the signed-in email (session first, JWT as fallback)
         // so the UI can hide owner-only modules. proxy.ts enforces it server-side.
         const email = session.user.email ?? (token.email as string | undefined)
-        session.user.role = isOwner(email) ? 'owner' : 'manager'
+        const owner = isOwner(email)
+        session.user.role = owner ? 'owner' : 'manager'
+        // The store this login is locked to (undefined = all stores, null = none).
+        // UI only — proxy.ts and store-guard.ts enforce it server-side.
+        const scope = scopeFor(email, owner)
+        session.user.store = scope === 'all' ? undefined : scope
       }
       return session
     },

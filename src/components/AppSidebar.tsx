@@ -170,6 +170,14 @@ export default function AppSidebar() {
           <span className="sk-lbl">Guest Voice</span>
         </Link>
 
+        <Link href="/marketing" className={item(pathname.startsWith('/marketing'))}>
+          <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z" />
+            <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+          </svg>
+          <span className="sk-lbl">Marketing</span>
+        </Link>
+
       </nav>
 
       {/* Owner-only modules. Managers never see these; the real gate is server-side

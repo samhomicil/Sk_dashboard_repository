@@ -80,7 +80,7 @@ whole point is that two surfaces can never disagree about the same number.
 
 **Manager-facing** — `/` (Overview), `/ops-report` (Weekly Ops),
 `/inventory` + `/inventory/{categories,stores,vendors,watchlist}`, `/menu-mix`,
-`/guest-voice`.
+`/guest-voice`, `/marketing` (Healthy Rewards offer calendar).
 
 **Owner-only** — `/financials` (Budget), `/cashflow`, `/bills`, `/bills/vendors`,
 `/pnl`, `/transactions`, `/settings`.

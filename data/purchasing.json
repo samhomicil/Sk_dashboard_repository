@@ -1,167 +1,167 @@
 {
-  "refreshedAt": "2026-09-16T20:08:18.495Z",
+  "refreshedAt": "2026-09-30T20:14:13.063Z",
   "vendorSplit": {
-    "pfgTotal": 380208.22999999666,
-    "walmartTotal": 24208.19999999999
+    "pfgTotal": 397648.58999999653,
+    "walmartTotal": 25534.879999999994
   },
   "categorySpend": [
     {
       "category": "Canned & Frozen Fruit & Veg",
-      "spend": 102241.08999999997,
-      "lines": 1035,
-      "pct": 0.2687759023310745
+      "spend": 104969.52999999991,
+      "lines": 1074,
+      "pct": 0.26385148581200524
     },
     {
       "category": "Dry Grocery",
-      "spend": 95980.92000000027,
-      "lines": 922,
-      "pct": 0.25231889037535454
+      "spend": 101288.65000000031,
+      "lines": 960,
+      "pct": 0.2545992232068894
     },
     {
       "category": "Disposables",
-      "spend": 41012.3500000002,
-      "lines": 959,
-      "pct": 0.10781508078569879
+      "spend": 42775.54000000021,
+      "lines": 1002,
+      "pct": 0.10752062798995982
     },
     {
       "category": "Cheese & Dairy",
-      "spend": 39149.79999999999,
-      "lines": 688,
-      "pct": 0.10291872691381812
+      "spend": 41215.02,
+      "lines": 734,
+      "pct": 0.10359810379994576
     },
     {
       "category": "Beverage",
-      "spend": 31648.640000000043,
-      "lines": 446,
-      "pct": 0.08319934552293361
+      "spend": 32809.02000000005,
+      "lines": 468,
+      "pct": 0.08246877617758044
     },
     {
       "category": "Produce",
-      "spend": 28436.47000000015,
-      "lines": 368,
-      "pct": 0.07475505086419337
+      "spend": 29655.59000000017,
+      "lines": 385,
+      "pct": 0.07454231227034831
     },
     {
       "category": "Commodity Grocery",
-      "spend": 14734.489999999994,
-      "lines": 211,
-      "pct": 0.03873467942427251
+      "spend": 15491.759999999993,
+      "lines": 221,
+      "pct": 0.0389400990348627
     },
     {
       "category": "Bakery Frozen",
-      "spend": 8374.400000000001,
-      "lines": 167,
-      "pct": 0.022014993350338415
+      "spend": 9248.330000000004,
+      "lines": 182,
+      "pct": 0.023246608913841428
     },
     {
       "category": "Imports",
-      "spend": 7560.269999999997,
-      "lines": 56,
-      "pct": 0.019874772374947804
+      "spend": 8653.109999999997,
+      "lines": 62,
+      "pct": 0.021750463495404063
     },
     {
       "category": "Chemicals",
-      "spend": 5104.339999999996,
-      "lines": 100,
-      "pct": 0.013418514897528929
+      "spend": 5326.869999999995,
+      "lines": 105,
+      "pct": 0.013389624248364228
     },
     {
       "category": "ZZZ_Non-Items",
-      "spend": 4356.030000000001,
-      "lines": 246,
-      "pct": 0.011451324451169594
+      "spend": 4605.74,
+      "lines": 260,
+      "pct": 0.011576991363720366
     },
     {
       "category": "Poultry",
       "spend": 1292.3899999999999,
       "lines": 8,
-      "pct": 0.0033974920300014156
+      "pct": 0.003248552429915402
     },
     {
       "category": "Beef",
       "spend": 350.98,
       "lines": 5,
-      "pct": 0.0009226717575111979
+      "pct": 0.0008822235794548921
     },
     {
       "category": "E&S",
       "spend": 80.9,
       "lines": 9,
-      "pct": 0.00021267350043494191
+      "pct": 0.000203350297959715
     },
     {
       "category": "Retail",
       "spend": 72.23,
       "lines": 1,
-      "pct": 0.00018988142072207483
+      "pct": 0.0001815573797482103
     }
   ],
   "categoryByStore": [
     {
       "category": "Canned & Frozen Fruit & Veg",
-      "pines": 36322.75000000002,
-      "miramar": 43775.78000000007,
-      "margate": 22142.56
+      "pines": 37136.72000000001,
+      "miramar": 45052.32000000009,
+      "margate": 22780.489999999998
     },
     {
       "category": "Dry Grocery",
-      "pines": 40059.82000000011,
-      "miramar": 40395.04000000009,
-      "margate": 15526.059999999992
+      "pines": 42483.8000000001,
+      "miramar": 42933.49000000009,
+      "margate": 15871.35999999999
     },
     {
       "category": "Disposables",
-      "pines": 15588.17999999999,
-      "miramar": 16715.519999999982,
-      "margate": 8708.65
+      "pines": 16296.589999999986,
+      "miramar": 17369.41999999999,
+      "margate": 9109.530000000002
     },
     {
       "category": "Cheese & Dairy",
-      "pines": 14590.649999999992,
-      "miramar": 17333.149999999987,
-      "margate": 7226.000000000004
+      "pines": 15227.499999999993,
+      "miramar": 18239.889999999985,
+      "margate": 7747.630000000004
     },
     {
       "category": "Beverage",
-      "pines": 12340.870000000014,
-      "miramar": 13905.170000000011,
-      "margate": 5402.6
+      "pines": 12891.500000000015,
+      "miramar": 14231.40000000001,
+      "margate": 5686.120000000001
     },
     {
       "category": "Produce",
-      "pines": 10919.540000000005,
-      "miramar": 10994.870000000003,
-      "margate": 6522.0599999999995
+      "pines": 11442.020000000004,
+      "miramar": 11539.120000000004,
+      "margate": 6674.449999999999
     },
     {
       "category": "Commodity Grocery",
-      "pines": 6094.599999999997,
-      "miramar": 6151.429999999992,
-      "margate": 2488.459999999999
+      "pines": 6593.249999999995,
+      "miramar": 6331.709999999993,
+      "margate": 2566.799999999999
     },
     {
       "category": "Bakery Frozen",
-      "pines": 2981.6000000000017,
-      "miramar": 3438.2900000000022,
-      "margate": 1954.5100000000002
+      "pines": 3295.670000000002,
+      "miramar": 3758.6600000000026,
+      "margate": 2194.0000000000005
     },
     {
       "category": "Imports",
-      "pines": 3865.669999999999,
-      "miramar": 2703.5699999999993,
-      "margate": 991.03
+      "pines": 4229.949999999999,
+      "miramar": 3067.849999999999,
+      "margate": 1355.31
     },
     {
       "category": "Chemicals",
-      "pines": 1977.5000000000005,
-      "miramar": 2221.3300000000004,
-      "margate": 905.51
+      "pines": 2056.6900000000005,
+      "miramar": 2306.8,
+      "margate": 963.38
     },
     {
       "category": "ZZZ_Non-Items",
-      "pines": 1619.4199999999996,
-      "miramar": 1704.5100000000007,
-      "margate": 1032.1
+      "pines": 1697.5399999999997,
+      "miramar": 1835.7800000000007,
+      "margate": 1072.42
     },
     {
       "category": "Poultry",
@@ -190,6 +190,17 @@
   ],
   "topProducts": [
     {
+      "itemCode": "RT068",
+      "description": "Banana Ripe #2",
+      "brand": "Rosy",
+      "category": "Produce",
+      "spend": 16297.080000000002,
+      "qty": 757,
+      "pines": 6630.950000000003,
+      "miramar": 6300.780000000001,
+      "margate": 3365.349999999998
+    },
+    {
       "itemCode": "TV458",
       "description": "Strawberry Sliced 4+1 Sugar Added Straight Pack Frozen",
       "brand": "Smoothie King",
@@ -212,103 +223,92 @@
       "margate": 3621.2799999999997
     },
     {
-      "itemCode": "RT068",
-      "description": "Banana Ripe #2",
-      "brand": "Rosy",
-      "category": "Produce",
-      "spend": 15752.83,
-      "qty": 732,
-      "pines": 6478.560000000002,
-      "miramar": 5996,
-      "margate": 3278.269999999998
-    },
-    {
-      "itemCode": "RA182",
-      "description": "Gladiator Bulk Vanilla",
+      "itemCode": "RF278",
+      "description": "Protein Blend Vanilla 2.0",
       "brand": "Smoothie King",
       "category": "Dry Grocery",
-      "spend": 14809.19,
-      "qty": 38,
-      "pines": 6624.6799999999985,
-      "miramar": 6298.680000000001,
-      "margate": 1885.83
+      "spend": 15718.719999999998,
+      "qty": 101,
+      "pines": 6717.750000000002,
+      "miramar": 6204.729999999998,
+      "margate": 2796.239999999999
     },
     {
       "itemCode": "BBN62",
       "description": "Scoopable Acai Base",
       "brand": "Smoothie King",
       "category": "Cheese & Dairy",
-      "spend": 14803.600000000006,
-      "qty": 254,
-      "pines": 5358.240000000003,
-      "miramar": 6701.640000000003,
-      "margate": 2743.7200000000003
+      "spend": 15702.510000000007,
+      "qty": 269,
+      "pines": 5656.470000000004,
+      "miramar": 7120.850000000003,
+      "margate": 2925.190000000001
     },
     {
-      "itemCode": "RF278",
-      "description": "Protein Blend Vanilla 2.0",
+      "itemCode": "RA182",
+      "description": "Gladiator Bulk Vanilla",
       "brand": "Smoothie King",
       "category": "Dry Grocery",
-      "spend": 14793.869999999999,
-      "qty": 96,
-      "pines": 6347.810000000001,
-      "miramar": 5834.789999999997,
-      "margate": 2611.2699999999995
+      "spend": 14809.189999999999,
+      "qty": 38,
+      "pines": 6624.6799999999985,
+      "miramar": 6298.68,
+      "margate": 1885.83
     },
     {
       "itemCode": "RD438",
       "description": "Pineapple Tidbit Individually Quick Frozen",
       "brand": "Smoothie King",
       "category": "Canned & Frozen Fruit & Veg",
-      "spend": 10891.230000000001,
-      "qty": 290,
-      "pines": 3414.4100000000003,
-      "miramar": 4805.680000000002,
-      "margate": 2671.1399999999994
+      "spend": 11360.370000000003,
+      "qty": 302,
+      "pines": 3531.17,
+      "miramar": 5040.250000000004,
+      "margate": 2788.95
     },
     {
       "itemCode": "RG906",
       "description": "Peanut Butter Natural",
       "brand": "The Peanut Kids",
       "category": "Commodity Grocery",
-      "spend": 10812.470000000001,
-      "qty": 212,
-      "pines": 4589.740000000002,
-      "miramar": 4283.529999999999,
-      "margate": 1939.200000000001
+      "spend": 11271.2,
+      "qty": 221,
+      "pines": 4844.590000000001,
+      "miramar": 4436.439999999998,
+      "margate": 1990.170000000001
     },
     {
       "itemCode": "RT060",
       "description": "Banana Green Tip #2 Fresh",
       "brand": "Rosy",
       "category": "Produce",
-      "spend": 9846.649999999994,
-      "qty": 456,
-      "pines": 3230.1999999999985,
-      "miramar": 4264.5099999999975,
-      "margate": 2351.9399999999996
+      "spend": 10412.669999999995,
+      "qty": 482,
+      "pines": 3600.289999999998,
+      "miramar": 4395.129999999997,
+      "margate": 2417.249999999999
     },
     {
       "itemCode": "PT688",
       "description": "Ice Cream Butter Pecan Frozen",
       "brand": "Smoothie King",
       "category": "Cheese & Dairy",
-      "spend": 9543.55,
-      "qty": 223,
-      "pines": 3544.849999999999,
-      "miramar": 4105.01,
-      "margate": 1893.69
+      "spend": 9945.159999999998,
+      "qty": 234,
+      "pines": 3654.3799999999987,
+      "miramar": 4287.5599999999995,
+      "margate": 2003.2199999999998
     },
     {
       "itemCode": "RD456",
       "description": "Acai Scoopable Base",
       "brand": "Smoothie King",
       "category": "Canned & Frozen Fruit & Veg",
-      "spend": 9166.519999999999,
+      "spend": 9166.52,
       "qty": 133,
-      "pines": 3730.0799999999995,
+      "pines": 3730.08,
       "miramar": 4117.7300000000005,
-      "margate": 1318.7099999999998
+      "margate": 1318.71
     },
     {
       "itemCode": "ARN08",
@@ -317,9 +317,9 @@
       "category": "Canned & Frozen Fruit & Veg",
       "spend": 9137.41,
       "qty": 146,
-      "pines": 2941.4199999999996,
+      "pines": 2941.42,
       "miramar": 4443.639999999999,
-      "margate": 1752.3499999999997
+      "margate": 1752.35
     },
     {
       "itemCode": "RK600",
@@ -339,20 +339,20 @@
       "category": "Dry Grocery",
       "spend": 8418.619999999997,
       "qty": 72,
-      "pines": 3982.0799999999986,
+      "pines": 3982.079999999999,
       "miramar": 3271.489999999999,
       "margate": 1165.05
     },
     {
-      "itemCode": "RA284",
-      "description": "Gladiator Bulk Chocolate 2020",
+      "itemCode": "AJV46",
+      "description": "Powder Hulk Vanilla",
       "brand": "Smoothie King",
-      "category": "Dry Grocery",
-      "spend": 7903.620000000001,
-      "qty": 21,
-      "pines": 3012.1900000000005,
-      "miramar": 4164.76,
-      "margate": 726.6700000000001
+      "category": "Imports",
+      "spend": 8126.769999999998,
+      "qty": 52,
+      "pines": 4038.539999999998,
+      "miramar": 2780.66,
+      "margate": 1307.57
     }
   ],
   "topProductsByCategory": {
@@ -362,11 +362,22 @@
         "description": "Cup Foam 32 Ounce Blend With Care",
         "brand": "Smoothie King",
         "category": "Disposables",
-        "spend": 3404.9500000000007,
-        "qty": 86,
-        "pines": 1306.81,
-        "miramar": 1386.0500000000006,
-        "margate": 712.0900000000001
+        "spend": 3726.7100000000005,
+        "qty": 94,
+        "pines": 1427.47,
+        "miramar": 1506.71,
+        "margate": 792.5300000000002
+      },
+      {
+        "itemCode": "BDC02",
+        "description": "Cup Foam 20 Ounce Vio",
+        "brand": "Smoothie King",
+        "category": "Disposables",
+        "spend": 3350.5899999999997,
+        "qty": 80,
+        "pines": 1377.4299999999996,
+        "miramar": 1339.6799999999998,
+        "margate": 633.48
       },
       {
         "itemCode": "RJ262",
@@ -376,19 +387,8 @@
         "spend": 3285.22,
         "qty": 88,
         "pines": 1231.9599999999998,
-        "miramar": 1343.9499999999998,
+        "miramar": 1343.95,
         "margate": 709.3100000000001
-      },
-      {
-        "itemCode": "BDC02",
-        "description": "Cup Foam 20 Ounce Vio",
-        "brand": "Smoothie King",
-        "category": "Disposables",
-        "spend": 3044.41,
-        "qty": 73,
-        "pines": 1289.9499999999996,
-        "miramar": 1208.46,
-        "margate": 546.0000000000001
       },
       {
         "itemCode": "RH374",
@@ -406,32 +406,32 @@
         "description": "Lid Yppl44n Plastic Cup 44 Ounce Polypropylene",
         "brand": "Pactiv",
         "category": "Disposables",
-        "spend": 2450.35,
-        "qty": 67,
+        "spend": 2488.6400000000003,
+        "qty": 68,
         "pines": 987.3100000000003,
         "miramar": 953.4199999999996,
-        "margate": 509.62000000000006
+        "margate": 547.9100000000001
       },
       {
         "itemCode": "PT128",
         "description": "Lid Cup 12-20 Ounce Flat Natural Tall",
         "brand": "Pactiv",
         "category": "Disposables",
-        "spend": 2131.3499999999995,
-        "qty": 84,
-        "pines": 887.2799999999999,
-        "miramar": 864.2099999999997,
-        "margate": 379.85999999999996
+        "spend": 2237.0699999999993,
+        "qty": 88,
+        "pines": 913.7099999999999,
+        "miramar": 890.6399999999995,
+        "margate": 432.71999999999986
       },
       {
         "itemCode": "AVD74",
         "description": "Drink Carrier 4 Cup",
         "brand": "Smoothie King",
         "category": "Disposables",
-        "spend": 1913.15,
-        "qty": 34,
-        "pines": 843.9899999999999,
-        "miramar": 844.0300000000001,
+        "spend": 2084.36,
+        "qty": 37,
+        "pines": 958.1299999999999,
+        "miramar": 901.1000000000001,
         "margate": 225.13
       },
       {
@@ -452,20 +452,20 @@
         "description": "Peanut Butter Natural",
         "brand": "The Peanut Kids",
         "category": "Commodity Grocery",
-        "spend": 10812.470000000001,
-        "qty": 212,
-        "pines": 4589.740000000002,
-        "miramar": 4283.529999999999,
-        "margate": 1939.200000000001
+        "spend": 11271.2,
+        "qty": 221,
+        "pines": 4844.590000000001,
+        "miramar": 4436.439999999998,
+        "margate": 1990.170000000001
       },
       {
         "itemCode": "RA080",
         "description": "Butter Almond",
         "brand": "Smoothie King",
         "category": "Commodity Grocery",
-        "spend": 1507.55,
-        "qty": 11,
-        "pines": 685.25,
+        "spend": 1644.6,
+        "qty": 12,
+        "pines": 822.3,
         "miramar": 822.3,
         "margate": 0
       },
@@ -474,9 +474,9 @@
         "description": "Almond Butte Padre Whole",
         "brand": "Smoothie King",
         "category": "Commodity Grocery",
-        "spend": 1068.95,
-        "qty": 12,
-        "pines": 356.35,
+        "spend": 1175.7,
+        "qty": 13,
+        "pines": 463.1,
         "miramar": 534.33,
         "margate": 178.26999999999998
       },
@@ -485,11 +485,11 @@
         "description": "Sauce Aioli Chipotle Chili Refrigerated",
         "brand": "Tulkoff Food Products",
         "category": "Commodity Grocery",
-        "spend": 328.44,
-        "qty": 12,
+        "spend": 383.18,
+        "qty": 14,
         "pines": 109.48,
-        "miramar": 164.22,
-        "margate": 54.74
+        "miramar": 191.59,
+        "margate": 82.11
       },
       {
         "itemCode": "RA242",
@@ -542,11 +542,22 @@
         "description": "Fuel Adjustment",
         "brand": "Packer",
         "category": "ZZZ_Non-Items",
-        "spend": 3351.7900000000004,
-        "qty": 6606,
-        "pines": 1226.6999999999998,
-        "miramar": 1406.6700000000005,
-        "margate": 718.42
+        "spend": 3551.499999999999,
+        "qty": 6923,
+        "pines": 1304.8199999999997,
+        "miramar": 1487.9399999999998,
+        "margate": 758.7399999999999
+      },
+      {
+        "itemCode": "99870",
+        "description": "Sub Minimum Order Fee",
+        "brand": "Packer",
+        "category": "ZZZ_Non-Items",
+        "spend": 450,
+        "qty": 8,
+        "pines": 150,
+        "miramar": 100,
+        "margate": 200
       },
       {
         "itemCode": "RN586",
@@ -560,17 +571,6 @@
         "margate": 78.68
       },
       {
-        "itemCode": "99870",
-        "description": "Sub Minimum Order Fee",
-        "brand": "Packer",
-        "category": "ZZZ_Non-Items",
-        "spend": 400,
-        "qty": 7,
-        "pines": 150,
-        "miramar": 50,
-        "margate": 200
-      },
-      {
         "itemCode": "F4794",
         "description": "Fuel Surcharge",
         "brand": "Packer",
@@ -579,7 +579,7 @@
         "qty": 22,
         "pines": 65.05,
         "miramar": 70.73,
-        "margate": 26.49
+        "margate": 26.490000000000002
       },
       {
         "itemCode": "RN588",
@@ -632,32 +632,32 @@
         "description": "Banana Ripe #2",
         "brand": "Rosy",
         "category": "Produce",
-        "spend": 15752.83,
-        "qty": 732,
-        "pines": 6478.560000000002,
-        "miramar": 5996,
-        "margate": 3278.269999999998
+        "spend": 16297.080000000002,
+        "qty": 757,
+        "pines": 6630.950000000003,
+        "miramar": 6300.780000000001,
+        "margate": 3365.349999999998
       },
       {
         "itemCode": "RT060",
         "description": "Banana Green Tip #2 Fresh",
         "brand": "Rosy",
         "category": "Produce",
-        "spend": 9846.649999999994,
-        "qty": 456,
-        "pines": 3230.1999999999985,
-        "miramar": 4264.5099999999975,
-        "margate": 2351.9399999999996
+        "spend": 10412.669999999995,
+        "qty": 482,
+        "pines": 3600.289999999998,
+        "miramar": 4395.129999999997,
+        "margate": 2417.249999999999
       },
       {
         "itemCode": "RT044",
         "description": "Banana Green #2",
         "brand": "Rosy",
         "category": "Produce",
-        "spend": 2412.95,
-        "qty": 113,
-        "pines": 1093.98,
-        "miramar": 500.76000000000005,
+        "spend": 2521.7999999999997,
+        "qty": 118,
+        "pines": 1093.9799999999998,
+        "miramar": 609.6099999999999,
         "margate": 818.21
       },
       {
@@ -720,26 +720,26 @@
     ],
     "Dry Grocery": [
       {
-        "itemCode": "RA182",
-        "description": "Gladiator Bulk Vanilla",
-        "brand": "Smoothie King",
-        "category": "Dry Grocery",
-        "spend": 14809.19,
-        "qty": 38,
-        "pines": 6624.6799999999985,
-        "miramar": 6298.680000000001,
-        "margate": 1885.83
-      },
-      {
         "itemCode": "RF278",
         "description": "Protein Blend Vanilla 2.0",
         "brand": "Smoothie King",
         "category": "Dry Grocery",
-        "spend": 14793.869999999999,
-        "qty": 96,
-        "pines": 6347.810000000001,
-        "miramar": 5834.789999999997,
-        "margate": 2611.2699999999995
+        "spend": 15718.719999999998,
+        "qty": 101,
+        "pines": 6717.750000000002,
+        "miramar": 6204.729999999998,
+        "margate": 2796.239999999999
+      },
+      {
+        "itemCode": "RA182",
+        "description": "Gladiator Bulk Vanilla",
+        "brand": "Smoothie King",
+        "category": "Dry Grocery",
+        "spend": 14809.189999999999,
+        "qty": 38,
+        "pines": 6624.6799999999985,
+        "miramar": 6298.68,
+        "margate": 1885.83
       },
       {
         "itemCode": "RA198",
@@ -748,7 +748,7 @@
         "category": "Dry Grocery",
         "spend": 8418.619999999997,
         "qty": 72,
-        "pines": 3982.0799999999986,
+        "pines": 3982.079999999999,
         "miramar": 3271.489999999999,
         "margate": 1165.05
       },
@@ -768,11 +768,22 @@
         "description": "Granola Cluster Crunchy Oat Chia Ready To Eat",
         "brand": "Purely Elizabeth",
         "category": "Dry Grocery",
-        "spend": 5169.359999999999,
-        "qty": 56,
-        "pines": 1753.8899999999994,
-        "miramar": 2215.439999999999,
-        "margate": 1200.0299999999997
+        "spend": 5446.289999999999,
+        "qty": 59,
+        "pines": 1846.1999999999994,
+        "miramar": 2307.749999999999,
+        "margate": 1292.3399999999997
+      },
+      {
+        "itemCode": "RA256",
+        "description": "Gladiator Vanilla Retail",
+        "brand": "Smoothie King",
+        "category": "Dry Grocery",
+        "spend": 4446.86,
+        "qty": 28,
+        "pines": 2850.0599999999995,
+        "miramar": 958.0800000000002,
+        "margate": 638.72
       },
       {
         "itemCode": "RD436",
@@ -781,30 +792,19 @@
         "category": "Dry Grocery",
         "spend": 4390.539999999999,
         "qty": 77,
-        "pines": 1539.5799999999995,
-        "miramar": 2166.8399999999997,
+        "pines": 1539.58,
+        "miramar": 2166.8399999999992,
         "margate": 684.1199999999999
-      },
-      {
-        "itemCode": "RA256",
-        "description": "Gladiator Vanilla Retail",
-        "brand": "Smoothie King",
-        "category": "Dry Grocery",
-        "spend": 3808.1400000000003,
-        "qty": 24,
-        "pines": 2211.34,
-        "miramar": 958.0800000000002,
-        "margate": 638.72
       },
       {
         "itemCode": "ATT56",
         "description": "Protein Whey Vanilla",
         "brand": "Smoothie King",
         "category": "Dry Grocery",
-        "spend": 3783.1200000000003,
-        "qty": 11,
+        "spend": 4307.4400000000005,
+        "qty": 12,
         "pines": 1419.81,
-        "miramar": 2048.8100000000004,
+        "miramar": 2573.13,
         "margate": 314.5
       }
     ],
@@ -825,43 +825,43 @@
         "description": "Juice Blend Kiwi Apple",
         "brand": "Smoothie King",
         "category": "Beverage",
-        "spend": 3479.9200000000005,
-        "qty": 42,
-        "pines": 1158.1,
+        "spend": 3650.1800000000003,
+        "qty": 44,
+        "pines": 1243.23,
         "miramar": 1578.1300000000006,
-        "margate": 743.6899999999999
-      },
-      {
-        "itemCode": "RF322",
-        "description": "Juice Blend Papaya",
-        "brand": "Smoothie King",
-        "category": "Beverage",
-        "spend": 3070.9700000000007,
-        "qty": 67,
-        "pines": 1190.4100000000005,
-        "miramar": 1191.76,
-        "margate": 688.8000000000001
+        "margate": 828.8199999999999
       },
       {
         "itemCode": "RA184",
         "description": "Slim N Trim Blend",
         "brand": "Smoothie King",
         "category": "Beverage",
-        "spend": 3043.8800000000006,
-        "qty": 60,
-        "pines": 1563.4200000000005,
-        "miramar": 1126.9799999999998,
+        "spend": 3221.9599999999996,
+        "qty": 63,
+        "pines": 1682.1399999999999,
+        "miramar": 1186.3399999999995,
         "margate": 353.48
+      },
+      {
+        "itemCode": "RF322",
+        "description": "Juice Blend Papaya",
+        "brand": "Smoothie King",
+        "category": "Beverage",
+        "spend": 3163.890000000001,
+        "qty": 69,
+        "pines": 1236.8700000000006,
+        "miramar": 1238.22,
+        "margate": 688.8000000000001
       },
       {
         "itemCode": "RF334",
         "description": "Juice Blend Apple Pineapple",
         "brand": "Smoothie King",
         "category": "Beverage",
-        "spend": 2432.1999999999994,
-        "qty": 37,
+        "spend": 2499.999999999999,
+        "qty": 38,
         "pines": 855.9299999999997,
-        "miramar": 984.2599999999998,
+        "miramar": 1052.0599999999997,
         "margate": 592.0099999999999
       },
       {
@@ -880,20 +880,20 @@
         "description": "Juice Blend Apple Blueberry",
         "brand": "Smoothie King",
         "category": "Beverage",
-        "spend": 1744.45,
-        "qty": 19,
+        "spend": 1839.1,
+        "qty": 20,
         "pines": 635.6,
         "miramar": 743.7199999999999,
-        "margate": 365.13000000000005
+        "margate": 459.78000000000003
       },
       {
         "itemCode": "RF320",
         "description": "Juice Blend White Grape  Lemon",
         "brand": "Smoothie King",
         "category": "Beverage",
-        "spend": 1622.55,
-        "qty": 25,
-        "pines": 580.71,
+        "spend": 1690.86,
+        "qty": 26,
+        "pines": 649.02,
         "miramar": 717.3299999999999,
         "margate": 324.51000000000005
       }
@@ -904,66 +904,66 @@
         "description": "Scoopable Acai Base",
         "brand": "Smoothie King",
         "category": "Cheese & Dairy",
-        "spend": 14803.600000000006,
-        "qty": 254,
-        "pines": 5358.240000000003,
-        "miramar": 6701.640000000003,
-        "margate": 2743.7200000000003
+        "spend": 15702.510000000007,
+        "qty": 269,
+        "pines": 5656.470000000004,
+        "miramar": 7120.850000000003,
+        "margate": 2925.190000000001
       },
       {
         "itemCode": "PT688",
         "description": "Ice Cream Butter Pecan Frozen",
         "brand": "Smoothie King",
         "category": "Cheese & Dairy",
-        "spend": 9543.55,
-        "qty": 223,
-        "pines": 3544.849999999999,
-        "miramar": 4105.01,
-        "margate": 1893.69
+        "spend": 9945.159999999998,
+        "qty": 234,
+        "pines": 3654.3799999999987,
+        "miramar": 4287.5599999999995,
+        "margate": 2003.2199999999998
       },
       {
         "itemCode": "AWP90",
         "description": "Yogurt Plain Greek Nonfat Refrigerated",
         "brand": "Smoothie King",
         "category": "Cheese & Dairy",
-        "spend": 3289.630000000002,
-        "qty": 128,
-        "pines": 1310.710000000001,
-        "miramar": 1464.910000000001,
-        "margate": 514.01
+        "spend": 3469.5300000000025,
+        "qty": 135,
+        "pines": 1362.110000000001,
+        "miramar": 1542.0100000000011,
+        "margate": 565.4100000000001
       },
       {
         "itemCode": "PT684",
         "description": "Yogurt Vanilla Frozen",
         "brand": "Smoothie King",
         "category": "Cheese & Dairy",
-        "spend": 2681.33,
-        "qty": 124,
-        "pines": 1080.1800000000003,
-        "miramar": 1124.1399999999999,
-        "margate": 477.0099999999999
+        "spend": 2835.8900000000012,
+        "qty": 131,
+        "pines": 1124.3400000000006,
+        "miramar": 1190.3800000000003,
+        "margate": 521.1699999999998
       },
       {
         "itemCode": "RC984",
         "description": "Sorbet Coconut",
         "brand": "Smoothie King",
         "category": "Cheese & Dairy",
-        "spend": 2667.1899999999996,
-        "qty": 65,
-        "pines": 861.7499999999998,
-        "miramar": 1313.0799999999997,
-        "margate": 492.3599999999999
+        "spend": 2790.2799999999993,
+        "qty": 68,
+        "pines": 902.7799999999997,
+        "miramar": 1354.1099999999994,
+        "margate": 533.3899999999999
       },
       {
         "itemCode": "ADH80",
         "description": "Sorbet Dragon Fruit Pitaya Frozen",
         "brand": "Smoothie King",
         "category": "Cheese & Dairy",
-        "spend": 1925.6599999999999,
-        "qty": 30,
-        "pines": 769.66,
-        "miramar": 837.0699999999999,
-        "margate": 318.92999999999995
+        "spend": 2118.83,
+        "qty": 33,
+        "pines": 834.05,
+        "miramar": 901.4599999999999,
+        "margate": 383.31999999999994
       },
       {
         "itemCode": "RA496",
@@ -981,11 +981,11 @@
         "description": "Milk Almond Vanilla Unsweetened",
         "brand": "Califia Farms",
         "category": "Cheese & Dairy",
-        "spend": 1015.0699999999996,
-        "qty": 56,
-        "pines": 342.1899999999998,
-        "miramar": 452.41999999999985,
-        "margate": 220.45999999999992
+        "spend": 1084.6299999999997,
+        "qty": 60,
+        "pines": 359.5799999999998,
+        "miramar": 487.1999999999998,
+        "margate": 237.8499999999999
       }
     ],
     "Canned & Frozen Fruit & Veg": [
@@ -1016,22 +1016,22 @@
         "description": "Pineapple Tidbit Individually Quick Frozen",
         "brand": "Smoothie King",
         "category": "Canned & Frozen Fruit & Veg",
-        "spend": 10891.230000000001,
-        "qty": 290,
-        "pines": 3414.4100000000003,
-        "miramar": 4805.680000000002,
-        "margate": 2671.1399999999994
+        "spend": 11360.370000000003,
+        "qty": 302,
+        "pines": 3531.17,
+        "miramar": 5040.250000000004,
+        "margate": 2788.95
       },
       {
         "itemCode": "RD456",
         "description": "Acai Scoopable Base",
         "brand": "Smoothie King",
         "category": "Canned & Frozen Fruit & Veg",
-        "spend": 9166.519999999999,
+        "spend": 9166.52,
         "qty": 133,
-        "pines": 3730.0799999999995,
+        "pines": 3730.08,
         "miramar": 4117.7300000000005,
-        "margate": 1318.7099999999998
+        "margate": 1318.71
       },
       {
         "itemCode": "ARN08",
@@ -1040,9 +1040,9 @@
         "category": "Canned & Frozen Fruit & Veg",
         "spend": 9137.41,
         "qty": 146,
-        "pines": 2941.4199999999996,
+        "pines": 2941.42,
         "miramar": 4443.639999999999,
-        "margate": 1752.3499999999997
+        "margate": 1752.35
       },
       {
         "itemCode": "RK600",
@@ -1060,10 +1060,10 @@
         "description": "Strawberries",
         "brand": "Smoothie King",
         "category": "Canned & Frozen Fruit & Veg",
-        "spend": 6092.859999999999,
+        "spend": 6092.86,
         "qty": 97,
         "pines": 2205.46,
-        "miramar": 2576.539999999999,
+        "miramar": 2576.54,
         "margate": 1310.86
       },
       {
@@ -1084,11 +1084,11 @@
         "description": "Powder Hulk Vanilla",
         "brand": "Smoothie King",
         "category": "Imports",
-        "spend": 7033.9299999999985,
-        "qty": 46,
-        "pines": 3674.2599999999984,
-        "miramar": 2416.38,
-        "margate": 943.29
+        "spend": 8126.769999999998,
+        "qty": 52,
+        "pines": 4038.539999999998,
+        "miramar": 2780.66,
+        "margate": 1307.57
       },
       {
         "itemCode": "TTD74",
@@ -1152,26 +1152,26 @@
     ],
     "Bakery Frozen": [
       {
-        "itemCode": "GG710",
-        "description": "Bread Multi Grain Loaf   Basket Pan .75\" Sliced Frozen",
-        "brand": "Highland",
-        "category": "Bakery Frozen",
-        "spend": 4330.4000000000015,
-        "qty": 114,
-        "pines": 1404.4400000000003,
-        "miramar": 1901.5700000000006,
-        "margate": 1024.3899999999999
-      },
-      {
         "itemCode": "BAE34",
         "description": "Flatbread Chicken Frozen",
         "brand": "Smoothie King",
         "category": "Bakery Frozen",
-        "spend": 4044,
-        "qty": 100,
-        "pines": 1577.1600000000003,
-        "miramar": 1536.72,
-        "margate": 930.12
+        "spend": 4731.4800000000005,
+        "qty": 117,
+        "pines": 1779.3600000000006,
+        "miramar": 1819.8000000000004,
+        "margate": 1132.32
+      },
+      {
+        "itemCode": "GG710",
+        "description": "Bread Multi Grain Loaf   Basket Pan .75\" Sliced Frozen",
+        "brand": "Highland",
+        "category": "Bakery Frozen",
+        "spend": 4516.85,
+        "qty": 119,
+        "pines": 1516.3100000000002,
+        "miramar": 1938.8600000000004,
+        "margate": 1061.6799999999998
       }
     ],
     "Chemicals": [
@@ -1180,9 +1180,9 @@
         "description": "Detergent Manual Dish Premium Trio Easy Snap Concentrate",
         "brand": "First Mark",
         "category": "Chemicals",
-        "spend": 1436.39,
-        "qty": 31,
-        "pines": 396.00999999999993,
+        "spend": 1484.3700000000001,
+        "qty": 32,
+        "pines": 443.98999999999995,
         "miramar": 817.4200000000001,
         "margate": 222.95999999999998
       },
@@ -1191,10 +1191,10 @@
         "description": "Cleaner All Purpose With Bleach Ready To Use",
         "brand": "First Mark",
         "category": "Chemicals",
-        "spend": 1022.9,
-        "qty": 28,
-        "pines": 191.01,
-        "miramar": 609.67,
+        "spend": 1085.3200000000002,
+        "qty": 30,
+        "pines": 222.22000000000006,
+        "miramar": 640.88,
         "margate": 222.22000000000003
       },
       {
@@ -1202,10 +1202,10 @@
         "description": "Sanitizer Super San Quaternary Easy Snap",
         "brand": "First Mark",
         "category": "Chemicals",
-        "spend": 879.7700000000001,
-        "qty": 14,
+        "spend": 934.0300000000001,
+        "qty": 15,
         "pines": 470.48,
-        "miramar": 192.96,
+        "miramar": 247.22,
         "margate": 216.33
       },
       {
@@ -1213,10 +1213,10 @@
         "description": "Cleaner Floor Enzyme Concentrate Use Cold Water",
         "brand": "First Mark",
         "category": "Chemicals",
-        "spend": 771.8699999999999,
+        "spend": 771.87,
         "qty": 8,
         "pines": 401.9,
-        "miramar": 285.46,
+        "miramar": 285.46000000000004,
         "margate": 84.51
       },
       {
@@ -1235,11 +1235,11 @@
         "description": "Soap Hand Foam Antibacterial",
         "brand": "First Mark",
         "category": "Chemicals",
-        "spend": 201.9,
-        "qty": 3,
+        "spend": 259.77,
+        "qty": 4,
         "pines": 79.56,
         "miramar": 51.25,
-        "margate": 71.09
+        "margate": 128.96
       },
       {
         "itemCode": "DW006",
@@ -1281,87 +1281,87 @@
   "pfgBrands": [
     {
       "brand": "Smoothie King",
-      "spend": 273779.33000000095,
-      "pct": 0.7197232195035016
+      "spend": 286434.87000000075,
+      "pct": 0.7199828944444052
     },
     {
       "brand": "Rosy",
-      "spend": 28012.43000000008,
-      "pct": 0.07364031574522613
+      "spend": 29231.5500000001,
+      "pct": 0.0734764450225504
     },
     {
       "brand": "The Peanut Kids",
-      "spend": 10812.469999999987,
-      "pct": 0.02842429966931758
+      "spend": 11271.199999999992,
+      "pct": 0.028331296395099355
     },
     {
       "brand": "First Mark",
-      "spend": 8092.299999999995,
-      "pct": 0.021273396385286508
-    },
-    {
-      "brand": "Purely Elizabeth",
-      "spend": 5192.720000000003,
-      "pct": 0.01365085215301028
-    },
-    {
-      "brand": "Packer",
-      "spend": 5179.590000000002,
-      "pct": 0.013616335427908783
+      "spend": 8418.529999999993,
+      "pct": 0.021160823039342372
     },
     {
       "brand": "Gold Eagle",
-      "spend": 5107.79,
-      "pct": 0.013427584410217446
+      "spend": 5499.830000000001,
+      "pct": 0.013824376628279103
+    },
+    {
+      "brand": "Purely Elizabeth",
+      "spend": 5469.650000000004,
+      "pct": 0.013748516158657057
+    },
+    {
+      "brand": "Packer",
+      "spend": 5429.300000000001,
+      "pct": 0.013647092369748835
     },
     {
       "brand": "Pactiv",
-      "spend": 4845.160000000003,
-      "pct": 0.012737171042859865
+      "spend": 4989.170000000004,
+      "pct": 0.012540781286423634
     },
     {
       "brand": "Highland",
-      "spend": 4330.400000000003,
-      "pct": 0.011383947172848859
+      "spend": 4516.850000000003,
+      "pct": 0.011353557396036332
     },
     {
-      "brand": "Wholly Avocado",
-      "spend": 3214.799999999995,
-      "pct": 0.008451208519137823
+      "brand": "Patagonia Foods",
+      "spend": 3416.040000000001,
+      "pct": 0.008586560591375834
     }
   ],
   "walmartCategories": [
     {
       "category": "BLUEBERRIES",
-      "spend": 7829.350000000004
+      "spend": 8363.179999999998
     },
     {
       "category": "CORE STRAWBERRIES",
-      "spend": 6441.76
+      "spend": 6801.93
     },
     {
       "category": "FROZEN ICE CREAM L3",
-      "spend": 2342.650000000001
+      "spend": 2368.270000000001
     },
     {
       "category": "YOGURT",
-      "spend": 1319.8399999999995
+      "spend": 1356.9399999999996
     },
     {
       "category": "FROZEN PRODUCE L3",
-      "spend": 1204.1800000000003
+      "spend": 1259.4
     },
     {
       "category": "PEANUT BUTTER",
-      "spend": 828.98
+      "spend": 881.1200000000002
     },
     {
       "category": "PREMIUM EGGS",
-      "spend": 775.3599999999999
+      "spend": 849.9199999999998
     },
     {
       "category": "DIPS PV",
-      "spend": 595.1800000000001
+      "spend": 649.9100000000001
     },
     {
       "category": "SUGAR",
@@ -1373,19 +1373,19 @@
     },
     {
       "category": "TRASH BAGS",
-      "spend": 215.41
+      "spend": 221.89
     },
     {
       "category": "HOUSEHOLD PEST CONTROL",
       "spend": 189.38
     },
     {
-      "category": "FIRST AID",
-      "spend": 182.74
+      "category": "COLD CEREAL L3",
+      "spend": 186.08999999999997
     },
     {
-      "category": "COLD CEREAL L3",
-      "spend": 168.24
+      "category": "FIRST AID",
+      "spend": 182.74
     },
     {
       "category": "SNACK NUTS",
@@ -1401,7 +1401,7 @@
     },
     {
       "category": "BANANAS",
-      "spend": 101.22
+      "spend": 101.21999999999998
     },
     {
       "category": "HISPANIC FOODS L3",
@@ -1424,8 +1424,12 @@
       "spend": 69.88
     },
     {
+      "category": "BAKING GOODS",
+      "spend": 63.6
+    },
+    {
       "category": "GRAPES",
-      "spend": 62.190000000000005
+      "spend": 62.18999999999999
     },
     {
       "category": "CLEANING TOOLS",
@@ -1496,8 +1500,24 @@
       "spend": 16.72
     },
     {
+      "category": "INK PENS AND PERMANENT MARKERS",
+      "spend": 14.600000000000001
+    },
+    {
+      "category": "FOILS BAGS AND WRAPS",
+      "spend": 14.14
+    },
+    {
+      "category": "SALAD DRESSING",
+      "spend": 12.93
+    },
+    {
       "category": "DRIED FRUIT",
       "spend": 12.45
+    },
+    {
+      "category": "ASIAN FOODS",
+      "spend": 11.530000000000001
     },
     {
       "category": "COFFEE",
@@ -1514,10 +1534,6 @@
     {
       "category": "SPORTS DRINKS",
       "spend": 8.059999999999999
-    },
-    {
-      "category": "INK PENS AND PERMANENT MARKERS",
-      "spend": 7.82
     },
     {
       "category": "TODDLER DRINKS",
@@ -1556,6 +1572,10 @@
       "spend": 0
     },
     {
+      "category": "COOLERS",
+      "spend": 0
+    },
+    {
       "category": "DISPOSABLE PLATES",
       "spend": 0
     },
@@ -1568,6 +1588,18 @@
       "spend": 0
     },
     {
+      "category": "CLOCKS",
+      "spend": 0
+    },
+    {
+      "category": "BODY CLEANSING",
+      "spend": 0
+    },
+    {
+      "category": "HOME HARDWARE",
+      "spend": 0
+    },
+    {
       "category": "GADGETS",
       "spend": 0
     },
@@ -1576,39 +1608,15 @@
       "spend": 0
     },
     {
-      "category": "ASIAN FOODS",
-      "spend": 0
-    },
-    {
-      "category": "BAKING GOODS",
-      "spend": 0
-    },
-    {
-      "category": "BODY CLEANSING",
-      "spend": 0
-    },
-    {
-      "category": "CLOCKS",
-      "spend": 0
-    },
-    {
-      "category": "COOLERS",
-      "spend": 0
-    },
-    {
       "category": "INDOOR AIR MATTRESSES",
       "spend": 0
     },
     {
-      "category": "HOME HARDWARE",
+      "category": "OFFICE BOARDS",
       "spend": 0
     },
     {
       "category": "MOVING SUPPLIES",
-      "spend": 0
-    },
-    {
-      "category": "OFFICE BOARDS",
       "spend": 0
     },
     {
@@ -1639,17 +1647,17 @@
     {
       "month": "2026-04",
       "pfgSpend": 45625.09000000008,
-      "walmartSpend": 2886.0800000000017
+      "walmartSpend": 2886.080000000002
     },
     {
       "month": "2026-05",
       "pfgSpend": 49025.49000000008,
-      "walmartSpend": 1733.81
+      "walmartSpend": 1733.8100000000002
     },
     {
       "month": "2026-06",
       "pfgSpend": 48978.12,
-      "walmartSpend": 2661.980000000001
+      "walmartSpend": 2688.1800000000003
     },
     {
       "month": "2026-07",
@@ -1659,12 +1667,12 @@
     {
       "month": "2026-08",
       "pfgSpend": 44131.08000000006,
-      "walmartSpend": 3182.5900000000006
+      "walmartSpend": 3182.59
     },
     {
       "month": "2026-09",
-      "pfgSpend": 28633.92000000004,
-      "walmartSpend": 1574.2700000000002
+      "pfgSpend": 46074.280000000086,
+      "walmartSpend": 2874.749999999998
     }
   ]
 }

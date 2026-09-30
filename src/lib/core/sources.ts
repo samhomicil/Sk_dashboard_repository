@@ -55,3 +55,21 @@ export const wmtFood = {
 // ── NET SALES ───────────────────────────────────────────────────────────────
 /** The canonical net-sales measure inside smoothieking.sales. Sum this expression. */
 export const NET_SALES = `SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END)`
+
+/**
+ * Labor hours + pay per store per day — read this, never smoothieking.labor, for any
+ * hours or labor-cost aggregate. It is a database VIEW so the daily recap email (Python)
+ * reads the identical definition. Owners are never labor hours; the salaried manager
+ * counts only on days he is scheduled, at his scheduled hours (his clocked hours are not
+ * usable — Brink auto-closes his shift ~1:15am). Sam, 2026-09-30. Columns: store,
+ * d (date), hours, pay, plus the parts (crew_hrs, salaried_sched_hrs, …) for audit.
+ */
+export const LABOR_DAILY = 'smoothieking.vw_labor_hours_daily'
+
+/**
+ * Shifts on the floor (store, employee, role, d, shift_start, shift_end, basis) — the
+ * staffing heatmap's source, with the same rule as LABOR_DAILY: no owners; the salaried
+ * manager only on scheduled days, at his scheduled times (basis = 'schedule'); hourly
+ * crew at their actual clock times (basis = 'clock').
+ */
+export const LABOR_SHIFTS = 'smoothieking.vw_labor_floor_shifts'

@@ -86,6 +86,15 @@ export const SOURCES: SourceContract[] = [
   { table: 'smoothieking.labor_schedule', label: 'Posted schedule', dateColumn: 'work_date',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'Brink schedule extractor', forwardLooking: true,
     consumers: ['Weekly Ops', 'Budget', 'payroll model'] },
+  // Views over labor + labor_schedule — the one definition of labor hours (no owners;
+  // salaried manager at scheduled hours) and of shifts on the floor. Same Brink feed,
+  // so the same 2-day contract as labor.
+  { table: 'smoothieking.vw_labor_hours_daily', label: 'Labor hours & pay (view)', dateColumn: 'd',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard + schedule extractors',
+    consumers: ['Overview', 'Weekly Ops', 'daily recap email'] },
+  { table: 'smoothieking.vw_labor_floor_shifts', label: 'Shifts on the floor (view)', dateColumn: 'd',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard + schedule extractors',
+    consumers: ['Labor heatmap'] },
 
   // ── Employee module ────────────────────────────────────────────────────────
   // Same Brink feed as labor, so the same 2-day contract. Break records drive minor-hour

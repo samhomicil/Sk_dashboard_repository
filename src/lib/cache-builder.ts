@@ -25,6 +25,7 @@ import {
 } from './salesCache'
 import { loadHeatmapCache, sqlHeatmap as sigmaHeatmap, sqlHeatmapWeekly as sigmaHeatmapWeekly } from './heatmapCache'
 import { loadCogsCache, sqlCogsPct as sigmaCogsPct } from './cogsCache'
+import { LABOR_DAILY, LABOR_SHIFTS } from './core/sources'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
   QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee, Promotion,
@@ -185,8 +186,8 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
 
   const [laborRes, tillRes, pfsRes, walmartRes] = await Promise.allSettled([
     dbQuery<{total_pay:number;total_hrs:number}[]>(`
-      SELECT SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs FROM smoothieking.labor
-      WHERE ${filter} AND ${df(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
+      SELECT SUM(pay) AS total_pay, SUM(hours) AS total_hrs FROM ${LABOR_DAILY}
+      WHERE ${filter} AND ${df(start, end, 'd')}
     `),
     dbQuery<{till_variance:number}[]>(`
       SELECT ABS(SUM(over_short)) AS till_variance FROM smoothieking.tillhistory
@@ -201,8 +202,8 @@ async function fetchKpis(store: Store, start: string, end: string, pyStart: stri
 
   const [l4wLaborRes, l4wPfsRes, l4wWalmartRes, l4wTillRes] = await Promise.allSettled([
     dbQuery<{total_pay:number}[]>(`
-      SELECT SUM(total_pay) AS total_pay FROM smoothieking.labor
-      WHERE ${filter} AND ${df(l4wS, l4wE, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
+      SELECT SUM(pay) AS total_pay FROM ${LABOR_DAILY}
+      WHERE ${filter} AND ${df(l4wS, l4wE, 'd')}
     `),
     dbQuery<{pfs_total:number}[]>(`
       SELECT SUM(ext_price) AS pfs_total FROM smoothieking.pfs_invoices
@@ -297,8 +298,8 @@ const STORE_DB_NAMES: Record<Store, string> = { all:'', pines:'Pines', miramar:'
 async function fetchStores(start: string, end: string, pyStart: string, pyEnd: string): Promise<StoreRow[]> {
   const codes = STORE_KEYS.map(s => `'${STORE_DB_NAMES[s]}'`).join(',')
   const laborRows = await dbQuery<{store:string;total_pay:number;total_hrs:number}[]>(`
-    SELECT store, SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs
-    FROM smoothieking.labor WHERE store IN (${codes}) AND ${df(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support') GROUP BY store
+    SELECT store, SUM(pay) AS total_pay, SUM(hours) AS total_hrs
+    FROM ${LABOR_DAILY} WHERE store IN (${codes}) AND ${df(start, end, 'd')} GROUP BY store
   `).catch(() => [])
   const laborMap      = new Map(laborRows.map(r => [r.store, Number(r.total_pay)]))
   const laborHoursMap = new Map(laborRows.map(r => [r.store, Number(r.total_hrs)]))
@@ -446,15 +447,14 @@ async function fetchStaffing(start: string, end: string, useRealUnits: boolean):
     shift_start: string; shift_end: string
   }[]>(`
     SELECT store, employee,
-           CAST(CAST(shift_date AS DATE) AS VARCHAR(10)) AS shift_date,
+           CAST(d AS VARCHAR(10)) AS shift_date,
            CAST(shift_start AS VARCHAR(8)) AS shift_start,
            CAST(shift_end AS VARCHAR(8)) AS shift_end
-    FROM smoothieking.labor
+    FROM ${LABOR_SHIFTS}   -- no owners; salaried manager at scheduled times (core/sources.ts)
     WHERE store IN ('Pines','Miramar','Margate')
-      AND CAST(shift_date AS DATE) BETWEEN '${start}' AND '${end}'
+      AND d BETWEEN '${start}' AND '${end}'
       AND shift_start IS NOT NULL AND shift_end IS NOT NULL
-      AND employee_role NOT IN ('NON_EMP', 'Support')  -- exclude IT/system placeholders, not floor staff
-    ORDER BY shift_date, shift_start
+    ORDER BY d, shift_start
   `).catch(() => [])
 
   const DB_TO_KEY: Record<string, keyof StaffingData> = {
@@ -578,15 +578,14 @@ async function fetchHeatmap(store: Store): Promise<unknown[]> {
 
   const shiftRows = await dbQuery<{ employee: string; shift_date: string; shift_start: string; shift_end: string }[]>(`
     SELECT employee,
-           CAST(CAST(shift_date AS DATE) AS VARCHAR(10)) AS shift_date,
+           CAST(d AS VARCHAR(10)) AS shift_date,
            CAST(shift_start AS VARCHAR(8)) AS shift_start,
            CAST(shift_end   AS VARCHAR(8)) AS shift_end
-    FROM smoothieking.labor
+    FROM ${LABOR_SHIFTS}   -- no owners; salaried manager at scheduled times (core/sources.ts)
     WHERE ${filter}
-      AND CAST(shift_date AS DATE) BETWEEN '${weekStart}' AND '${weekEnd}'
-      AND shift_start IS NOT NULL AND shift_end IS NOT NULL AND shift_start <> '' AND shift_end <> ''
-      AND employee_role NOT IN ('NON_EMP', 'Support')  -- exclude IT/system placeholders, not floor staff
-    ORDER BY shift_date, shift_start
+      AND d BETWEEN '${weekStart}' AND '${weekEnd}'
+      AND shift_start IS NOT NULL AND shift_end IS NOT NULL
+    ORDER BY d, shift_start
   `).catch(() => [])
 
   type ShiftEmp = { name: string; shiftEnd: string }
@@ -772,8 +771,8 @@ async function fetchQuarters(store: Store): Promise<QuarterRow[]> {
     const salesPY = sigmaSales(store, pyStart, pyEnd).net_sales
     const orders  = sigmaOrders(store, qStart, eff)
     const labRows = await dbQuery<{labor_cost:number;labor_hrs:number}[]>(`
-      SELECT SUM(total_pay) AS labor_cost, SUM(total_hrs) AS labor_hrs FROM smoothieking.labor
-      WHERE ${filter} AND ${df(qStart, eff, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
+      SELECT SUM(pay) AS labor_cost, SUM(hours) AS labor_hrs FROM ${LABOR_DAILY}
+      WHERE ${filter} AND ${df(qStart, eff, 'd')}
     `).catch(() => [])
     const labor     = Number(labRows[0]?.labor_cost) || 0
     const laborHrsQ = Number(labRows[0]?.labor_hrs)  || 0
@@ -799,11 +798,11 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 async function fetchDailyKpis(store: Store, start: string, end: string): Promise<DailyRow[]> {
   const filter = sf(store)
   const laborRows = await dbQuery<{shift_date:string;total_pay:number;total_hrs:number}[]>(`
-    SELECT CAST(CAST(shift_date AS DATE) AS VARCHAR(10)) AS shift_date,
-           SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs
-    FROM smoothieking.labor
-    WHERE ${filter} AND ${df(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
-    GROUP BY CAST(shift_date AS DATE)
+    SELECT CAST(d AS VARCHAR(10)) AS shift_date,
+           SUM(pay) AS total_pay, SUM(hours) AS total_hrs
+    FROM ${LABOR_DAILY}
+    WHERE ${filter} AND ${df(start, end, 'd')}
+    GROUP BY d
   `).catch(() => [])
 
   const laborMap       = new Map(laborRows.map(r => [String(r.shift_date), Number(r.total_pay)]))

@@ -3,6 +3,7 @@ import { cacheDailyAsync } from '@/lib/cache'
 import { query, dateFilter } from '@/lib/db'
 import type { Store, DailyRow } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
+import { LABOR_DAILY } from '@/lib/core/sources'
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
@@ -43,10 +44,10 @@ async function fetchLaborByDay(store: Store, start: string, end: string): Promis
   const map = new Map<string, { labor: number; hours: number }>()
   try {
     const rows = await query<{ d: string; total_pay: number; total_hrs: number }[]>(`
-      SELECT CAST(shift_date AS DATE) AS d, SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs
-      FROM smoothieking.labor
-      WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')
-      GROUP BY CAST(shift_date AS DATE)
+      SELECT d, SUM(pay) AS total_pay, SUM(hours) AS total_hrs
+      FROM ${LABOR_DAILY}
+      WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'd')}
+      GROUP BY d
     `)
     for (const r of rows) {
       map.set(new Date(r.d).toISOString().slice(0, 10), { labor: Number(r.total_pay) || 0, hours: Number(r.total_hrs) || 0 })

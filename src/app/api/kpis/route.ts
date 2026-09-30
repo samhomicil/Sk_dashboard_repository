@@ -6,6 +6,7 @@ import { query, dateFilter } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
+import { LABOR_DAILY } from '@/lib/core/sources'
 
 const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
 
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest) {
       query<{ v: number }[]>(`SELECT SUM(ext_price) AS v FROM smoothieking.pfs_invoices WHERE ${sfPfs(store)} AND ${dateFilter(start, end, 'invoice_date')}`),
       query<{ v: number }[]>(`SELECT SUM(item_subtotal) AS v FROM smoothieking.walmart_spend WHERE ${sfWm(store)}  AND ${dateFilter(start, end, 'order_date')}`),
       query<{ v: number }[]>(`SELECT ABS(SUM(over_short)) AS v FROM smoothieking.tillhistory WHERE ${sfDb(store)}  AND ${dateFilter(start, end, 'till_date')}`),
-      query<{ total_pay: number; total_hrs: number }[]>(`SELECT SUM(total_pay) AS total_pay, SUM(total_hrs) AS total_hrs FROM smoothieking.labor WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'shift_date')} AND employee_role NOT IN ('NON_EMP', 'Support')`),
+      query<{ total_pay: number; total_hrs: number }[]>(`SELECT SUM(pay) AS total_pay, SUM(hours) AS total_hrs FROM ${LABOR_DAILY} WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'd')}`),
     ])
     if (pfsR.status  === 'fulfilled') pfsTot  = Number(pfsR.value[0]?.v)  || 0
     if (wmR.status   === 'fulfilled') wmTot   = Number(wmR.value[0]?.v)   || 0

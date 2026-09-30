@@ -9,6 +9,7 @@ import { buildForecaster, orderSplit, deriveCogsTarget } from '@/lib/core/foreca
 import { allKeyed } from '@/lib/core/keyed'
 import { cogsWeeklySeries, type CogsWindow } from '@/lib/core/cogs'
 import { requireScope } from '@/lib/store-guard'
+import { LABOR_DAILY } from '@/lib/core/sources'
 
 // Mid-week ops report data layer.
 // Emits the {week, stores, ...} contract the /ops-report page renders. All numbers
@@ -137,13 +138,13 @@ export async function GET(req: Request) {
       SELECT store, CONVERT(char(10), work_date, 23) AS d, employee, sched_hours AS h
       FROM smoothieking.labor_schedule
       WHERE work_date >= '${monday}' AND work_date < '${nextMonday}'`), []),
-    // Actual worked hours + pay this week (labor cost = actual total_pay)
+    // Actual worked hours + pay this week (labor cost = actual pay). Hours follow the shared
+    // definition in LABOR_DAILY: no owners; the salaried manager at his scheduled hours.
     laborWeek: safe(query<LaborRow[]>(`
-      SELECT store, CONVERT(char(10), shift_date, 23) AS d, SUM(total_hrs) AS h, SUM(total_pay) AS pay
-      FROM smoothieking.labor
-      WHERE shift_date >= '${monday}' AND shift_date < '${nextMonday}'
-        AND employee_role NOT IN ('NON_EMP', 'Support')
-      GROUP BY store, CONVERT(char(10), shift_date, 23)`), []),
+      SELECT store, CONVERT(char(10), d, 23) AS d, SUM(hours) AS h, SUM(pay) AS pay
+      FROM ${LABOR_DAILY}
+      WHERE d >= '${monday}' AND d < '${nextMonday}'
+      GROUP BY store, CONVERT(char(10), d, 23)`), []),
     // Rate = each employee's most-recent rate (daily recap rate_lookup)
     empRates: safe(query<EmpRateRow[]>(`
       SELECT store, employee, rate FROM (

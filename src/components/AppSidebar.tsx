@@ -102,6 +102,19 @@ export default function AppSidebar() {
         </span>
       </Link>
 
+      {/* Which account this browser is signed in as, and what it can see — with several
+          Google accounts saved in one browser it is otherwise easy to be someone else. */}
+      {session?.user?.email && (
+        <div className="sk-who" title={session.user.email}
+             style={{ padding: '0 20px 12px', fontSize: 11, lineHeight: 1.35, color: 'rgba(255,255,255,.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.user.email}</div>
+          <div>{session.user.store
+            ? `${session.user.store[0].toUpperCase()}${session.user.store.slice(1)} only`
+            : session.user.store === null ? 'No store assigned' : 'All stores'}
+            {session.user.role === 'owner' ? ' · owner' : ''}</div>
+        </div>
+      )}
+
       <div className="sk-navlabel">Operations</div>
       <nav className="sk-nav">
         <Link href="/" className={item(pathname === '/')}>

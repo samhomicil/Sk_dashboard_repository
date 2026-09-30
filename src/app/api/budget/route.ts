@@ -3,7 +3,7 @@ import { getPrisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/owner-guard'
 import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS, PRIME_TARGET, MGR_WEEKLY } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf } from '@/lib/core/dates'
-import { buildRateFor, type EmpRateRow } from '@/lib/core/labor'
+import { buildRateFor, schedRate, type EmpRateRow } from '@/lib/core/labor'
 import { empBurden, uncappedRate, TIP_PAYOUT } from '@/lib/core/laborBurden'
 import { buildForecaster, type SalesRow } from '@/lib/core/forecast'
 import { pfgFood, wmtFood } from '@/lib/core/sources'
@@ -127,7 +127,7 @@ export async function GET() {
     query<{ store: string; d: string; pay: number }[]>(`SELECT store, CONVERT(char(10),shift_date,23) d, SUM(total_pay) pay
       FROM smoothieking.labor WHERE shift_date >= '${trainStart}' AND shift_date < '${end}'
         AND employee_role NOT IN ('NON_EMP','Support') GROUP BY store, CONVERT(char(10),shift_date,23)`),
-    query<{ store: string; d: string; employee: string; h: number }[]>(`SELECT store, CONVERT(char(10),work_date,23) d, employee, sched_hours h
+    query<{ store: string; d: string; employee: string; role: string | null; h: number }[]>(`SELECT store, CONVERT(char(10),work_date,23) d, employee, role, sched_hours h
       FROM smoothieking.labor_schedule WHERE work_date >= '${wk0}' AND work_date < '${end}'
         AND role NOT IN ('NON_EMP','Support')`),
     query<EmpRateRow[]>(`SELECT store, employee, rate FROM (
@@ -201,7 +201,7 @@ export async function GET() {
   for (const r of empActual) if (r.d <= maxLabor) empDayWage.set(`${r.store}|${r.employee}|${r.d}`, num(r.pay))
   for (const r of schedRows) if (r.d > maxLabor) {
     const k = `${r.store}|${r.employee}|${r.d}`
-    empDayWage.set(k, (empDayWage.get(k) ?? 0) + num(r.h) * rateFor(r.store, r.employee))
+    empDayWage.set(k, (empDayWage.get(k) ?? 0) + num(r.h) * schedRate(rateFor, r))
   }
   const burdenRate = new Map<string, number>()   // `${store}|${weekMonday}` -> rate
   for (const name of STORE_NAMES) {
@@ -236,7 +236,7 @@ export async function GET() {
     for (const r of salesRows) if (r.store === name) sales.set(r.d, num(r.net))
     for (const r of laborRows) if (r.store === name) labor.set(r.d, num(r.pay))
     const sched = new Map<string, number>()   // d -> scheduled cost
-    for (const r of schedRows) if (r.store === name) sched.set(r.d, (sched.get(r.d) ?? 0) + num(r.h) * rateFor(name, r.employee))
+    for (const r of schedRows) if (r.store === name) sched.set(r.d, (sched.get(r.d) ?? 0) + num(r.h) * schedRate(rateFor, { ...r, store: name }))
     const pfg = new Map<string, number>()
     for (const r of pfgRows) if (PFG_TO_NAME[r.store] === name) pfg.set(r.d, (pfg.get(r.d) ?? 0) + num(r.total))
     const tips = new Map<string, number>()

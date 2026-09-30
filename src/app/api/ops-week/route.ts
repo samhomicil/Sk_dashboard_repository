@@ -4,7 +4,7 @@ import {
   LABOR_TARGET, LABOR_AMBER, COGS_TARGET, HIST_WEEKS, STORES, DOW,
 } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf, monthDay } from '@/lib/core/dates'
-import { buildRateFor } from '@/lib/core/labor'
+import { buildRateFor, schedRate } from '@/lib/core/labor'
 import { buildForecaster, orderSplit, deriveCogsTarget } from '@/lib/core/forecast'
 import { allKeyed } from '@/lib/core/keyed'
 import { cogsWeeklySeries, type CogsWindow } from '@/lib/core/cogs'
@@ -79,7 +79,7 @@ async function getWeather(dates: string[]): Promise<Record<string, { temp: strin
 
 /* ---------- typed row shapes ---------- */
 type SalesRow = { store: string; d: string; net: number }
-type SchedRow = { store: string; d: string; employee: string; h: number }
+type SchedRow = { store: string; d: string; employee: string; role: string | null; h: number }
 type LaborRow = { store: string; d: string; h: number; pay: number }
 type EmpRateRow = { store: string; employee: string; rate: number }
 type PfgRow = { store_number: string; spend: number }
@@ -135,7 +135,7 @@ export async function GET(req: Request) {
     // Published schedule at employee grain (this week + next week are pulled by the
     // extractor) — kept per-employee so cost uses each person's own rate.
     schedWeek: safe(query<SchedRow[]>(`
-      SELECT store, CONVERT(char(10), work_date, 23) AS d, employee, sched_hours AS h
+      SELECT store, CONVERT(char(10), work_date, 23) AS d, employee, role, sched_hours AS h
       FROM smoothieking.labor_schedule
       WHERE work_date >= '${monday}' AND work_date < '${nextMonday}'`), []),
     // Actual worked hours + pay this week (labor cost = actual pay). Hours follow the shared
@@ -183,7 +183,7 @@ export async function GET(req: Request) {
   for (const r of schedWeek) {
     const k = `${r.store}|${r.d}`, h = Number(r.h) || 0
     schedHours.set(k, (schedHours.get(k) ?? 0) + h)
-    schedCost.set(k, (schedCost.get(k) ?? 0) + h * rateFor(r.store, r.employee))
+    schedCost.set(k, (schedCost.get(k) ?? 0) + h * schedRate(rateFor, r))   // salaried: $0
   }
 
   // Actual worked hours + pay per store/day.

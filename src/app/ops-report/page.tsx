@@ -193,7 +193,7 @@ function weekToDateStats(data: OpsPayload, s: Summary) {
       <Stat label="Sales · to date" value={money(mw.sact)} sub={`/ ${money(mw.splan)}`}
         delta={`${sMoney(s.mwSalesVar)} · ${sPct(s.mwSalesPct)}`}
         tone={Math.abs(s.mwSalesVar) < 1 ? 'neutral' : s.mwSalesVar < 0 ? 'bad' : 'good'} />
-      <Stat label="Labor cost · to date" value={money(mw.lcost)} sub={`/ ${money(mw.lcostPlan)}`}
+      <Stat label="Labor cost · to date" value={money(mw.lcost)} sub={`/ ${money(s.mwLaborEarned)} at ${targetPct.toFixed(0)}% of sales`}
         delta={`${sMoney(s.mwLaborVar)} · ${sPct(s.mwLaborPct)}`}
         tone={Math.abs(s.mwLaborVar) < 1 ? 'neutral' : s.mwLaborVar > 0 ? 'bad' : 'good'} />
       <Stat label="Labor % pacing" value={`${s.paceAct.toFixed(1)}%`} sub={`vs ${s.paceTarget.toFixed(1)}%`}

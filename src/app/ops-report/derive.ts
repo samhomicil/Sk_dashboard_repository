@@ -173,7 +173,13 @@ export function summarize(data: OpsPayload, v: View) {
     splan: a.splan + d.salesPlan, sact: a.sact + d.salesActual, lcost: a.lcost + d.laborCost, lcostPlan: a.lcostPlan + d.laborCostPlan,
   }), { splan: 0, sact: 0, lcost: 0, lcostPlan: 0 })
   const mwSalesVar = mw.sact - mw.splan, mwSalesPct = mw.splan ? (mwSalesVar / mw.splan) * 100 : 0
-  const mwLaborVar = mw.lcost - mw.lcostPlan, mwLaborPct = mw.lcostPlan ? (mwLaborVar / mw.lcostPlan) * 100 : 0
+  // Labor is judged against what the ACTUAL sales support at the labor target — never the
+  // schedule. The schedule is sized to forecast sales, so on a week where sales miss, labor
+  // can come in under the schedule while running far over target as a share of sales; comparing
+  // to the schedule painted that week green (Sam, 2026-09-30: "misleading — should be on
+  // actual sales"). Earned labor = target % × actual sales to date.
+  const mwLaborEarned = data.laborTarget * mw.sact
+  const mwLaborVar = mw.lcost - mwLaborEarned, mwLaborPct = mwLaborEarned ? (mwLaborVar / mwLaborEarned) * 100 : 0
   const paceAct = mw.sact ? (mw.lcost / mw.sact) * 100 : 0
   const paceTarget = mw.splan ? (mw.lcostPlan / mw.splan) * 100 : 0
   const paceDrift = paceAct - paceTarget
@@ -213,7 +219,7 @@ export function summarize(data: OpsPayload, v: View) {
 
   return {
     days, isNext, T, tSalesVar, tHrsVar, tPctPlan, tPctAct,
-    mw, mwSalesVar, mwSalesPct, mwLaborVar, mwLaborPct, paceAct, paceTarget, paceDrift,
+    mw, mwSalesVar, mwSalesPct, mwLaborEarned, mwLaborVar, mwLaborPct, paceAct, paceTarget, paceDrift,
     projSales, cogsPct, cogsTargetPct, cogsDrift, cogsAct$, cogsPlan$,
     laborPct, laborTargetPct, laborPlan$, primePct, primeTargetPct, primeAct$, primePlan$,
     transferPct, targetPct, amberPct, focus, hotDays, rainDays,

@@ -117,6 +117,14 @@ export default function AppSidebar() {
 
       <div className="sk-navlabel">Operations</div>
       <nav className="sk-nav">
+        <Link href="/now" className={item(pathname.startsWith('/now'))}>
+          <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          <span className="sk-lbl">Now</span>
+        </Link>
+
         <Link href="/" className={item(pathname === '/')}>
           <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
             <rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" />

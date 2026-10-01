@@ -73,3 +73,51 @@ export const LABOR_DAILY = 'smoothieking.vw_labor_hours_daily'
  * crew at their actual clock times (basis = 'clock').
  */
 export const LABOR_SHIFTS = 'smoothieking.vw_labor_floor_shifts'
+
+// ── UNITS + SALES BY HALF-HOUR (the Now screen) ─────────────────────────────
+/**
+ * A MADE UNIT is the unit of work behind the counter (Sam, 2026-10-01: staffing is judged
+ * in units, not orders — an order averages 1.33 units but runs 2+ in one busy half-hour in
+ * ten). One unit = one non-modifier sales line (Brink writes one line per item sold) that is
+ *   • a Smoothie, Smoothie Bowl or Food item in smoothieking.menu_item_category — names
+ *     normalised, because the POS swaps spaces for underscores ('Angel Food_Slim 20'), or
+ *   • an item the taxonomy does not know that carries a price (the Hi Pro coffee drinks).
+ * A bowl counts as one unit, the same as a smoothie. NOT units: modifiers, retail, and two
+ * $0 HEADER lines whose contents are already their own lines — "Olo ID: …" (one per online
+ * order, ~3,650/month) and "20oz & Flatbread/Toast Bundle" (its smoothie and its food are
+ * separate lines with the money). Counting either would double-count.
+ *
+ * `where` filters smoothieking.sales aliased `s`, e.g. "s.closed_datetime >= '2026-10-01'".
+ * slot = half-hour of the day, 0–47 (slot 19 = 9:30–10:00). net is NET_SALES, so slots sum
+ * to the same daily net every other surface shows.
+ */
+export const salesBySlot = (where: string) => `
+  WITH c AS (
+    SELECT LOWER(REPLACE(LTRIM(RTRIM(item_name)), '_', ' ')) AS k, MAX(category) AS category
+      FROM smoothieking.menu_item_category
+     GROUP BY LOWER(REPLACE(LTRIM(RTRIM(item_name)), '_', ' ')))
+  SELECT s.store, CONVERT(char(10), s.closed_datetime, 23) AS d,
+         DATEPART(hour, s.closed_datetime) * 2 + DATEPART(minute, s.closed_datetime) / 30 AS slot,
+         ${NET_SALES} AS net,
+         SUM(CASE WHEN s.voided = 0 AND s.is_modifier = 0
+                   AND s.item_name NOT LIKE 'Olo ID:%' AND s.item_name NOT LIKE '%Bundle'
+                   AND (c.category IN ('Smoothies', 'Smoothie Bowls', 'Food')
+                        OR (c.category IS NULL AND s.gross_sales > 0))
+                  THEN 1 ELSE 0 END) AS units,
+         COUNT(DISTINCT CASE WHEN s.voided = 0 THEN s.order_id END) AS orders
+    FROM smoothieking.sales s
+    LEFT JOIN c ON c.k = LOWER(REPLACE(LTRIM(RTRIM(s.item_name)), '_', ' '))
+   WHERE ${where}
+   GROUP BY s.store, CONVERT(char(10), s.closed_datetime, 23),
+            DATEPART(hour, s.closed_datetime) * 2 + DATEPART(minute, s.closed_datetime) / 30`
+
+/** Each employee's most-recent hourly rate — the daily recap's rate_lookup, fed to
+ *  core/labor buildRateFor (which adds the store-average and DEFAULT_RATE fallbacks). */
+export const LATEST_RATES = `
+  SELECT store, employee, rate FROM (
+    SELECT store, employee, rate,
+           ROW_NUMBER() OVER (PARTITION BY store, employee ORDER BY shift_date DESC) rn
+    FROM smoothieking.labor WHERE rate > 0) t WHERE rn = 1`
+
+/** The brink-intraday job's run log: one row per 30-minute pull (ET wall clock). */
+export const INTRADAY_RUNS = 'smoothieking.intraday_runs'

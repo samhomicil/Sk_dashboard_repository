@@ -54,6 +54,17 @@ async function rawQuery<T>(sql: string): Promise<T> {
   return data.rows ?? data.results ?? data
 }
 
+/**
+ * A read that must never come from the cache: "has new data landed?" probes. The brink-
+ * intraday job writes straight to SQL every 30 minutes and cannot expire this app's cache,
+ * so the Now screen asks for the latest run uncached and puts its id into the SQL of every
+ * today-query — the cache then turns over exactly when a new pull lands, and every viewer
+ * shares one cached copy in between.
+ */
+export async function queryLive<T = Record<string, unknown>[]>(sql: string): Promise<T> {
+  return rawQuery<T>(sql)
+}
+
 export async function query<T = Record<string, unknown>[]>(sql: string): Promise<T> {
   const isRead = /^\s*(select|with)\b/i.test(sql)
   if (!isRead) {

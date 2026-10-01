@@ -269,3 +269,52 @@ export const VOID_LIMIT_PCT = 0.02
  * of this a manager can act on.
  */
 export const VOID_VS_SHIFT_MULTIPLE = 2
+
+/* ── Intraday: the Now screen and its send-home calls ──────────────────────────────
+ * Brink is pulled every 30 minutes in open hours (brink-intraday job), so the Now screen
+ * can judge staffing while the day is still running. Sam, 2026-10-01: staffing is judged
+ * in UNITS made, not orders ("not all orders are created equal"), the number of people a
+ * half-hour needs comes from the unit threshold (no fixed minimum of two), and truck days
+ * need an extra pair of hands through receiving. */
+
+/** Made units one person can comfortably turn out in a half-hour. Sam chose 6 from the
+ *  September backtest: 5 → ~$1,320/mo of calls with no overloaded crew, 6 → ~$2,250 and
+ *  one (an unforecastable surge), 7 → ~$3,240 and seven. For scale, August–September:
+ *  one person alone routinely handled up to 8 (P90), two people 13 between them.
+ *  A bowl counts as one unit, like a smoothie (Sam, 2026-10-01). */
+export const UNITS_PER_PERSON_HALF_HOUR = 6
+
+/** Truck-day receiving windows, ET, on the DELIVERY_DOWS days. One extra person is kept on
+ *  the floor through them. Pines and Miramar are read off when each store already brings in
+ *  an extra person on truck days (Aug–Sep) — confirmed "about right" by Sam, 2026-10-01.
+ *  ⚠️ Margate is an ESTIMATE: it shows no extra person on truck days, but it is an early
+ *  stop on its Tuesday PFG route (stop 2–4 of the day), as Pines is (stop 3–5, ~8 AM);
+ *  Miramar is a late stop (7–12), which matches its midday window. */
+export const TRUCK_WINDOWS: Record<string, [string, string]> = {
+  Pines: ['08:00', '10:00'], Miramar: ['11:30', '14:30'], Margate: ['08:00', '10:00'],
+}
+
+/** A send-home call needs at least this many hours of the shift left to be worth making. */
+export const SEND_HOME_MIN_HOURS = 1
+
+/** The staffing forecast uses a BUSY version of the weekday, not the average: the
+ *  Nth-busiest of the last HIST_WEEKS same weekdays for each half-hour (2 = second-busiest
+ *  of four). Sending someone home on an average forecast is wrong half the time. */
+export const BUSY_RANK = 2
+
+/** Today's pace (units so far ÷ usual by now) scales the forecast, clamped so one odd
+ *  half-hour cannot swing the rest of the day. */
+export const PACE_CLAMP: readonly [number, number] = [0.7, 1.5]
+
+/** Late = no clock-in this many minutes after the scheduled start (alerts spec, 2026-09-30). */
+export const LATE_MINUTES = 15
+
+/** Brink refresh windows, ET, by JS getDay (0 = Sun). MIRRORS run_intraday.py WINDOWS in
+ *  brink-extractor — change both together. Outside them nothing new lands. */
+export const REFRESH_WINDOWS: Record<number, [string, string]> = {
+  0: ['08:30', '21:00'], 1: ['06:30', '22:00'], 2: ['06:30', '22:00'], 3: ['06:30', '22:00'],
+  4: ['06:30', '22:00'], 5: ['06:30', '22:00'], 6: ['08:30', '22:00'],
+}
+
+/** Inside a refresh window, data older than this is stale: calls pause rather than act on it. */
+export const INTRADAY_STALE_MINUTES = 45

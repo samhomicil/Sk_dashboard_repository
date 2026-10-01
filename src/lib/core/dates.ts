@@ -43,3 +43,25 @@ export function monthDay(iso: string): string {
     month: 'short', day: 'numeric', timeZone: 'UTC',
   })
 }
+
+/** Minutes after midnight, ET, right now. The intraday clock for the Now screen. */
+export function etNowMinutes(at: Date = new Date()): number {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(at)
+  const n = (t: string) => Number(p.find(x => x.type === t)?.value ?? 0)
+  return n('hour') * 60 + n('minute')
+}
+
+/** 'HH:MM' or 'HH:MM:SS' → minutes after midnight. */
+export function hmToMin(hm: string): number {
+  const [h, m] = hm.split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+
+/** Minutes after midnight → '3:05 PM' (wraps past midnight). */
+export function minToClock(min: number): string {
+  const m = ((Math.round(min) % 1440) + 1440) % 1440
+  const h = Math.floor(m / 60), mm = m % 60
+  return `${h % 12 || 12}:${String(mm).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+}

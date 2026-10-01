@@ -67,6 +67,13 @@ export const SOURCES: SourceContract[] = [
   { table: 'smoothieking.sales', label: 'POS sales', dateColumn: 'closed_datetime',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink extractor',
     consumers: ['Overview', 'Weekly Ops', 'Budget', 'Cash Flow', 'Menu Mix', 'Inventory'] },
+  // The 30-minute intraday pull's own log (brink-intraday job, 2026-10-01). Today's sales and
+  // timecards land with each row; the Now screen dates itself by the last ok one and pauses
+  // its send-home calls when that is over INTRADAY_STALE_MINUTES old inside open hours.
+  // Nothing runs overnight, so a day-old last row is normal at 6 AM; two days is broken.
+  { table: 'smoothieking.intraday_runs', label: 'Intraday Brink pulls', dateColumn: 'run_at',
+    cadence: 'realtime', maxAgeDays: 2, fedBy: 'brink-intraday job (run_intraday.py)',
+    consumers: ['Now'] },
   { table: 'smoothieking.tillhistory', label: 'Tills & tips', dateColumn: 'till_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink extractor',
     consumers: ['Cash Flow', 'Budget', 'payroll model'] },

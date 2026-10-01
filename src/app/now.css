@@ -1,0 +1,74 @@
+/* ── Now screen ─────────────────────────────────────────────────────────────────
+   The intraday screen: a store's day while it is still running. Phone first — it is
+   read standing behind the counter. Base rules first, responsive blocks last. */
+
+/* Send-home calls inside the TakeCard: one line per person, hours saved leading. */
+.sk-now-calls { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+.sk-now-call { display: flex; gap: var(--space-3); align-items: baseline; }
+.sk-now-call .amount {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700;
+  min-width: 4.5em; white-space: nowrap;
+}
+
+/* Sales by hour: today's bar against a tick at the usual level for that hour.
+   Hours still to come are drawn in the forecast colour, never as if they happened. */
+.sk-now-chart { display: flex; flex-direction: column; gap: var(--space-2); }
+.sk-now-bars {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: 4px; align-items: end; height: 140px;
+  border-bottom: 1px solid var(--line);
+}
+.sk-now-bar { position: relative; height: 100%; display: flex; align-items: flex-end; }
+.sk-now-bar > i { display: block; width: 100%; border-radius: 4px 4px 0 0; }
+.sk-now-bar > i.actual { background: var(--brand); }
+.sk-now-bar > i.proj { background: var(--ramp-sequential-2); }
+.sk-now-bar > b {
+  position: absolute; left: -2px; right: -2px; height: 2px;
+  background: var(--ink); border-radius: 1px;
+}
+.sk-now-axis {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px;
+  font-family: var(--font-mono); font-size: var(--text-eyebrow); color: var(--ink-muted);
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.sk-now-legend {
+  display: flex; flex-wrap: wrap; gap: var(--space-4);
+  font-family: var(--font-mono); font-size: var(--text-eyebrow); color: var(--ink-muted);
+}
+.sk-now-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sk-now-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.sk-now-legend i.actual { background: var(--brand); }
+.sk-now-legend i.proj { background: var(--ramp-sequential-2); }
+.sk-now-legend i.normal { height: 2px; width: 12px; background: var(--ink); }
+
+/* People and the hours ahead: compact tables, secondary line under the name. */
+.sk-now-sub { display: block; color: var(--ink-muted); font-size: 12px; margin-top: 2px; }
+.sk-now-group td { padding-top: var(--space-4); }
+.sk-now-chip {
+  display: inline-block; font-family: var(--font-mono); font-size: var(--text-eyebrow);
+  font-weight: 600; border: 1px solid currentColor; border-radius: 999px; padding: 1px 8px;
+  white-space: nowrap; color: var(--tone, var(--ink-muted));
+}
+
+/* All stores: one card per store, the whole card is the way in. */
+.sk-now-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.sk-now-store {
+  display: flex; flex-direction: column; gap: var(--space-2); text-align: left;
+  font: inherit; color: inherit; cursor: pointer; min-height: var(--touch-min);
+}
+.sk-now-store .lines { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--ink-muted); }
+.sk-now-store .lines b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+@media (hover: hover) {
+  .sk-now-store:hover { border-color: var(--line-strong); }
+}
+
+@media (max-width: 720px) {
+  .sk-now-stores { grid-template-columns: minmax(0, 1fr); }
+  /* Four tiles two-up: the decision and all four numbers fit the first phone screen. */
+  .sk-now-tiles .sk-grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  /* These tables fit a phone, so they opt out of the pinned first column wide tables use. */
+  .sk-table.sk-now-table th:first-child,
+  .sk-table.sk-now-table td:first-child { position: static; border-right: 0; max-width: none; overflow: visible; }
+  .sk-now-axis span:nth-child(even) { visibility: hidden; }
+}

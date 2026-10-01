@@ -98,6 +98,17 @@ export type Call = {
   truck: boolean                // their shift overlaps today's truck window
 }
 
+/** When nobody can go: the person the rule came closest to sending, and the half-hour that
+ *  keeps them — so "1 extra" in the next hours never sits beside an unexplained "nobody". */
+export type Hold = {
+  employee: string
+  until: number                 // their scheduled finish
+  at: number                    // the half-hour that needs them (start, minutes)
+  units: number                 // that half-hour's units, on the larger forecast
+  need: number                  // people that half-hour needs
+  lead: boolean                 // held because they are the only shift lead then
+}
+
 export type HourRow = {
   hour: number                  // 0–23
   actual: number | null         // net sales, hours already (partly) run
@@ -127,6 +138,8 @@ export type AheadRow = {
   need: number                  // people the BUSY forecast needs — the send-home test
   needUsual: number             // people the USUAL forecast needs — fewer on than this is short
   heads: number                 // fewest people on in the stretch, as scheduled
+  peak: number                  // the busiest half-hour's units, on the larger of the two forecasts
+  truck: boolean                // part of the stretch is held for the truck (+1 person)
 }
 
 export type StoreNow = {
@@ -149,6 +162,7 @@ export type StoreNow = {
   people: Person[]
   ahead: AheadRow[]
   calls: Call[]
+  hold: Hold | null
   facts: Facts
   attendance: AttendanceFlag[]
 }
@@ -365,6 +379,29 @@ export function buildStoreNow(input: {
     gone.add(pick)
   }
 
+  // ── nobody can go: say who came closest, and what keeps them ────────────────
+  let hold: Hold | null = null
+  if (!calls.length) {
+    const c = people
+      .filter(p => p.status === 'on' && !p.salaried && p.schedEnd != null
+        && p.schedEnd - asOf >= SEND_HOME_MIN_HOURS * 60 && p.schedEnd < lastOut)
+      .sort((a, b) => (b.schedEnd! - asOf) - (a.schedEnd! - asOf))[0]
+    if (c) {
+      const without = new Set([c])
+      const span = stretch(c.schedEnd!)
+      const leadGap = c.lead ? span.find(({ m }) => leadsAt(m, without) === 0) : undefined
+      const first = leadGap ?? span.find(({ s, m }) => coverAt(m, without) < need(s))
+      if (first) {
+        const usual = meanUnits[first.s] * pace.units
+        hold = {
+          employee: c.employee, until: c.schedEnd!, at: first.s * SLOT,
+          units: Math.round(Math.max(fc(first.s), usual)),
+          need: Math.max(need(first.s), needFor(usual, first.s)), lead: !!leadGap,
+        }
+      }
+    }
+  }
+
   // ── labor: paid so far, and the finish if nothing changes ──────────────────
   let paySoFar = 0, remainingHours = 0, remainingCost = 0
   for (const p of people) {
@@ -413,6 +450,8 @@ export function buildStoreNow(input: {
       busyUnits: Math.round(sumBy(span, ({ s }) => fc(s))),
       need: Math.max(...span.map(({ s }) => need(s))),
       needUsual: Math.max(...span.map(({ s }) => needFor(meanUnits[s] * pace.units, s))),
+      peak: Math.round(Math.max(...span.map(({ s }) => Math.max(fc(s), meanUnits[s] * pace.units)))),
+      truck: !!truck && span.some(({ s }) => truck.from <= s * SLOT + SLOT / 2 && s * SLOT + SLOT / 2 < truck.to),
       heads: Math.min(...span.map(({ m }) => headsAt(m, new Set()))),   // as scheduled, before any call
     })
   }
@@ -528,6 +567,6 @@ export function buildStoreNow(input: {
       soFar: Math.round(soFarNet), normalByNow: Math.round(normalByNow), normalDay,
       onPace: Math.round(onPace), orders, units: soFarUnits, byHour,
     },
-    labor, people, ahead, calls, facts, attendance,
+    labor, people, ahead, calls, hold, facts, attendance,
   }
 }

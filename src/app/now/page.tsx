@@ -21,7 +21,7 @@ import { SegControl } from '@/components/design/controls'
 import { useStoreLock } from '@/components/useStoreLock'
 import { minToClock } from '@/lib/core/dates'
 import type { NowPayload } from '@/app/api/now/route'
-import type { StoreNow, Person, Call, AttendanceFlag, LateEvent } from '@/lib/core/intraday'
+import type { StoreNow, Person, Call, AttendanceFlag, LateEvent, AheadRow } from '@/lib/core/intraday'
 
 type StoreKey = 'all' | 'pines' | 'miramar' | 'margate'
 type S = NowPayload['stores'][number]
@@ -56,6 +56,10 @@ const DAY_LONG: Record<string, string> = {
 }
 const avgHeader = (d: NowPayload) =>
   <>today <i className="sk-now-avg">/ avg of the last {d.targets.histWeeks} {DAY_LONG[d.day] ?? d.day}s</i></>
+/** The next hours are planned for a BUSY day: the larger of the two forecasts, so a manager
+ *  sees one number of units and one number of people. Staffing is decided per half-hour, so
+ *  the row shows the busiest half-hour — then "needed" is just those units ÷ 6, rounded up. */
+const neededOf = (a: AheadRow) => Math.max(a.need, a.needUsual)
 /** 'in 7:29 AM for 6:30 AM' — every late mention carries the clock-in and the due time. */
 const inFor = (inAt: number, sched: number) => `in ${clock(inAt)} for ${clock(sched)}`
 const signedPct = (x: number) => {
@@ -224,7 +228,7 @@ function StoreView({ d, s }: { d: NowPayload; s: S }) {
         <HourTable s={s} />
       </Section>
 
-      <Section label="Next three hours" aside={<span className="sk-meta">at {t.unitsPerPerson} units a person each half-hour</span>}>
+      <Section label="Next three hours" aside={<span className="sk-meta">planned for a busy day · one person makes about {t.unitsPerPerson} units a half-hour</span>}>
         <Ahead s={s} />
       </Section>
 
@@ -355,14 +359,19 @@ function Decision({ d, s }: { d: NowPayload; s: S }) {
     </TakeCard>
   }
   if (s.calls.length === 0) {
-    const short = s.ahead.filter(a => a.needUsual > a.heads)
+    const short = s.ahead.filter(a => neededOf(a) > a.heads)
     if (short.length) {
       return <TakeCard tone="warn" label="Short-handed" headline="Nobody to send home — the store is a person short.">
-        A usual {d.day} needs more people than are on {short.map(a => span(a.from, a.to)).join(' and ')}.{truck}
+        Planned for a busy {DAY_LONG[d.day] ?? d.day}, {short.map(a => span(a.from, a.to)).join(' and ')} needs more people than are scheduled.{truck}
       </TakeCard>
     }
+    const h = s.hold
     return <TakeCard tone="good" label="Staffing" headline="Nobody to send home right now.">
-      Everyone on is needed for the busiest the next few hours usually get.{truck}
+      {h
+        ? h.lead
+          ? `${nameOf(h.employee)} is the only shift lead on ${span(h.at, h.at + 30)}, so stays until ${clock(h.until)}.`
+          : `${nameOf(h.employee)} is needed until ${clock(h.until)}: ${span(h.at, h.at + 30)} is up to ${h.units} units, ${h.need} people needed.`
+        : 'Everyone on is staying to close, or leaves within the hour anyway.'}{truck}
     </TakeCard>
   }
   const c0 = s.calls[0]
@@ -429,24 +438,21 @@ function Ahead({ s }: { s: StoreNow }) {
     <div className="sk-card sk-table-wrap">
       <table className="sk-table sk-now-table">
         <thead>
-          <tr><th>Time</th><th className="num">Units</th><th className="num">On</th><th className="num">Needs</th></tr>
+          <tr><th>Time</th><th className="num">Units / ½ hr</th><th className="num">On</th><th className="num">Needed</th></tr>
         </thead>
         <tbody>
           {s.ahead.map(a => {
-            // short: fewer on than a USUAL hour needs. spare: more than the hour needs on
-            // either forecast — a busy forecast below the usual one must not free someone up.
-            const short = a.needUsual - a.heads
-            const spare = a.heads - Math.max(a.need, a.needUsual)
-            const [tone, word]: [Tone, string] = short > 0 ? ['bad', `short ${short}`]
-              : spare > 0 ? ['warn', `${spare} spare`] : ['good', 'right']
+            const gap = a.heads - neededOf(a)
+            const [tone, word]: [Tone, string] = gap < 0 ? ['bad', `${-gap} short`]
+              : gap > 0 ? ['warn', `${gap} extra`] : ['good', 'covered']
             return (
               <tr key={a.from}>
                 <td className="nowrap">{span(a.from, a.to)}
                   <span className="sk-now-sub"><span className={`sk-now-chip ${toneClass(tone)}`}>{word}</span></span>
                 </td>
-                <td className="num">{a.units}<span className="sk-now-sub">busy {a.busyUnits}</span></td>
+                <td className="num">{a.peak}</td>
                 <td className="num">{a.heads}</td>
-                <td className="num">{a.needUsual}<span className="sk-now-sub">busy {a.need}</span></td>
+                <td className="num">{neededOf(a)}{a.truck ? <span className="sk-now-sub">+ truck</span> : null}</td>
               </tr>
             )
           })}
@@ -545,7 +551,7 @@ function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void
               <span className="sk-eyebrow">{s.store}</span>
               <span className="sk-card-title">
                 {s.calls.length ? `Send ${s.calls.map(c => firstName(c.employee)).join(' & ')} home`
-                  : s.ahead.some(a => a.needUsual > a.heads) ? 'A person short ahead' : 'Nobody to send home'}
+                  : s.ahead.some(a => neededOf(a) > a.heads) ? 'A person short ahead' : 'Nobody to send home'}
               </span>
               <span className="lines">
                 <span>Sales <b>{money(s.sales.soFar)}</b>{s.sales.normalByNow > 0 ? <> <Avg v={money(s.sales.normalByNow)} /></> : null}{vs != null ? ` · ${signedPct(vs)}` : ''}</span>

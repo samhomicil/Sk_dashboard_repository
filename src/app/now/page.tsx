@@ -21,7 +21,7 @@ import { SegControl } from '@/components/design/controls'
 import { useStoreLock } from '@/components/useStoreLock'
 import { minToClock } from '@/lib/core/dates'
 import type { NowPayload } from '@/app/api/now/route'
-import type { StoreNow, Person, Call, AttendanceFlag } from '@/lib/core/intraday'
+import type { StoreNow, Person, Call, AttendanceFlag, LateEvent } from '@/lib/core/intraday'
 
 type StoreKey = 'all' | 'pines' | 'miramar' | 'margate'
 type S = NowPayload['stores'][number]
@@ -42,7 +42,18 @@ const pct = (x: number | null) => (x == null ? '—' : `${(x * 100).toFixed(1)}%
 const pct0 = (x: number | null) => (x == null ? '—' : `${Math.round(x * 100)}%`)
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
 const hourFull = (h: number) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`
-const signedPct = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%`
+/** '2026-09-24' → 'Thu 24 Sep' */
+const dayShort = (iso: string) => {
+  const d = new Date(iso + 'T12:00:00Z')
+  return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()]} ${d.getUTCDate()} ${
+    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()]}`
+}
+/** 'in 7:29 AM for 6:30 AM' — every late mention carries the clock-in and the due time. */
+const inFor = (inAt: number, sched: number) => `in ${clock(inAt)} for ${clock(sched)}`
+const signedPct = (x: number) => {
+  const n = Math.round(Math.abs(x) * 100)
+  return n === 0 ? '0%' : `${x > 0 ? '+' : '−'}${n}%`
+}
 const clock = (m: number) => minToClock(m)
 const hourLabel = (h: number) => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`
 /** 600, 660 → '10–11 AM'; 690, 780 → '11:30 AM–1 PM' */
@@ -227,14 +238,17 @@ function StoreView({ d, s }: { d: NowPayload; s: S }) {
 
 function Attendance({ d, s }: { d: NowPayload; s: S }) {
   const t = d.targets
-  const again = (c?: number) => (c && c >= 2 ? ` — ${ordinal(c)} late start in ${t.lateLookback} days` : '')
+  const earlier = (h?: LateEvent[]) => (h?.length
+    ? ` Before: ${h.map(e => `${dayShort(e.d)} ${inFor(e.inAt, e.sched)}`).join('; ')}.` : '')
+  const again = (c?: number, h?: LateEvent[]) =>
+    (c && c >= 2 ? ` — ${ordinal(c)} late start in ${t.lateLookback} days.${earlier(h)}` : '')
   const say = (a: AttendanceFlag): Flag => {
     const base = { who: nameOf(a.employee), scope: a.role }
     switch (a.kind) {
       case 'noshow': return { ...base, tone: 'bad', text: `no-show — was due in at ${clock(a.sched!)}` }
-      case 'missing': return { ...base, tone: 'bad', text: `not in yet — due ${clock(a.sched!)}, ${a.minutes} min ago${again(a.count)}` }
-      case 'late': return { ...base, tone: 'warn', text: `in at ${clock(a.at!)} for ${clock(a.sched!)} — ${a.minutes} min late${again(a.count)}` }
-      case 'repeat-late': return { ...base, tone: 'warn', text: `${a.sched != null ? `due in at ${clock(a.sched)} — ` : ''}late ${a.count} times in the last ${t.lateLookback} days` }
+      case 'missing': return { ...base, tone: 'bad', text: `not in yet — due ${clock(a.sched!)}, ${a.minutes} min ago${again(a.count, a.history)}` }
+      case 'late': return { ...base, tone: 'warn', text: `${inFor(a.at!, a.sched!)} — ${a.minutes} min late${again(a.count, a.history)}` }
+      case 'repeat-late': return { ...base, tone: 'warn', text: `${a.at != null && a.sched != null ? `${inFor(a.at, a.sched)} today, on time` : a.sched != null ? `due in at ${clock(a.sched)}` : 'today'} — late ${a.count} times in the last ${t.lateLookback} days:${earlier(a.history).replace(' Before:', '')}` }
       case 'left-early': return { ...base, tone: 'warn', text: `left at ${clock(a.at!)}, due out ${clock(a.sched!)} — ${a.minutes} min early` }
       case 'past-out': return { ...base, tone: 'warn', text: `still on, ${a.minutes} min past the ${clock(a.sched!)} finish` }
       case 'unscheduled': return { ...base, tone: 'warn', text: `clocked in at ${clock(a.at!)} without a scheduled shift` }
@@ -481,7 +495,7 @@ function People({ s, late }: { s: StoreNow; late: number }) {
               return row(p,
                 [p.inAt != null ? clock(p.inAt) : '—', p.schedEnd != null ? clock(p.schedEnd) : 'not scheduled'],
                 over > late ? { tone: 'warn', text: `${over} min past out` }
-                  : p.lateBy ? { tone: 'warn', text: `${p.lateBy} min late` }
+                  : p.lateBy && p.schedStart != null ? { tone: 'warn', text: `${p.lateBy} min late · due ${clock(p.schedStart)}` }
                   : p.salaried ? { tone: 'neutral', text: 'salaried' } : undefined)
             })}
             {missing.length > 0 && group('Not in yet')}
@@ -518,8 +532,8 @@ function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void
     ? `${calls.length} send-home call${calls.length === 1 ? '' : 's'} — ${byStore.join('; ')}.`
     : 'No send-home calls at any store right now.'
   const why = [
-    missing.length ? `Not in yet: ${missing.map(({ s, a }) => `${firstName(a.employee)} (${s.store}, ${a.kind === 'noshow' ? 'no-show' : `${a.minutes} min`})`).join(', ')}.` : '',
-    late.length ? `Late today: ${late.map(({ s, a }) => `${firstName(a.employee)} (${s.store}, ${a.minutes} min)`).join(', ')}.` : '',
+    missing.length ? `Not in yet: ${missing.map(({ s, a }) => `${nameOf(a.employee)} (${s.store}) due ${clock(a.sched!)}${a.kind === 'noshow' ? ', never clocked in' : `, ${a.minutes} min ago`}`).join('; ')}.` : '',
+    late.length ? `Late today: ${late.map(({ s, a }) => `${nameOf(a.employee)} (${s.store}) ${inFor(a.at!, a.sched!)}, ${a.minutes} min`).join('; ')}.` : '',
   ].filter(Boolean).join(' ')
   return (
     <>
@@ -544,13 +558,14 @@ function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void
                 </span>
                 <span><b>{s.people.filter(p => p.status === 'on').length}</b> on now · {s.people.filter(p => p.status === 'coming').length} coming in
                   {s.lastSale != null ? ` · last sale ${clock(s.lastSale)}` : ''}</span>
-                {(() => {
-                  const late = s.attendance.filter(a => a.kind === 'late').length
-                  const out = s.attendance.filter(a => a.kind === 'missing' || a.kind === 'noshow').length
-                  return late || out
-                    ? <span><span className={`sk-now-chip ${toneClass(out ? 'bad' : 'warn')}`}>{[late ? `${late} late` : '', out ? `${out} not in` : ''].filter(Boolean).join(' · ')}</span></span>
-                    : null
-                })()}
+                {s.attendance.filter(a => a.kind === 'missing' || a.kind === 'noshow').map(a => (
+                  <span key={`out-${a.employee}`}><span className={`sk-now-chip ${toneClass('bad')}`}>not in</span>{' '}
+                    {firstName(a.employee)}, due {clock(a.sched!)}</span>
+                ))}
+                {s.attendance.filter(a => a.kind === 'late').map(a => (
+                  <span key={`late-${a.employee}`}><span className={`sk-now-chip ${toneClass('warn')}`}>late</span>{' '}
+                    {firstName(a.employee)} {inFor(a.at!, a.sched!)}</span>
+                ))}
                 <span>Enhancers <b>{pct0(s.facts.ee)}</b> · voids <b>{s.facts.voidOrders}</b> · ticket <b>{s.facts.avgTicket == null ? '—' : money2(s.facts.avgTicket)}</b></span>
               </span>
             </button>

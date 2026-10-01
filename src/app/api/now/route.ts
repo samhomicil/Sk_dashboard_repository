@@ -13,6 +13,7 @@ import { buildRateFor, isSalaried, type EmpRateRow } from '@/lib/core/labor'
 import { allKeyed } from '@/lib/core/keyed'
 import {
   buildStoreNow, buildPeople, personKey, type SlotRow, type ClockRow, type PlanRow, type StoreNow,
+  type LateEvent,
 } from '@/lib/core/intraday'
 
 // THE NOW SCREEN's data: each store's day so far, as of the last 30-minute Brink pull.
@@ -142,8 +143,9 @@ export async function GET(req: Request) {
   })
   const rateFor = buildRateFor(rates)
 
-  // Late starts before today, per person, by the same pairing the screen uses for today.
-  const lateHistory = new Map<string, number>()
+  // Late starts before today, per person, by the same pairing the screen uses for today —
+  // each one kept (day, clock-in, due) so the screen can say when, not just how often.
+  const lateHistory = new Map<string, LateEvent[]>()
   const byDay = new Map<string, { clock: DayShift[]; plan: DayShift[] }>()
   const day = (r: DayShift) => {
     const k = `${r.store}|${r.d}`
@@ -152,10 +154,17 @@ export async function GET(req: Request) {
   }
   for (const r of pastClock) day(r).clock.push(r)
   for (const r of pastPlan) day(r).plan.push(r)
-  for (const { clock: c, plan: pl } of byDay.values()) {
+  for (const [k, { clock: c, plan: pl }] of byDay) {
+    const d = k.split('|')[1]
     const ppl = buildPeople(c, pl.filter((x): x is DayShift & { end: string } => x.end != null), 1440)
-    for (const x of ppl) if (x.inAt != null && x.lateBy) lateHistory.set(x.key, (lateHistory.get(x.key) ?? 0) + 1)
+    for (const x of ppl) {
+      if (x.inAt == null || !x.lateBy || x.schedStart == null) continue
+      const list = lateHistory.get(x.key) ?? []
+      list.push({ d, inAt: x.inAt, sched: x.schedStart, minutes: x.lateBy })
+      lateHistory.set(x.key, list)
+    }
   }
+  for (const list of lateHistory.values()) list.sort((a, b) => a.d.localeCompare(b.d))
   // This week, every store: hours clocked Mon..yesterday, and hours scheduled after today.
   const week = new Map<string, { worked: number; ahead: number }>()
   const wk = (e: string) => week.get(e) ?? week.set(e, { worked: 0, ahead: 0 }).get(e)!

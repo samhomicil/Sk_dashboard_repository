@@ -68,6 +68,9 @@ export type Person = {
   weekProjected?: number | null
 }
 
+/** One earlier late start: the day, when they clocked in, when they were due. */
+export type LateEvent = { d: string; inAt: number; sched: number; minutes: number }
+
 /** What the Attendance list says about one person. Phrasing is the screen's job. */
 export type AttendanceFlag = {
   kind: 'late' | 'missing' | 'noshow' | 'left-early' | 'past-out' | 'unscheduled' | 'repeat-late' | 'overtime'
@@ -77,6 +80,7 @@ export type AttendanceFlag = {
   at?: number                   // clock-in or clock-out time
   sched?: number                // the scheduled start (or end, for left-early / past-out)
   count?: number                // repeat-late: late starts in the lookback, today included
+  history?: LateEvent[]         // the earlier late starts behind `count`, oldest first
   hours?: number                // overtime: projected hours this week
 }
 
@@ -236,8 +240,8 @@ export function buildStoreNow(input: {
   clock: ClockRow[]
   plan: PlanRow[]
   rateFor: (store: string, emp: string) => number
-  /** late starts per person (by personKey) over the lookback days before today, any store */
-  lateHistory?: Map<string, number>
+  /** each person's (by personKey) late starts over the lookback days before today, any store */
+  lateHistory?: Map<string, LateEvent[]>
   /** this Mon–Sun week per person (by personKey), any store: hours worked before today,
    *  hours still scheduled after today */
   week?: Map<string, { worked: number; ahead: number }>
@@ -501,15 +505,16 @@ export function buildStoreNow(input: {
     }
     if (!seen.has(p.key)) {
       seen.add(p.key)
-      const count = (input.lateHistory?.get(p.key) ?? 0)
-        + (people.some(x => x.key === p.key && x.lateBy) ? 1 : 0)
+      const history = input.lateHistory?.get(p.key) ?? []
+      const count = history.length + (people.some(x => x.key === p.key && x.lateBy) ? 1 : 0)
       if (input.lateHistory && count >= REPEAT_LATE_MIN && p.status !== 'done') {
         // One line per person: a late or not-in flag today carries the count; otherwise it
         // is its own heads-up for someone still to come in.
         const today_ = attendance.find(f => f.employee === p.employee && (f.kind === 'late' || f.kind === 'missing'))
           ?? attendance.find(f => (f.kind === 'late' || f.kind === 'missing') && people.some(x => x.key === p.key && x.employee === f.employee))
-        if (today_) today_.count = count
-        else attendance.push({ ...base, kind: 'repeat-late', count, sched: p.schedStart ?? undefined })
+        if (today_) { today_.count = count; today_.history = history }
+        else attendance.push({ ...base, kind: 'repeat-late', count, history,
+          sched: p.schedStart ?? undefined, at: p.inAt ?? undefined })   // at = in today, on time
       }
       const proj = people.filter(x => x.key === p.key).map(x => x.weekProjected ?? 0)
       const hours = Math.max(0, ...proj)

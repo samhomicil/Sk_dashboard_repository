@@ -63,6 +63,17 @@
 }
 .sk-now-back::after { content: ''; position: absolute; inset: -14px -10px; }
 
+/* Next three hours: one line per hour — the verdict in words, the numbers behind it below.
+   A list, not a table, so the verdict never pushes a column off a phone screen. */
+.sk-now-ahead { display: flex; flex-direction: column; }
+.sk-now-ahead-row {
+  display: flex; flex-direction: column; gap: 4px; padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle); font-variant-numeric: tabular-nums;
+}
+.sk-now-ahead-row:first-child { padding-top: 0; }
+.sk-now-ahead-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.sk-now-ahead-row .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
 /* All stores: one card per store, the whole card is the way in. */
 .sk-now-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
 .sk-now-store {

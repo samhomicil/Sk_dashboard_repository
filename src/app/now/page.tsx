@@ -435,29 +435,24 @@ function HourChart({ s, day }: { s: StoreNow; day: string }) {
 function Ahead({ s }: { s: StoreNow }) {
   if (!s.ahead.length) return <p className="sk-meta">The day is over for this store.</p>
   return (
-    <div className="sk-card sk-table-wrap">
-      <table className="sk-table sk-now-table">
-        <thead>
-          <tr><th>Time</th><th className="num">Units / ½ hr</th><th className="num">On</th><th className="num">Needed</th></tr>
-        </thead>
-        <tbody>
-          {s.ahead.map(a => {
-            const gap = a.heads - neededOf(a)
-            const [tone, word]: [Tone, string] = gap < 0 ? ['bad', `${-gap} short`]
-              : gap > 0 ? ['warn', `${gap} extra`] : ['good', 'covered']
-            return (
-              <tr key={a.from}>
-                <td className="nowrap">{span(a.from, a.to)}
-                  <span className="sk-now-sub"><span className={`sk-now-chip ${toneClass(tone)}`}>{word}</span></span>
-                </td>
-                <td className="num">{a.peak}</td>
-                <td className="num">{a.heads}</td>
-                <td className="num">{neededOf(a)}{a.truck ? <span className="sk-now-sub">+ truck</span> : null}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+    <div className="sk-card sk-now-ahead">
+      {s.ahead.map(a => {
+        const needed = neededOf(a)
+        const gap = a.heads - needed
+        const [tone, word]: [Tone, string] = gap < 0 ? ['bad', `${-gap} short`]
+          : gap > 0 ? ['warn', `${gap} more than needed`] : ['good', 'covered']
+        return (
+          <div key={a.from} className="sk-now-ahead-row">
+            <div className="top">
+              <b>{span(a.from, a.to)}</b>
+              <span className={`sk-now-chip ${toneClass(tone)}`}>{word}</span>
+            </div>
+            <span className="sk-now-sub">
+              Up to {a.peak} units in the busiest half-hour · {a.heads} on · {needed} needed{a.truck ? ', truck crew included' : ''}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }

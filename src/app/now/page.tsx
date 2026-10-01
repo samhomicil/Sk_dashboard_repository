@@ -10,7 +10,8 @@
  *
  * Everything is "as of" the last 30-minute Brink pull, never the wall clock.
  */
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { swrGet, swrSet } from '@/lib/swrCache'
 import { Page, PageBar, TakeCard, Section, Stat, Grid4, BasisNote, Disclosure, toneClass, type Tone } from '@/components/design/shell'
 import { SegControl } from '@/components/design/controls'
@@ -57,10 +58,41 @@ function laborTone(x: number | null, target: number, amber: number): Tone {
   return x <= target ? 'good' : x <= target + amber ? 'warn' : 'bad'
 }
 
+// useSearchParams needs a Suspense boundary so the page shell can still prerender.
 export default function NowPage() {
+  return (
+    <Suspense fallback={<Page><p className="sk-meta">Loading today…</p></Page>}>
+      <NowScreen />
+    </Suspense>
+  )
+}
+
+const isKey = (v: string | null): v is StoreKey => STORE_OPTS.some(o => o.value === v)
+
+function NowScreen() {
   const lock = useStoreLock()
-  const [picked, setPicked] = useState<StoreKey>('all')
+  // The store is in the address (/now?store=pines), so the phone's back gesture returns to
+  // All Stores, and a notification can link straight to one store.
+  const q = useSearchParams().get('store')
+  const picked: StoreKey = isKey(q) ? q : 'all'
   const view: StoreKey = lock ?? picked                     // a store login never picks
+  const fromAll = useRef(false)                             // did we push this store view?
+  useEffect(() => { if (view === 'all') fromAll.current = false }, [view])
+  const go = (k: StoreKey) => {
+    if (k === view) return
+    if (k === 'all') {
+      // Back to where we came from when we came from All Stores, so the history stays
+      // [All Stores] rather than growing [All, Pines, All] on every round trip.
+      if (fromAll.current) { fromAll.current = false; window.history.back(); return }
+      window.history.replaceState(null, '', '/now')
+    } else if (view === 'all') {
+      window.history.pushState(null, '', `/now?store=${k}`)
+      fromAll.current = true
+    } else {
+      window.history.replaceState(null, '', `/now?store=${k}`)  // store to store: one step back is still All
+    }
+    window.scrollTo({ top: 0 })
+  }
   const key = `now:${lock ?? 'all'}`   // the payload depends on the login, not the tab
   const [data, setData] = useState<NowPayload | null>(() => swrGet<NowPayload>(key) ?? null)
   const [error, setError] = useState<string | null>(null)
@@ -87,20 +119,24 @@ export default function NowPage() {
   const single = data?.stores.length === 1 ? data.stores[0] : null
   const shown: S | null = !data ? null
     : single ?? (view !== 'all' ? data.stores.find(s => s.key === view) ?? null : null)
-  const eyebrow = shown ? shown.store : 'All stores'
+  const canPick = !lock && !single
+  const eyebrow = shown && canPick
+    ? <><button type="button" className="sk-backlink sk-now-back" onClick={() => go('all')}>← All stores</button>
+        <span aria-hidden="true"> / </span>{shown.store}</>
+    : shown ? shown.store : 'All stores'
 
   return (
     <Page>
       <PageBar eyebrow={eyebrow} title="Right now" meta={data ? <Freshness d={data} /> : null}>
-        {!lock && !single && (
-          <SegControl label="Store" options={STORE_OPTS} value={view} onChange={setPicked} />
+        {canPick && (
+          <SegControl label="Store" options={STORE_OPTS} value={view} onChange={go} />
         )}
       </PageBar>
 
       {error && <TakeCard tone="bad" label="Not loaded" headline={error}>Pull down or reopen the page to try again.</TakeCard>}
       {!data && !error && <p className="sk-meta">Loading today…</p>}
 
-      {data && !shown && <AllStores d={data} onPick={setPicked} />}
+      {data && !shown && <AllStores d={data} onPick={go} />}
       {data && shown && <StoreView d={data} s={shown} />}
 
       {data && (

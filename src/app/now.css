@@ -50,6 +50,16 @@
   white-space: nowrap; color: var(--tone, var(--ink-muted));
 }
 
+/* The breadcrumb back to All Stores sits in the eyebrow, as Inventory's does. It is a real
+   button styled as the eyebrow text, with its tap area grown past 44px by a pseudo-element
+   so the header keeps its height. */
+.sk-now-back {
+  position: relative; background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--brand);
+  cursor: pointer;
+}
+.sk-now-back::after { content: ''; position: absolute; inset: -14px -10px; }
+
 /* All stores: one card per store, the whole card is the way in. */
 .sk-now-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
 .sk-now-store {

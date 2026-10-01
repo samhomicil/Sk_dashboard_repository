@@ -315,9 +315,14 @@ function People({ s, late }: { s: StoreNow; late: number }) {
           <thead><tr><th>Name</th><th className="num">In</th><th className="num">Out</th></tr></thead>
           <tbody>
             {on.length > 0 && group('On the floor')}
-            {on.map(p => row(p,
-              [p.inAt != null ? clock(p.inAt) : '—', p.schedEnd != null ? clock(p.schedEnd) : 'not scheduled'],
-              p.lateBy ? { tone: 'warn', text: `${p.lateBy} min late` } : p.salaried ? { tone: 'neutral', text: 'salaried' } : undefined))}
+            {on.map(p => {
+              const over = !p.salaried && p.schedEnd != null ? s.asOf - p.schedEnd : 0
+              return row(p,
+                [p.inAt != null ? clock(p.inAt) : '—', p.schedEnd != null ? clock(p.schedEnd) : 'not scheduled'],
+                over > late ? { tone: 'warn', text: `${over} min past out` }
+                  : p.lateBy ? { tone: 'warn', text: `${p.lateBy} min late` }
+                  : p.salaried ? { tone: 'neutral', text: 'salaried' } : undefined)
+            })}
             {missing.length > 0 && group('Not in yet')}
             {missing.map(p => row(p,
               [p.schedStart != null ? clock(p.schedStart) : '—', p.schedEnd != null ? clock(p.schedEnd) : '—'],

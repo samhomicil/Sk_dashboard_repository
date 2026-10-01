@@ -248,8 +248,14 @@ export function buildStoreNow(input: {
   for (const p of people) { const sp = presence(p, asOf, closeAt); if (sp) spans.set(p, sp) }
   const headsAt = (m: number, without: Set<Person>) =>
     [...spans].filter(([p, [a, b]]) => !without.has(p) && a <= m && m < b).length
+  // Cover a send-home call can rely on: only people with a known end. Someone clocked in
+  // without a scheduled shift (14% of Pines' September shifts, usually a swap) shows as on
+  // the floor, but nobody knows when they will leave, so they never cover someone else's.
+  const firm = (p: Person) => p.salaried || p.schedEnd != null
+  const coverAt = (m: number, without: Set<Person>) =>
+    [...spans].filter(([p, [a, b]]) => firm(p) && !without.has(p) && a <= m && m < b).length
   const leadsAt = (m: number, without: Set<Person>) =>
-    [...spans].filter(([p, [a, b]]) => p.lead && !without.has(p) && a <= m && m < b).length
+    [...spans].filter(([p, [a, b]]) => p.lead && firm(p) && !without.has(p) && a <= m && m < b).length
   const fc = (s: number) => busyUnits[s] * pace.units
   const needFor = (units: number, s: number) => {
     const mid = s * SLOT + SLOT / 2
@@ -281,7 +287,7 @@ export function buildStoreNow(input: {
       const without = new Set([...gone, c])
       const span = stretch(c.schedEnd!)
       if (c.lead && span.some(({ m }) => leadsAt(m, without) === 0)) continue
-      if (span.every(({ s, m }) => headsAt(m, without) >= need(s))) { pick = c; break }
+      if (span.every(({ s, m }) => coverAt(m, without) >= need(s))) { pick = c; break }
     }
     if (!pick) break
     const without = new Set([...gone, pick])
@@ -293,8 +299,8 @@ export function buildStoreNow(input: {
       hours: Math.round(hours * 10) / 10,
       dollars: Math.round(hours * rateFor(store, pick.employee)),
       peakUnits: Math.round(fc(peak.s)), peakAt: peak.s * SLOT,
-      headsLeft: headsAt(peak.m, without),
-      capacity: headsAt(peak.m, without) * UNITS_PER_PERSON_HALF_HOUR,
+      headsLeft: coverAt(peak.m, without),
+      capacity: coverAt(peak.m, without) * UNITS_PER_PERSON_HALF_HOUR,
       truck: !!truck && span.some(({ m }) => truck.from <= m && m < truck.to),
     })
     gone.add(pick)

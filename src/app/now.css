@@ -41,6 +41,9 @@
 .sk-now-legend i.proj { background: var(--ramp-sequential-2); }
 .sk-now-legend i.normal { height: 2px; width: 12px; background: var(--ink); }
 
+/* The comparison figure after a slash: italic and quieter, defined once in the section header. */
+.sk-now-avg { font-style: italic; font-weight: 400; color: var(--ink-muted); white-space: nowrap; }
+
 /* People and the hours ahead: compact tables, secondary line under the name. */
 .sk-now-sub { display: block; color: var(--ink-muted); font-size: 12px; margin-top: 2px; }
 .sk-now-group td { padding-top: var(--space-4); }

@@ -48,6 +48,14 @@ const dayShort = (iso: string) => {
   return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()]} ${d.getUTCDate()} ${
     ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()]}`
 }
+/** The comparison figure: shown after a slash, in italics, never labelled per cell — the
+ *  section header says once what it is ("today / avg of the last 4 Thursdays"). */
+const Avg = ({ v }: { v: string }) => <i className="sk-now-avg">/ {v}</i>
+const DAY_LONG: Record<string, string> = {
+  Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday',
+}
+const avgHeader = (d: NowPayload) =>
+  <>today <i className="sk-now-avg">/ avg of the last {d.targets.histWeeks} {DAY_LONG[d.day] ?? d.day}s</i></>
 /** 'in 7:29 AM for 6:30 AM' — every late mention carries the clock-in and the due time. */
 const inFor = (inAt: number, sched: number) => `in ${clock(inAt)} for ${clock(sched)}`
 const signedPct = (x: number) => {
@@ -188,13 +196,16 @@ function StoreView({ d, s }: { d: NowPayload; s: S }) {
 
       <Attendance d={d} s={s} />
 
+      <Section label="So far" aside={<span className="sk-meta">{avgHeader(d)}</span>}>
       <div className="sk-now-tiles"><Grid4>
         <Stat label="Sales so far" value={money(s.sales.soFar)}
-          sub={`${s.sales.units} units · ${s.sales.orders} orders`}
-          delta={vsNormal == null ? 'no normal yet' : `${signedPct(vsNormal)} vs a normal ${d.day} (${money(s.sales.normalByNow)})`}
+          sub={<>{s.sales.normalByNow > 0 ? <><Avg v={money(s.sales.normalByNow)} /> · </> : null}{s.sales.units} units · {s.sales.orders} orders</>}
+          delta={vsNormal == null ? undefined : signedPct(vsNormal)}
           tone={vsNormal == null ? undefined : vsNormal >= 0 ? 'good' : 'warn'} />
         <Stat label="Day on pace" value={money(s.sales.onPace)}
-          delta={`normal ${d.day} ${money(s.sales.normalDay)}`} />
+          sub={s.sales.normalDay > 0 ? <Avg v={money(s.sales.normalDay)} /> : undefined}
+          delta={s.sales.normalDay > 0 ? signedPct(s.sales.onPace / s.sales.normalDay - 1) : undefined}
+          tone={s.sales.normalDay > 0 ? (s.sales.onPace >= s.sales.normalDay ? 'good' : 'warn') : undefined} />
         <Stat label="Labor so far" value={pct(s.labor.pctSoFar)}
           sub={`${money(s.labor.paySoFar)} wages`} />
         <Stat label="Finish if nothing changes" value={pct(s.labor.finishPct)}
@@ -202,11 +213,12 @@ function StoreView({ d, s }: { d: NowPayload; s: S }) {
           delta={`${s.labor.remainingHours} h still scheduled · ${money(s.labor.remainingCost)}`}
           tone={laborTone(s.labor.finishPct, t.labor, t.laborAmber)} />
       </Grid4></div>
+      </Section>
 
       <Register d={d} s={s} />
 
       <Section label="Hour by hour" aside={<span className="sk-meta">
-        {s.sales.normalByNow > 0 ? `running ${signedMoney(s.sales.soFar - s.sales.normalByNow)} vs a normal ${d.day}` : `vs a normal ${d.day}`}
+        {avgHeader(d)}{s.sales.normalByNow > 0 ? ` · running ${signedMoney(s.sales.soFar - s.sales.normalByNow)}` : ''}
       </span>}>
         <HourChart s={s} day={d.day} />
         <HourTable s={s} />
@@ -254,20 +266,19 @@ function Register({ d, s }: { d: NowPayload; s: S }) {
   const top = s.voidsBy[0]
   const discOver = f.discountPct != null && f.discountPct > t.discountPct
   return (
-    <Section label="At the register" aside={<span className="sk-meta">today so far vs a normal {d.day}</span>}>
+    <Section label="At the register" aside={<span className="sk-meta">{avgHeader(d)}</span>}>
       <div className="sk-now-tiles"><Grid4>
         <Stat label="Avg ticket" value={f.avgTicket == null ? '—' : money2(f.avgTicket)}
-          sub={f.discountPct == null ? undefined : `discounts ${pct(f.discountPct)}${discOver ? ` — over ${pct0(t.discountPct)}` : ''}`}
-          delta={f.avgTicketNormal == null ? undefined
-            : `${ticketVs == null ? '' : `${signedPct(ticketVs)} vs `}normal ${money2(f.avgTicketNormal)}`}
+          sub={<>{f.avgTicketNormal != null ? <><Avg v={money2(f.avgTicketNormal)} /> · </> : null}
+            {f.discountPct == null ? null : `discounts ${pct(f.discountPct)}${discOver ? ` — over ${pct0(t.discountPct)}` : ''}`}</>}
+          delta={ticketVs == null ? undefined : signedPct(ticketVs)}
           tone={ticketVs == null ? undefined : ticketVs >= 0 ? 'good' : 'warn'} />
-        <Stat label="Online & delivery" value={pct0(f.digitalShare)} sub="of orders"
-          delta={f.digitalNormal == null ? undefined : `normal ${pct0(f.digitalNormal)}`} />
-        <Stat label="Enhancers" value={pct0(f.ee)} sub={`target ${pct0(t.ee)}`}
-          delta={f.ee == null ? undefined : [
-            f.ee >= t.ee ? 'at or over target' : `${Math.round((t.ee - f.ee) * 100)} pts under target`,
-            f.eeNormal == null ? '' : `normal ${pct0(f.eeNormal)}`,
-          ].filter(Boolean).join(' · ')}
+        <Stat label="Online & delivery" value={pct0(f.digitalShare)}
+          sub={<>{f.digitalNormal != null ? <><Avg v={pct0(f.digitalNormal)} /> · </> : null}of orders</>} />
+        <Stat label="Enhancers" value={pct0(f.ee)}
+          sub={<>{f.eeNormal != null ? <><Avg v={pct0(f.eeNormal)} /> · </> : null}target {pct0(t.ee)}</>}
+          delta={f.ee == null ? undefined
+            : f.ee >= t.ee ? 'at or over target' : `${Math.round((t.ee - f.ee) * 100)} pts under target`}
           tone={f.ee == null ? undefined : f.ee >= t.ee ? 'good' : 'warn'} />
         <Stat label="Voids" value={pct(f.voidPct)} sub={`${f.voidOrders} of ${f.allOrders} orders`}
           delta={[
@@ -290,7 +301,7 @@ function HourTable({ s }: { s: StoreNow }) {
     <div className="sk-card sk-table-wrap">
       <table className="sk-table sk-now-table">
         <thead>
-          <tr><th>Hour</th><th className="num">Sales</th><th className="num">Units</th><th className="num">On</th><th className="num">Labor</th></tr>
+          <tr><th>Hour</th><th className="num">Sales <i className="sk-now-avg">/ avg</i></th><th className="num">Units</th><th className="num">On</th><th className="num">Labor</th></tr>
         </thead>
         <tbody>
           {list.map(r => {
@@ -300,9 +311,7 @@ function HourTable({ s }: { s: StoreNow }) {
                 <td className="nowrap">{hourFull(r.hour)}
                   {r.partial ? <span className="sk-now-sub">so far</span> : null}
                 </td>
-                <td className="num">{future ? `~${money(r.projected ?? 0)}` : money(r.actual!)}
-                  <span className="sk-now-sub">normal {money(r.normal)}</span>
-                </td>
+                <td className="num">{future ? `~${money(r.projected ?? 0)}` : money(r.actual!)} <Avg v={money(r.normal)} /></td>
                 <td className="num">{future ? `~${r.unitsAhead ?? 0}` : r.units}</td>
                 <td className="num">{r.heads}</td>
                 <td className="num">{r.laborPct == null ? '—' : pct0(r.laborPct)}</td>
@@ -388,13 +397,13 @@ function HourChart({ s, day }: { s: StoreNow; day: string }) {
   if (!rows.length) return <p className="sk-meta">No trading hours on record for a {day}.</p>
   const top = Math.max(1, ...rows.map(r => Math.max(r.actual ?? 0, r.projected ?? 0, r.normal)))
   const h = (v: number) => `${Math.max(0, (v / top) * 100)}%`
-  const label = rows.map(r => `${hourLabel(r.hour)} ${r.actual != null ? money(r.actual) : `~${money(r.projected ?? 0)}`} (normal ${money(r.normal)})`).join('; ')
+  const label = rows.map(r => `${hourLabel(r.hour)} ${r.actual != null ? money(r.actual) : `~${money(r.projected ?? 0)}`} (avg ${money(r.normal)})`).join('; ')
   return (
     <div className="sk-card sk-now-chart">
-      <div className="sk-now-bars" role="img" aria-label={`Net sales by hour today vs a normal ${day}: ${label}`}>
+      <div className="sk-now-bars" role="img" aria-label={`Net sales by hour today vs the average ${day}: ${label}`}>
         {rows.map(r => (
           <div key={r.hour} className="sk-now-bar"
-            title={`${hourLabel(r.hour)} — ${r.actual != null ? `${money(r.actual)} so far` : `~${money(r.projected ?? 0)} expected`} · normal ${money(r.normal)}${r.units != null ? ` · ${r.units} units` : ''}`}>
+            title={`${hourLabel(r.hour)} — ${r.actual != null ? `${money(r.actual)} so far` : `~${money(r.projected ?? 0)} expected`} · avg ${money(r.normal)}${r.units != null ? ` · ${r.units} units` : ''}`}>
             {r.actual != null
               ? <i className="actual" style={{ height: h(r.actual) }} />
               : <i className="proj" style={{ height: h(r.projected ?? 0) }} />}
@@ -408,7 +417,7 @@ function HourChart({ s, day }: { s: StoreNow; day: string }) {
       <div className="sk-now-legend">
         <span><i className="actual" />Today</span>
         <span><i className="proj" />Still to come, at today’s pace</span>
-        <span><i className="normal" />Normal {day}</span>
+        <span><i className="normal" />Avg {day}</span>
       </div>
     </div>
   )
@@ -539,7 +548,7 @@ function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void
                   : s.ahead.some(a => a.needUsual > a.heads) ? 'A person short ahead' : 'Nobody to send home'}
               </span>
               <span className="lines">
-                <span>Sales <b>{money(s.sales.soFar)}</b>{vs != null ? ` · ${signedPct(vs)} vs normal` : ''}</span>
+                <span>Sales <b>{money(s.sales.soFar)}</b>{s.sales.normalByNow > 0 ? <> <Avg v={money(s.sales.normalByNow)} /></> : null}{vs != null ? ` · ${signedPct(vs)}` : ''}</span>
                 <span>Labor finish <b>{pct(s.labor.finishPct)}</b>{' '}
                   <span className={`sk-now-chip ${toneClass(tone)}`}>{tone === 'good' ? 'on target' : tone === 'warn' ? 'near target' : tone === 'bad' ? 'over target' : 'no sales yet'}</span>
                 </span>

@@ -43,6 +43,7 @@ export type NowPayload = {
   targets: {
     labor: number; laborAmber: number; unitsPerPerson: number; lateMinutes: number
     ee: number; voidPct: number; discountPct: number; weeklyHours: number; lateLookback: number
+    histWeeks: number            // the "avg" is the last this-many same weekdays
   }
   stores: (StoreNow & {
     key: Store['key']
@@ -210,7 +211,7 @@ export async function GET(req: Request) {
       labor: LABOR_TARGET, laborAmber: LABOR_AMBER,
       unitsPerPerson: UNITS_PER_PERSON_HALF_HOUR, lateMinutes: LATE_MINUTES,
       ee: EE_TARGET, voidPct: VOID_PCT_TARGET, discountPct: DISCOUNT_PCT_TARGET,
-      weeklyHours: WEEKLY_OT_HOURS, lateLookback: LATE_LOOKBACK_DAYS,
+      weeklyHours: WEEKLY_OT_HOURS, lateLookback: LATE_LOOKBACK_DAYS, histWeeks: HIST_WEEKS,
     },
     stores,
   }

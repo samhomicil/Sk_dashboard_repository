@@ -72,6 +72,24 @@ export const VARIANCE_FLAG_PCT = 0.15
 export const MGR_WEEKLY: Record<string, number> = { Miramar: 625, Pines: 625, Margate: 0 }
 
 /**
+ * Card processing (PAR Payment Services — "PARPAY" on the bank feed), as a share of
+ * all-channel Brink NET sales, per store. MEASURED, not a target: the monthly PARPAY
+ * debit over net sales, Mar–Aug 2026 (QuickBooks "PARPAY Withdrawals", matched to the
+ * bank): Margate $1,095 / $35,737 = 3.06% · Miramar $2,258 / $66,757 = 3.38% ·
+ * Pines $2,020 / $60,943 = 3.31%.
+ *
+ * Replaces the Budget tab's flat 1.8% estimate, which was ALSO stacked on top of the fixed
+ * "Card Processing Fees" bills — card processing was counted twice. Those bills stay in
+ * sk_bills because the cash forecast uses them to date the monthly debit; the Budget tab
+ * skips them and accrues this rate on each week's sales instead, since the cost moves with
+ * card volume. The 1.8% under-stated it: it covered the processor's fee line only, while the
+ * PARPAY debit is what actually leaves the account.
+ */
+export const CARD_PROCESSING_RATE: Record<string, number> = { Margate: 0.0306, Miramar: 0.0338, Pines: 0.0331 }
+/** Fallback for a store not yet in CARD_PROCESSING_RATE — the three-store average. */
+export const CARD_PROCESSING_DEFAULT = 0.0325
+
+/**
  * Staffing adequacy — forecast orders ÷ staff on duty. HIGH IS BAD.
  *
  * Canon is daily-recap/recap.py `_uplh_style`, which these bands reproduce exactly.

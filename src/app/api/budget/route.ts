@@ -1,7 +1,7 @@
 import { query } from '@/lib/db'
 import { getPrisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/owner-guard'
-import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS, PRIME_TARGET, MGR_WEEKLY } from '@/lib/core/targets'
+import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS, PRIME_TARGET, MGR_WEEKLY, CARD_PROCESSING_RATE, CARD_PROCESSING_DEFAULT } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf } from '@/lib/core/dates'
 import { buildRateFor, schedRate, type EmpRateRow } from '@/lib/core/labor'
 import { empBurden, uncappedRate, TIP_PAYOUT } from '@/lib/core/laborBurden'
@@ -40,16 +40,9 @@ const HORIZON_HIST = 3         // completed weeks for context + 4-wk run-rate
 // The figure itself lives in core/targets.ts, which also records its open
 // disagreement with cash-forecast/forecast.py.
 const MGR_WK = MGR_WEEKLY
-// Card processing, % of all-channel net sales (the base `sales` below carries).
-// Ground truth = the processor deposit statement (Margate SK2384, both MIDs,
-// Jul'25-Jul'26): $257,597.82 card sales -> $7,952.78 fees = 3.09% of CARD volume
-// (~2.8-3.0% recurring + occasional annual PCI spikes). NOTE: QB's booked "Merchant
-// Fees" P&L line (~$188/mo) is NOT the true cost -- the monthly fee sweep lands in a
-// different account, so don't trust that line. Converting the 3.09% card rate onto
-// THIS model's base (all-channel Brink net, which adds cash + marketplace delivery
-// and is net of tax): $7,952.78 / $387,803 trailing-12mo Brink net = 2.05%; at the
-// current sales pace (~$663/mo fees / ~$37.7k/mo net) ~1.76%. Use ~1.8%.
-const MERCHANT = 0.018
+// Card processing accrues at each store's MEASURED PARPAY rate (core/targets.ts
+// CARD_PROCESSING_RATE) on the week's net sales. The fixed "Card Processing Fees"
+// bills are skipped below so the cost is not counted twice.
 // Franchise %-fees (royalty/national/regional/local) are NOT hardcoded — they are
 // read from the same sk_bills franchise bills the cash forecast uses, so the two
 // can't diverge. They accrue at rate x week's net sales x per-store BASIS_FACTOR
@@ -280,8 +273,11 @@ export async function GET() {
       if (b.category === 'COGS' || b.category === 'Taxes') continue           // computed live
       if (b.category === 'Franchise Fees' && b.amountType === 'percent') continue // the 12%
       if (b.category === 'Payroll' && b.amountType !== 'fixed') continue      // wages, live
+      if (/card processing/i.test(b.vendor)) continue                        // accrued as % of sales (CARD_PROCESSING_RATE)
       let bucket = CAT_BUCKET[b.category] ?? 'Operating'
       if (/tome/i.test(b.vendor)) bucket = 'Debt'                             // Tome = debt, not utility
+      // A credit-card bill payment pays down card debt; it is not an operating cost.
+      if (b.category === 'Bank / Finance' && /credit card|cc bill|capital one|chase/i.test(b.vendor)) bucket = 'Debt'
       const label = b.vendor.replace(/^.*?—\s*/, '').trim() || b.vendor
       ;(fixedItems[bucket] ??= []).push({ name: label, mo: b.amountValue })
     }
@@ -311,7 +307,8 @@ export async function GET() {
       const [wmA, wmF] = weekSplit(wmDaily, days, maxWm, wmWkAvg, storeShare)
       // derived
       const tax = scale(sales, rate)
-      const merchant = scale(sales, MERCHANT)
+      const merchantRate = CARD_PROCESSING_RATE[name] ?? CARD_PROCESSING_DEFAULT
+      const merchant = scale(sales, merchantRate)
       // franchise %-fees: each corporate line, on SK-reportable net (basis factor)
       const franchiseItems = franchisePct.map(fp => ({ name: fp.label, ...scale(sales, (fp.rate / 100) * basis) }))
 
@@ -351,7 +348,7 @@ export async function GET() {
           items: (fixedItems[bk] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) })),
         { key: 'Operating', variable: false, items: [
           ...(fixedItems['Operating'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })),
-          { name: 'Merchant fees (est)', ...merchant } ] },
+          { name: `Card processing (${(merchantRate * 100).toFixed(2)}% of sales)`, ...merchant } ] },
         { key: 'Sales tax', variable: false, passthrough: true, items: [
           { name: 'FL DOR remittance', ...tax } ] },
       ]

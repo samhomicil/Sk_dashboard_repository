@@ -3,13 +3,16 @@ import { requireStore } from '@/lib/store-guard'
 import { holidayName } from '@/lib/holiday'
 import {
   STORES, DOW, HIST_WEEKS, LABOR_TARGET, LABOR_AMBER, UNITS_PER_PERSON_HALF_HOUR, LATE_MINUTES,
-  REFRESH_WINDOWS, INTRADAY_STALE_MINUTES,
+  REFRESH_WINDOWS, INTRADAY_STALE_MINUTES, LATE_LOOKBACK_DAYS, EE_TARGET, VOID_PCT_TARGET,
+  DISCOUNT_PCT_TARGET, WEEKLY_OT_HOURS,
 } from '@/lib/core/targets'
 import { etToday, etNowMinutes, isoAdd, dowOf, hmToMin } from '@/lib/core/dates'
 import { salesBySlot, LATEST_RATES, LABOR_SHIFTS, INTRADAY_RUNS } from '@/lib/core/sources'
-import { buildRateFor, type EmpRateRow } from '@/lib/core/labor'
+import { buildRateFor, isSalaried, type EmpRateRow } from '@/lib/core/labor'
 import { allKeyed } from '@/lib/core/keyed'
-import { buildStoreNow, type SlotRow, type ClockRow, type PlanRow, type StoreNow } from '@/lib/core/intraday'
+import {
+  buildStoreNow, buildPeople, type SlotRow, type ClockRow, type PlanRow, type StoreNow,
+} from '@/lib/core/intraday'
 
 // THE NOW SCREEN's data: each store's day so far, as of the last 30-minute Brink pull.
 // All the deciding happens in core/intraday.ts; this route only fetches. Every query reads
@@ -35,8 +38,24 @@ export type NowPayload = {
     stale: boolean
     next: number | null         // next scheduled pull today
   }
-  targets: { labor: number; laborAmber: number; unitsPerPerson: number; lateMinutes: number }
-  stores: (StoreNow & { key: Store['key'] })[]
+  targets: {
+    labor: number; laborAmber: number; unitsPerPerson: number; lateMinutes: number
+    ee: number; voidPct: number; discountPct: number; weeklyHours: number; lateLookback: number
+  }
+  stores: (StoreNow & {
+    key: Store['key']
+    lastSale: number | null
+    /** who rang today's voided orders, most first (unattributed voids — mostly online — left out) */
+    voidsBy: { employee: string; orders: number }[]
+  })[]
+}
+
+type DayShift = { store: string; d: string; employee: string; role: string; start: string; end: string | null }
+/** Minutes a shift spans; an end "before" its start crossed midnight. */
+const spanMin = (start: string, end: string | null) => {
+  if (!end) return 0
+  const a = hmToMin(start), b = hmToMin(end)
+  return b <= a ? b + 1440 - a : b - a
 }
 
 const minOf = (dt: string | null) => (dt ? hmToMin(dt.slice(11, 16)) : null)
@@ -53,6 +72,11 @@ export async function GET(req: Request) {
   const inWindow = now >= window.from && now <= window.to
 
   // Has a new pull landed? Asked uncached; its id then keys the cache of every today-query.
+  const dow = dowOf(today)
+  const monday = isoAdd(today, dow === 0 ? -6 : 1 - dow)   // payroll weeks run Mon–Sun
+  const sunday = isoAdd(monday, 6)
+  const lookStart = isoAdd(today, -LATE_LOOKBACK_DAYS)     // ≥ 7, so it also covers Mon..yesterday
+
   const [run] = await queryLive<RunRow[]>(`
     SELECT (SELECT TOP 1 CONVERT(varchar(19), run_at, 120) FROM ${INTRADAY_RUNS}
              WHERE business_date = '${today}' AND ok = 1 ORDER BY id DESC) AS ok_at,
@@ -76,7 +100,7 @@ export async function GET(req: Request) {
   const histWhere = histDates
     .map(d => `(s.closed_datetime >= '${d}' AND s.closed_datetime < '${isoAdd(d, 1)}')`).join(' OR ')
 
-  const { todaySlots, histSlots, clock, plan, rates } = await allKeyed({
+  const { todaySlots, histSlots, clock, plan, rates, pastClock, pastPlan, aheadPlan, lastSale, voidsBy } = await allKeyed({
     todaySlots: query<SlotRow[]>(
       salesBySlot(`s.closed_datetime >= '${today}' AND s.closed_datetime < '${tomorrow}'`) + tag),
     histSlots: query<SlotRow[]>(salesBySlot(`(${histWhere})`)),
@@ -89,8 +113,50 @@ export async function GET(req: Request) {
              CONVERT(char(5), end_time, 108) AS [end]
         FROM smoothieking.labor_schedule WHERE work_date = '${today}'`),
     rates: query<EmpRateRow[]>(LATEST_RATES),
+    // The lookback: who was late before today, and the hours already worked this week.
+    pastClock: query<DayShift[]>(`
+      SELECT store, CONVERT(char(10), d, 23) AS d, employee, role,
+             CONVERT(char(5), shift_start, 108) AS start, CONVERT(char(5), shift_end, 108) AS [end]
+        FROM ${LABOR_SHIFTS} WHERE basis = 'clock' AND d >= '${lookStart}' AND d < '${today}'`),
+    pastPlan: query<DayShift[]>(`
+      SELECT store, CONVERT(char(10), work_date, 23) AS d, employee, role,
+             CONVERT(char(5), start_time, 108) AS start, CONVERT(char(5), end_time, 108) AS [end]
+        FROM smoothieking.labor_schedule WHERE work_date >= '${lookStart}' AND work_date < '${today}'`),
+    // The rest of this week, for whoever is heading past WEEKLY_OT_HOURS.
+    aheadPlan: query<DayShift[]>(`
+      SELECT store, CONVERT(char(10), work_date, 23) AS d, employee, role,
+             CONVERT(char(5), start_time, 108) AS start, CONVERT(char(5), end_time, 108) AS [end]
+        FROM smoothieking.labor_schedule WHERE work_date > '${today}' AND work_date <= '${sunday}'`),
+    lastSale: query<{ store: string; t: string }[]>(`
+      SELECT store, CONVERT(char(5), MAX(closed_datetime), 108) AS t FROM smoothieking.sales
+       WHERE closed_datetime >= '${today}' AND closed_datetime < '${tomorrow}' GROUP BY store ${tag}`),
+    voidsBy: query<{ store: string; employee: string; orders: number }[]>(`
+      SELECT store, employee, COUNT(DISTINCT order_id) AS orders FROM smoothieking.sales
+       WHERE voided = 1 AND employee IS NOT NULL AND employee NOT IN ('None', '')
+         AND closed_datetime >= '${today}' AND closed_datetime < '${tomorrow}'
+       GROUP BY store, employee ${tag}`),
   })
   const rateFor = buildRateFor(rates)
+
+  // Late starts before today, per person, by the same pairing the screen uses for today.
+  const lateHistory = new Map<string, number>()
+  const byDay = new Map<string, { clock: DayShift[]; plan: DayShift[] }>()
+  const day = (r: DayShift) => {
+    const k = `${r.store}|${r.d}`
+    if (!byDay.has(k)) byDay.set(k, { clock: [], plan: [] })
+    return byDay.get(k)!
+  }
+  for (const r of pastClock) day(r).clock.push(r)
+  for (const r of pastPlan) day(r).plan.push(r)
+  for (const { clock: c, plan: pl } of byDay.values()) {
+    const ppl = buildPeople(c, pl.filter((x): x is DayShift & { end: string } => x.end != null), 1440)
+    for (const x of ppl) if (x.inAt != null && x.lateBy) lateHistory.set(x.employee, (lateHistory.get(x.employee) ?? 0) + 1)
+  }
+  // This week, every store: hours clocked Mon..yesterday, and hours scheduled after today.
+  const week = new Map<string, { worked: number; ahead: number }>()
+  const wk = (e: string) => week.get(e) ?? week.set(e, { worked: 0, ahead: 0 }).get(e)!
+  for (const r of pastClock) if (r.d >= monday) wk(r.employee).worked += spanMin(r.start, r.end) / 60
+  for (const r of aheadPlan) if (!isSalaried(r.role)) wk(r.employee).ahead += spanMin(r.start, r.end) / 60
   const num = (r: SlotRow) => ({ ...r, slot: Number(r.slot) })
 
   const stores = wanted.map(st => {
@@ -102,11 +168,15 @@ export async function GET(req: Request) {
       histSlots: histSlots.filter(r => r.store === st.name).map(num),
       clock: clock.filter(r => r.store === st.name),
       plan: plan.filter(r => r.store === st.name),
-      rateFor,
+      rateFor, lateHistory, week,
     })
     // Never send anyone home on old data, or once the doors are shut.
     if (stale || !inWindow || asOf == null) built.calls = []
-    return { ...built, key: st.key }
+    const ls = lastSale.find(r => r.store === st.name)?.t
+    const vb = voidsBy.filter(r => r.store === st.name)
+      .map(r => ({ employee: r.employee, orders: Number(r.orders) || 0 }))
+      .sort((a, b) => b.orders - a.orders)
+    return { ...built, key: st.key, lastSale: ls ? hmToMin(ls) : null, voidsBy: vb }
   })
 
   const body: NowPayload = {
@@ -119,6 +189,8 @@ export async function GET(req: Request) {
     targets: {
       labor: LABOR_TARGET, laborAmber: LABOR_AMBER,
       unitsPerPerson: UNITS_PER_PERSON_HALF_HOUR, lateMinutes: LATE_MINUTES,
+      ee: EE_TARGET, voidPct: VOID_PCT_TARGET, discountPct: DISCOUNT_PCT_TARGET,
+      weeklyHours: WEEKLY_OT_HOURS, lateLookback: LATE_LOOKBACK_DAYS,
     },
     stores,
   }

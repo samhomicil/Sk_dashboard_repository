@@ -318,3 +318,14 @@ export const REFRESH_WINDOWS: Record<number, [string, string]> = {
 
 /** Inside a refresh window, data older than this is stale: calls pause rather than act on it. */
 export const INTRADAY_STALE_MINUTES = 45
+
+/** Weekly hours past which hourly pay is time-and-a-half (FLSA). The week is Monday–Sunday:
+ *  payroll periods run Mon–Sun in pairs (e.g. 13–26 Jul 2026). The Now screen flags anyone
+ *  whose worked + still-scheduled hours this week pass it, counting every store they work at. */
+export const WEEKLY_OT_HOURS = 40
+
+/** Repeat lateness: a late start (LATE_MINUTES) is called out when it is at least the
+ *  REPEAT_LATE_MIN-th in the last LATE_LOOKBACK_DAYS. The alerts spec (2026-09-30) asked for a
+ *  repeat-lateness summary; these numbers are the first proposal, not a policy Sam set. */
+export const LATE_LOOKBACK_DAYS = 14
+export const REPEAT_LATE_MIN = 2

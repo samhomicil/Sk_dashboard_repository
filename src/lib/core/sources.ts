@@ -89,7 +89,16 @@ export const LABOR_SHIFTS = 'smoothieking.vw_labor_floor_shifts'
  *
  * `where` filters smoothieking.sales aliased `s`, e.g. "s.closed_datetime >= '2026-10-01'".
  * slot = half-hour of the day, 0–47 (slot 19 = 9:30–10:00). net is NET_SALES, so slots sum
- * to the same daily net every other surface shows.
+ * to the same daily net every other surface shows. Every line of a check shares its close
+ * time, so per-slot DISTINCT order counts add up across slots without double counting.
+ *
+ * The other columns reuse the definitions already on other screens, not new ones:
+ *   menu_orders / ee_orders  enhancer attach = orders with a 'Modifiers' item ÷ orders with a
+ *                            menu item — cache-builder fetchEE and the daily recap (EE_TARGET)
+ *   digital_orders           not 'To Go' / 'For Here' — cache-builder's in-store/digital split
+ *   all_orders, void_orders  void rate = orders with a voided line ÷ all orders, and gross /
+ *   discounts, gross         discounts as on Labor & crew (employees.ts). A voided line carries
+ *                            $0 in every money column; only `price` keeps what was voided.
  */
 export const salesBySlot = (where: string) => `
   WITH c AS (
@@ -104,7 +113,16 @@ export const salesBySlot = (where: string) => `
                    AND (c.category IN ('Smoothies', 'Smoothie Bowls', 'Food')
                         OR (c.category IS NULL AND s.gross_sales > 0))
                   THEN 1 ELSE 0 END) AS units,
-         COUNT(DISTINCT CASE WHEN s.voided = 0 THEN s.order_id END) AS orders
+         COUNT(DISTINCT CASE WHEN s.voided = 0 THEN s.order_id END) AS orders,
+         COUNT(DISTINCT s.order_id) AS all_orders,
+         COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.is_modifier = 0 THEN s.order_id END) AS menu_orders,
+         COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.revenue_center = 'Modifiers' THEN s.order_id END) AS ee_orders,
+         COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.destination NOT IN ('To Go', 'For Here')
+                             THEN s.order_id END) AS digital_orders,
+         COUNT(DISTINCT CASE WHEN s.voided = 1 THEN s.order_id END) AS void_orders,
+         SUM(CASE WHEN s.voided = 1 THEN s.price ELSE 0 END) AS void_amount,
+         SUM(CASE WHEN s.voided = 0 THEN s.gross_sales ELSE 0 END) AS gross,
+         SUM(s.discount_total) AS discounts
     FROM smoothieking.sales s
     LEFT JOIN c ON c.k = LOWER(REPLACE(LTRIM(RTRIM(s.item_name)), '_', ' '))
    WHERE ${where}

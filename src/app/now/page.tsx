@@ -13,12 +13,15 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { swrGet, swrSet } from '@/lib/swrCache'
-import { Page, PageBar, TakeCard, Section, Stat, Grid4, BasisNote, Disclosure, toneClass, type Tone } from '@/components/design/shell'
+import {
+  Page, PageBar, TakeCard, FlagList, Section, Stat, Grid4, BasisNote, Disclosure, toneClass,
+  type Tone, type Flag,
+} from '@/components/design/shell'
 import { SegControl } from '@/components/design/controls'
 import { useStoreLock } from '@/components/useStoreLock'
 import { minToClock } from '@/lib/core/dates'
 import type { NowPayload } from '@/app/api/now/route'
-import type { StoreNow, Person, Call } from '@/lib/core/intraday'
+import type { StoreNow, Person, Call, AttendanceFlag } from '@/lib/core/intraday'
 
 type StoreKey = 'all' | 'pines' | 'miramar' | 'margate'
 type S = NowPayload['stores'][number]
@@ -33,7 +36,12 @@ const STORE_OPTS: { value: StoreKey; label: string }[] = [
 const POLL_MS = 5 * 60 * 1000
 
 const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`
+const money2 = (n: number) => `$${n.toFixed(2)}`
+const signedMoney = (n: number) => `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`
 const pct = (x: number | null) => (x == null ? '—' : `${(x * 100).toFixed(1)}%`)
+const pct0 = (x: number | null) => (x == null ? '—' : `${Math.round(x * 100)}%`)
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
+const hourFull = (h: number) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`
 const signedPct = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%`
 const clock = (m: number) => minToClock(m)
 const hourLabel = (h: number) => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`
@@ -127,7 +135,7 @@ function NowScreen() {
 
   return (
     <Page>
-      <PageBar eyebrow={eyebrow} title="Right now" meta={data ? <Freshness d={data} /> : null}>
+      <PageBar eyebrow={eyebrow} title="Right now" meta={data ? <Freshness d={data} s={shown} /> : null}>
         {canPick && (
           <SegControl label="Store" options={STORE_OPTS} value={view} onChange={go} />
         )}
@@ -147,19 +155,23 @@ function NowScreen() {
           owners are never labor. A send-home call needs every remaining half-hour of that person’s shift covered by the people
           still on at {data.targets.unitsPerPerson} units each, against a busy {data.day} (the second-busiest of the last four)
           adjusted to today’s pace{data.holiday ? `. Today is ${data.holiday}: compared against normal ${data.day}s` : ''}.
+          Enhancers are orders with an add-in ÷ orders with a menu item, as on Overview; voids are orders with a voided item ÷ all
+          orders, as on Labor &amp; crew. Hours this week run Monday–Sunday like payroll, across every store a person works;
+          over {data.targets.weeklyHours} is flagged. Repeat lateness looks back {data.targets.lateLookback} days.
         </BasisNote>
       )}
     </Page>
   )
 }
 
-function Freshness({ d }: { d: NowPayload }) {
+function Freshness({ d, s }: { d: NowPayload; s: S | null }) {
   const r = d.refresh
   const day = new Date(d.today + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
   if (r.asOf == null) {
     return <>{day} · {r.inWindow || d.now < r.window.from ? `first pull ${clock(r.window.from)}` : 'no pulls today'}</>
   }
   const parts = [day, `as of ${clock(r.asOf)}`]
+  if (s?.lastSale != null) parts.push(`last sale ${clock(s.lastSale)}`)
   if (r.stale) parts.push(`${r.ageMin} min old — pulls are late`)
   else if (r.next != null) parts.push(`next ${clock(r.next)}`)
   else parts.push('pulls resume tomorrow')
@@ -176,6 +188,8 @@ function StoreView({ d, s }: { d: NowPayload; s: S }) {
     <>
       <Decision d={d} s={s} />
 
+      <Attendance d={d} s={s} />
+
       <div className="sk-now-tiles"><Grid4>
         <Stat label="Sales so far" value={money(s.sales.soFar)}
           sub={`${s.sales.units} units · ${s.sales.orders} orders`}
@@ -191,17 +205,123 @@ function StoreView({ d, s }: { d: NowPayload; s: S }) {
           tone={laborTone(s.labor.finishPct, t.labor, t.laborAmber)} />
       </Grid4></div>
 
-      <Section label="Sales by hour" aside={<span className="sk-meta">vs a normal {d.day}</span>}>
+      <Register d={d} s={s} />
+
+      <Section label="Hour by hour" aside={<span className="sk-meta">
+        {s.sales.normalByNow > 0 ? `running ${signedMoney(s.sales.soFar - s.sales.normalByNow)} vs a normal ${d.day}` : `vs a normal ${d.day}`}
+      </span>}>
         <HourChart s={s} day={d.day} />
+        <HourTable s={s} />
       </Section>
 
       <Section label="Next three hours" aside={<span className="sk-meta">at {t.unitsPerPerson} units a person each half-hour</span>}>
         <Ahead s={s} />
       </Section>
 
-      <Section label="People" aside={<span className="sk-meta">{s.people.filter(p => p.status === 'on').length} on the floor</span>}>
+      <Section label="Who’s clocked in" aside={<span className="sk-meta">{s.people.filter(p => p.status === 'on').length} on the floor</span>}>
         <People s={s} late={t.lateMinutes} />
       </Section>
+    </>
+  )
+}
+
+function Attendance({ d, s }: { d: NowPayload; s: S }) {
+  const t = d.targets
+  const again = (c?: number) => (c && c >= 2 ? ` — ${ordinal(c)} late start in ${t.lateLookback} days` : '')
+  const say = (a: AttendanceFlag): Flag => {
+    const base = { who: nameOf(a.employee), scope: a.role }
+    switch (a.kind) {
+      case 'noshow': return { ...base, tone: 'bad', text: `no-show — was due in at ${clock(a.sched!)}` }
+      case 'missing': return { ...base, tone: 'bad', text: `not in yet — due ${clock(a.sched!)}, ${a.minutes} min ago${again(a.count)}` }
+      case 'late': return { ...base, tone: 'warn', text: `in at ${clock(a.at!)} for ${clock(a.sched!)} — ${a.minutes} min late${again(a.count)}` }
+      case 'repeat-late': return { ...base, tone: 'warn', text: `${a.sched != null ? `due in at ${clock(a.sched)} — ` : ''}late ${a.count} times in the last ${t.lateLookback} days` }
+      case 'left-early': return { ...base, tone: 'warn', text: `left at ${clock(a.at!)}, due out ${clock(a.sched!)} — ${a.minutes} min early` }
+      case 'past-out': return { ...base, tone: 'warn', text: `still on, ${a.minutes} min past the ${clock(a.sched!)} finish` }
+      case 'unscheduled': return { ...base, tone: 'warn', text: `clocked in at ${clock(a.at!)} without a scheduled shift` }
+      case 'overtime': return { ...base, tone: 'warn', text: `on track for ${a.hours} h this week — past ${t.weeklyHours}` }
+      default: return { ...base, tone: 'warn', text: a.kind }
+    }
+  }
+  return <FlagList title="Attendance" flags={s.attendance.map(say)} limit={10}
+    emptyNote="Everyone scheduled so far is in, on time." />
+}
+
+function Register({ d, s }: { d: NowPayload; s: S }) {
+  const f = s.facts, t = d.targets
+  const vs = (a: number | null, b: number | null) => (a != null && b != null && b > 0 ? a / b - 1 : null)
+  const ticketVs = vs(f.avgTicket, f.avgTicketNormal)
+  const top = s.voidsBy[0]
+  const discOver = f.discountPct != null && f.discountPct > t.discountPct
+  return (
+    <Section label="At the register" aside={<span className="sk-meta">today so far vs a normal {d.day}</span>}>
+      <div className="sk-now-tiles"><Grid4>
+        <Stat label="Avg ticket" value={f.avgTicket == null ? '—' : money2(f.avgTicket)}
+          sub={f.discountPct == null ? undefined : `discounts ${pct(f.discountPct)}${discOver ? ` — over ${pct0(t.discountPct)}` : ''}`}
+          delta={f.avgTicketNormal == null ? undefined
+            : `${ticketVs == null ? '' : `${signedPct(ticketVs)} vs `}normal ${money2(f.avgTicketNormal)}`}
+          tone={ticketVs == null ? undefined : ticketVs >= 0 ? 'good' : 'warn'} />
+        <Stat label="Online & delivery" value={pct0(f.digitalShare)} sub="of orders"
+          delta={f.digitalNormal == null ? undefined : `normal ${pct0(f.digitalNormal)}`} />
+        <Stat label="Enhancers" value={pct0(f.ee)} sub={`target ${pct0(t.ee)}`}
+          delta={f.ee == null ? undefined : [
+            f.ee >= t.ee ? 'at or over target' : `${Math.round((t.ee - f.ee) * 100)} pts under target`,
+            f.eeNormal == null ? '' : `normal ${pct0(f.eeNormal)}`,
+          ].filter(Boolean).join(' · ')}
+          tone={f.ee == null ? undefined : f.ee >= t.ee ? 'good' : 'warn'} />
+        <Stat label="Voids" value={pct(f.voidPct)} sub={`${f.voidOrders} of ${f.allOrders} orders`}
+          delta={[
+            f.voidPct != null && f.voidPct > t.voidPct ? `over the ${pct0(t.voidPct)} limit` : `under the ${pct0(t.voidPct)} limit`,
+            f.voidOrders ? `${money(f.voidAmount)} voided` : '',
+            top ? `most by ${firstName(top.employee)} (${top.orders})` : '',
+          ].filter(Boolean).join(' · ')}
+          tone={f.voidPct == null ? undefined : f.voidPct > t.voidPct ? 'bad' : 'good'} />
+      </Grid4></div>
+    </Section>
+  )
+}
+
+function HourTable({ s }: { s: StoreNow }) {
+  const rows = s.sales.byHour
+  if (!rows.length) return null
+  const done = rows.filter(r => r.actual != null)
+  const ahead = rows.filter(r => r.actual == null)
+  const table = (list: typeof rows) => (
+    <div className="sk-card sk-table-wrap">
+      <table className="sk-table sk-now-table">
+        <thead>
+          <tr><th>Hour</th><th className="num">Sales</th><th className="num">Units</th><th className="num">On</th><th className="num">Labor</th></tr>
+        </thead>
+        <tbody>
+          {list.map(r => {
+            const future = r.actual == null
+            return (
+              <tr key={r.hour} className={future ? 'proj' : undefined}>
+                <td className="nowrap">{hourFull(r.hour)}
+                  {r.partial ? <span className="sk-now-sub">so far</span> : null}
+                </td>
+                <td className="num">{future ? `~${money(r.projected ?? 0)}` : money(r.actual!)}
+                  <span className="sk-now-sub">normal {money(r.normal)}</span>
+                </td>
+                <td className="num">{future ? `~${r.unitsAhead ?? 0}` : r.units}</td>
+                <td className="num">{r.heads}</td>
+                <td className="num">{r.laborPct == null ? '—' : pct0(r.laborPct)}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+  if (!done.length) return table(ahead)
+  return (
+    <>
+      {table(done)}
+      {ahead.length > 0 && (
+        <Disclosure label="Rest of the day, expected" count={ahead.length}>
+          {table(ahead)}
+          <p className="sk-meta">Expected at today’s pace, with the people scheduled. Labor is the scheduled wages for the hour ÷ its expected sales.</p>
+        </Disclosure>
+      )}
     </>
   )
 }
@@ -333,7 +453,11 @@ function People({ s, late }: { s: StoreNow; late: number }) {
   const row = (p: Person, cols: [string, string], note?: { tone: Tone; text: string }) => (
     <tr key={`${p.employee}-${p.schedStart ?? p.inAt}`}>
       <td>{nameOf(p.employee)}
-        <span className="sk-now-sub">{p.role}
+        <span className="sk-now-sub">{[
+          p.role,
+          p.inAt != null && p.hoursToday ? `${p.hoursToday.toFixed(1)} h today` : '',
+          p.weekWorked == null ? '' : p.weekWorked > 0 ? `${p.weekWorked} h this week` : 'first shift this week',
+        ].filter(Boolean).join(' · ')}
           {note ? <> <span className={`sk-now-chip ${toneClass(note.tone)}`}>{note.text}</span></> : null}
         </span>
       </td>
@@ -383,18 +507,23 @@ function People({ s, late }: { s: StoreNow; late: number }) {
 
 function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void }) {
   const calls = d.stores.flatMap(s => s.calls.map(c => ({ s, c })))
-  const missing = d.stores.flatMap(s => s.people.filter(p => p.status === 'late' || p.status === 'noshow').map(p => ({ s, p })))
+  const flagsOf = (kinds: AttendanceFlag['kind'][]) =>
+    d.stores.flatMap(s => s.attendance.filter(a => kinds.includes(a.kind)).map(a => ({ s, a })))
+  const missing = flagsOf(['missing', 'noshow'])
+  const late = flagsOf(['late'])
   const byStore = d.stores.filter(s => s.calls.length)
     .map(s => `${s.calls.map(c => firstName(c.employee)).join(' and ')} at ${s.store}`)
   const headline = calls.length
     ? `${calls.length} send-home call${calls.length === 1 ? '' : 's'} — ${byStore.join('; ')}.`
     : 'No send-home calls at any store right now.'
+  const why = [
+    missing.length ? `Not in yet: ${missing.map(({ s, a }) => `${firstName(a.employee)} (${s.store}, ${a.kind === 'noshow' ? 'no-show' : `${a.minutes} min`})`).join(', ')}.` : '',
+    late.length ? `Late today: ${late.map(({ s, a }) => `${firstName(a.employee)} (${s.store}, ${a.minutes} min)`).join(', ')}.` : '',
+  ].filter(Boolean).join(' ')
   return (
     <>
       <TakeCard tone={calls.length || missing.length ? 'warn' : 'good'} label="All stores" headline={headline}>
-        {missing.length
-          ? `Not in yet: ${missing.map(({ s, p }) => `${firstName(p.employee)} (${s.store}, ${p.status === 'noshow' ? 'no-show' : `${p.lateBy} min`})`).join(', ')}.`
-          : calls.length ? 'Open a store for who, and why.' : 'Everyone scheduled so far is in.'}
+        {why || (calls.length ? 'Open a store for who, and why.' : 'Everyone scheduled so far is in, on time.')}
       </TakeCard>
       <div className="sk-now-stores">
         {d.stores.map(s => {
@@ -412,7 +541,16 @@ function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void
                 <span>Labor finish <b>{pct(s.labor.finishPct)}</b>{' '}
                   <span className={`sk-now-chip ${toneClass(tone)}`}>{tone === 'good' ? 'on target' : tone === 'warn' ? 'near target' : tone === 'bad' ? 'over target' : 'no sales yet'}</span>
                 </span>
-                <span><b>{s.people.filter(p => p.status === 'on').length}</b> on now · {s.people.filter(p => p.status === 'coming').length} coming in</span>
+                <span><b>{s.people.filter(p => p.status === 'on').length}</b> on now · {s.people.filter(p => p.status === 'coming').length} coming in
+                  {s.lastSale != null ? ` · last sale ${clock(s.lastSale)}` : ''}</span>
+                {(() => {
+                  const late = s.attendance.filter(a => a.kind === 'late').length
+                  const out = s.attendance.filter(a => a.kind === 'missing' || a.kind === 'noshow').length
+                  return late || out
+                    ? <span><span className={`sk-now-chip ${toneClass(out ? 'bad' : 'warn')}`}>{[late ? `${late} late` : '', out ? `${out} not in` : ''].filter(Boolean).join(' · ')}</span></span>
+                    : null
+                })()}
+                <span>Enhancers <b>{pct0(s.facts.ee)}</b> · voids <b>{s.facts.voidOrders}</b> · ticket <b>{s.facts.avgTicket == null ? '—' : money2(s.facts.avgTicket)}</b></span>
               </span>
             </button>
           )

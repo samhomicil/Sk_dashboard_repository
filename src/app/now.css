@@ -80,5 +80,7 @@
   /* These tables fit a phone, so they opt out of the pinned first column wide tables use. */
   .sk-table.sk-now-table th:first-child,
   .sk-table.sk-now-table td:first-child { position: static; border-right: 0; max-width: none; overflow: visible; }
+  /* …and their name column wraps, so a long sub-line never pushes In / Out off screen. */
+  .sk-table-wrap table.sk-now-table td:first-child:not(.nowrap) { white-space: normal; }
   .sk-now-axis span:nth-child(even) { visibility: hidden; }
 }

@@ -1,6 +1,6 @@
 import {
   UNITS_PER_PERSON_HALF_HOUR, TRUCK_WINDOWS, DELIVERY_DOWS, SEND_HOME_MIN_HOURS, BUSY_RANK,
-  PACE_CLAMP, LATE_MINUTES,
+  PACE_CLAMP, LATE_MINUTES, WEEKLY_OT_HOURS, REPEAT_LATE_MIN,
 } from './targets'
 import { dowOf, hmToMin } from './dates'
 import { buildForecaster } from './forecast'
@@ -25,7 +25,12 @@ import { isSalaried } from './labor'
  *             SEND_HOME_MIN_HOURS left, or the last shift lead on the floor.
  */
 
-export type SlotRow = { store: string; d: string; slot: number; net: number; units: number; orders: number }
+export type SlotRow = {
+  store: string; d: string; slot: number; net: number; units: number; orders: number
+  // salesBySlot's per-order measures (enhancers, channel, voids, discounts) — see sources.ts
+  all_orders?: number; menu_orders?: number; ee_orders?: number; digital_orders?: number
+  void_orders?: number; void_amount?: number; gross?: number; discounts?: number
+}
 /** A clocked shift today (vw_labor_floor_shifts, basis 'clock'). end null = still on the clock. */
 export type ClockRow = { employee: string; role: string; start: string; end: string | null }
 /** A scheduled shift today (labor_schedule). */
@@ -45,6 +50,23 @@ export type Person = {
   status: 'on' | 'coming' | 'late' | 'noshow' | 'done'
   /** minutes late at clock-in, or minutes overdue while still not in (> LATE_MINUTES only) */
   lateBy: number | null
+  /** hours on the clock today so far (hourly crew; null for the salaried manager) */
+  hoursToday?: number | null
+  /** this Mon–Sun week, every store: worked through now, and worked + still scheduled */
+  weekWorked?: number | null
+  weekProjected?: number | null
+}
+
+/** What the Attendance list says about one person. Phrasing is the screen's job. */
+export type AttendanceFlag = {
+  kind: 'late' | 'missing' | 'noshow' | 'left-early' | 'past-out' | 'unscheduled' | 'repeat-late' | 'overtime'
+  employee: string
+  role: string
+  minutes?: number              // late by / overdue by / left early by / past out by
+  at?: number                   // clock-in or clock-out time
+  sched?: number                // the scheduled start (or end, for left-early / past-out)
+  count?: number                // repeat-late: late starts in the lookback, today included
+  hours?: number                // overtime: projected hours this week
 }
 
 export type Call = {
@@ -67,6 +89,20 @@ export type HourRow = {
   normal: number                // usual net for this hour
   projected: number | null      // usual × today's pace, hours still to come
   units: number | null          // made units actually sold
+  partial: boolean              // the hour the pull landed in — still running
+  unitsAhead: number | null     // expected made units, hours still to come
+  heads: number                 // people on at the half-hour: clocked so far, scheduled after
+  wages: number                 // hourly wages worked in the hour so far, or scheduled to come
+  laborPct: number | null       // wages ÷ sales (÷ projected sales for hours to come)
+}
+
+/** Today's snapshot ratios, each beside the same ratio for a normal day at this time. */
+export type Facts = {
+  avgTicket: number | null; avgTicketNormal: number | null
+  digitalShare: number | null; digitalNormal: number | null
+  ee: number | null; eeNormal: number | null
+  voidPct: number | null; voidNormal: number | null; voidOrders: number; allOrders: number; voidAmount: number
+  discountPct: number | null; discountNormal: number | null; discounts: number
 }
 
 export type AheadRow = {
@@ -98,6 +134,8 @@ export type StoreNow = {
   people: Person[]
   ahead: AheadRow[]
   calls: Call[]
+  facts: Facts
+  attendance: AttendanceFlag[]
 }
 
 const LEAD = /manager|captain|lead/i
@@ -186,6 +224,11 @@ export function buildStoreNow(input: {
   clock: ClockRow[]
   plan: PlanRow[]
   rateFor: (store: string, emp: string) => number
+  /** late starts per person over the lookback days before today (any store) */
+  lateHistory?: Map<string, number>
+  /** this Mon–Sun week per person, any store: hours worked before today, hours still
+   *  scheduled after today */
+  week?: Map<string, { worked: number; ahead: number }>
 }): StoreNow {
   const { store, today, asOf, todaySlots, histSlots, clock, plan, rateFor } = input
 
@@ -339,6 +382,7 @@ export function buildStoreNow(input: {
         normal: Math.round(normal),
         projected: started ? null : Math.round(normal * pace.net),
         units: started ? tUnits[s0] + tUnits[s1] : null,
+        partial: false, unitsAhead: null, heads: 0, wages: 0, laborPct: null,
       })
     }
   }
@@ -357,12 +401,115 @@ export function buildStoreNow(input: {
     })
   }
 
+  // ── snapshot facts: today vs a normal day through the same half-hour ────────
+  const upToSlot = Math.ceil(asOf / SLOT)
+  const tot = (rows: SlotRow[], k: keyof SlotRow, upto = 48) =>
+    sumBy(rows.filter(r => r.slot < upto), r => Number(r[k] ?? 0))
+  const histNow = histSlots.filter(r => days.includes(r.d))
+  const ratio = (a: number, b: number) => (b > 0 ? a / b : null)
+  const facts: Facts = {
+    avgTicket: ratio(tot(todaySlots, 'net'), tot(todaySlots, 'orders')),
+    avgTicketNormal: ratio(tot(histNow, 'net', upToSlot), tot(histNow, 'orders', upToSlot)),
+    digitalShare: ratio(tot(todaySlots, 'digital_orders'), tot(todaySlots, 'orders')),
+    digitalNormal: ratio(tot(histNow, 'digital_orders', upToSlot), tot(histNow, 'orders', upToSlot)),
+    ee: ratio(tot(todaySlots, 'ee_orders'), tot(todaySlots, 'menu_orders')),
+    eeNormal: ratio(tot(histNow, 'ee_orders', upToSlot), tot(histNow, 'menu_orders', upToSlot)),
+    voidPct: ratio(tot(todaySlots, 'void_orders'), tot(todaySlots, 'all_orders')),
+    voidNormal: ratio(tot(histNow, 'void_orders', upToSlot), tot(histNow, 'all_orders', upToSlot)),
+    voidOrders: tot(todaySlots, 'void_orders'),
+    allOrders: tot(todaySlots, 'all_orders'),
+    voidAmount: Math.round(tot(todaySlots, 'void_amount')),
+    discountPct: ratio(tot(todaySlots, 'discounts'), tot(todaySlots, 'gross')),
+    discountNormal: ratio(tot(histNow, 'discounts', upToSlot), tot(histNow, 'gross', upToSlot)),
+    discounts: Math.round(tot(todaySlots, 'discounts')),
+  }
+
+  // ── hour by hour: who was (or will be) on, and what the hour cost ──────────
+  // Worked: each clocked shift up to the pull. To come: the schedule, the same way the
+  // labor finish counts it (a late person's remaining shift included — they are expected).
+  const worked = people.filter(p => p.inAt != null)
+    .map(p => ({ p, a: p.inAt!, b: Math.min(p.outAt ?? asOf, asOf) }))
+  const toCome = people.flatMap(p => {
+    if (p.status === 'on') return [{ p, a: asOf, b: p.salaried ? p.schedEnd! : (p.schedEnd ?? asOf) }]
+    if (p.status === 'coming' || p.status === 'late') return [{ p, a: Math.max(asOf, p.schedStart!), b: p.schedEnd! }]
+    return []
+  })
+  const overlap = (a: number, b: number, lo: number, hi: number) => Math.max(0, Math.min(b, hi) - Math.max(a, lo))
+  const wagesIn = (spans: { p: Person; a: number; b: number }[], lo: number, hi: number) =>
+    sumBy(spans.filter(x => !x.p.salaried), x => overlap(x.a, x.b, lo, hi) / 60 * rateFor(store, x.p.employee))
+  // Before the pull: who was actually clocked in. After it: who is expected (the staffing view).
+  const onAt = (m: number) => m < asOf
+    ? worked.filter(x => x.a <= m && m < x.b).length
+    : [...spans].filter(([, [a, b]]) => a <= m && m < b).length
+  for (const r of byHour) {
+    const lo = r.hour * 60, hi = lo + 60
+    const mid = lo + 30
+    r.partial = lo < asOf && asOf < hi
+    r.heads = onAt(mid < asOf ? mid : r.partial ? asOf - 1 : mid)
+    r.wages = Math.round(wagesIn(worked, lo, Math.min(hi, asOf)) + wagesIn(toCome, Math.max(lo, asOf), hi))
+    r.unitsAhead = r.actual == null ? Math.round((meanUnits[r.hour * 2] + meanUnits[r.hour * 2 + 1]) * pace.units) : null
+    const sales = r.actual != null
+      ? r.actual + (r.partial ? Math.max(0, (meanNet[r.hour * 2] + meanNet[r.hour * 2 + 1]) * pace.net * (hi - asOf) / 60) : 0)
+      : (r.projected ?? 0)
+    r.laborPct = sales > 0 ? r.wages / sales : null
+  }
+
+  // ── each person's hours, today and this week ────────────────────────────────
+  for (const p of people) {
+    if (p.salaried) { p.hoursToday = null; continue }
+    const today_ = p.inAt != null ? Math.max(0, Math.min(p.outAt ?? asOf, asOf) - p.inAt) / 60 : 0
+    const left = p.status === 'on' ? Math.max(0, (p.schedEnd ?? asOf) - asOf) / 60
+      : p.status === 'coming' || p.status === 'late' ? Math.max(0, p.schedEnd! - Math.max(asOf, p.schedStart!)) / 60
+      : 0
+    p.hoursToday = Math.round(today_ * 10) / 10
+    const wk = input.week?.get(p.employee)
+    if (input.week) {
+      p.weekWorked = Math.round(((wk?.worked ?? 0) + today_) * 10) / 10
+      p.weekProjected = Math.round(((wk?.worked ?? 0) + today_ + left + (wk?.ahead ?? 0)) * 10) / 10
+    }
+  }
+
+  // ── attendance: what a manager should know about today's people ─────────────
+  const attendance: AttendanceFlag[] = []
+  const seen = new Set<string>()
+  for (const p of people) {
+    const base = { employee: p.employee, role: p.role }
+    if (p.status === 'noshow') attendance.push({ ...base, kind: 'noshow', sched: p.schedStart! })
+    else if (p.status === 'late') attendance.push({ ...base, kind: 'missing', minutes: p.lateBy!, sched: p.schedStart! })
+    else if (p.lateBy && p.inAt != null) attendance.push({ ...base, kind: 'late', minutes: p.lateBy, at: p.inAt, sched: p.schedStart! })
+    if (p.salaried) continue
+    if (p.status === 'done' && p.schedEnd != null && p.outAt != null && p.schedEnd - p.outAt > LATE_MINUTES) {
+      attendance.push({ ...base, kind: 'left-early', minutes: p.schedEnd - p.outAt, at: p.outAt, sched: p.schedEnd })
+    }
+    if (p.status === 'on' && p.schedEnd != null && asOf - p.schedEnd > LATE_MINUTES) {
+      attendance.push({ ...base, kind: 'past-out', minutes: asOf - p.schedEnd, sched: p.schedEnd })
+    }
+    if ((p.status === 'on' || p.status === 'done') && p.schedStart == null && p.inAt != null) {
+      attendance.push({ ...base, kind: 'unscheduled', at: p.inAt })
+    }
+    if (!seen.has(p.employee)) {
+      seen.add(p.employee)
+      const count = (input.lateHistory?.get(p.employee) ?? 0)
+        + (people.some(x => x.employee === p.employee && x.lateBy) ? 1 : 0)
+      if (input.lateHistory && count >= REPEAT_LATE_MIN && p.status !== 'done') {
+        // One line per person: a late or not-in flag today carries the count; otherwise it
+        // is its own heads-up for someone still to come in.
+        const today_ = attendance.find(f => f.employee === p.employee && (f.kind === 'late' || f.kind === 'missing'))
+        if (today_) today_.count = count
+        else attendance.push({ ...base, kind: 'repeat-late', count, sched: p.schedStart ?? undefined })
+      }
+      const proj = people.filter(x => x.employee === p.employee).map(x => x.weekProjected ?? 0)
+      const hours = Math.max(0, ...proj)
+      if (hours > WEEKLY_OT_HOURS) attendance.push({ ...base, kind: 'overtime', hours })
+    }
+  }
+
   return {
     store, asOf, open, truck, pace,
     sales: {
       soFar: Math.round(soFarNet), normalByNow: Math.round(normalByNow), normalDay,
       onPace: Math.round(onPace), orders, units: soFarUnits, byHour,
     },
-    labor, people, ahead, calls,
+    labor, people, ahead, calls, facts, attendance,
   }
 }

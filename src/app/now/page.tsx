@@ -14,7 +14,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { swrGet, swrSet } from '@/lib/swrCache'
 import {
-  Page, PageBar, TakeCard, FlagList, Section, Stat, Grid4, BasisNote, Disclosure, toneClass,
+  Page, PageBar, TakeCard, FlagList, Section, Stat, Grid4, Disclosure, toneClass,
   type Tone, type Flag,
 } from '@/components/design/shell'
 import { SegControl } from '@/components/design/controls'
@@ -32,8 +32,6 @@ const STORE_OPTS: { value: StoreKey; label: string }[] = [
   { value: 'miramar', label: 'Miramar' },
   { value: 'pines', label: 'Pines' },
 ]
-// A store's own login is told its hours and lateness are its store's alone (the API scopes them).
-const lockNote = 'Hours and lateness here count this store only.'
 // The next pull lands every 30 minutes; an open phone picks it up within five.
 const POLL_MS = 5 * 60 * 1000
 
@@ -160,19 +158,6 @@ function NowScreen() {
       {data && !shown && <AllStores d={data} onPick={go} />}
       {data && shown && <StoreView d={data} s={shown} />}
 
-      {data && (
-        <BasisNote>
-          As of the last Brink pull (every 30 minutes, {clock(data.refresh.window.from)}–{clock(data.refresh.window.to)} today).
-          Sales are net, as on every other screen. A unit is one smoothie, bowl or food item made; retail and add-ins are not units.
-          “Normal” is the average of the last four {data.day}s. Labor is hourly wages so far ÷ net sales so far — salaried pay and
-          owners are never labor. A send-home call needs every remaining half-hour of that person’s shift covered by the people
-          still on at {data.targets.unitsPerPerson} units each, against a busy {data.day} (the second-busiest of the last four)
-          adjusted to today’s pace{data.holiday ? `. Today is ${data.holiday}: compared against normal ${data.day}s` : ''}.
-          Enhancers are orders with an add-in ÷ orders with a menu item, as on Overview; voids are orders with a voided item ÷ all
-          orders, as on Labor &amp; crew. Hours this week run Monday–Sunday like payroll; over {data.targets.weeklyHours} is
-          flagged. Repeat lateness looks back {data.targets.lateLookback} days. {data.stores.length === 1 && lockNote}
-        </BasisNote>
-      )}
     </Page>
   )
 }

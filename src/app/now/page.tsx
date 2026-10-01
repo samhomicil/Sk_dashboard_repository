@@ -423,9 +423,10 @@ function Ahead({ s }: { s: StoreNow }) {
         </thead>
         <tbody>
           {s.ahead.map(a => {
-            // short: fewer on than a USUAL hour needs. spare: more than even a BUSY one needs.
+            // short: fewer on than a USUAL hour needs. spare: more than the hour needs on
+            // either forecast — a busy forecast below the usual one must not free someone up.
             const short = a.needUsual - a.heads
-            const spare = a.heads - a.need
+            const spare = a.heads - Math.max(a.need, a.needUsual)
             const [tone, word]: [Tone, string] = short > 0 ? ['bad', `short ${short}`]
               : spare > 0 ? ['warn', `${spare} spare`] : ['good', 'right']
             return (

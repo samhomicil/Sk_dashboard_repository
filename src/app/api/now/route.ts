@@ -8,10 +8,11 @@ import {
 } from '@/lib/core/targets'
 import { etToday, etNowMinutes, isoAdd, dowOf, hmToMin } from '@/lib/core/dates'
 import { salesBySlot, LATEST_RATES, LABOR_SHIFTS, INTRADAY_RUNS } from '@/lib/core/sources'
+import { resolvedKeySql } from '@/lib/core/employee'
 import { buildRateFor, isSalaried, type EmpRateRow } from '@/lib/core/labor'
 import { allKeyed } from '@/lib/core/keyed'
 import {
-  buildStoreNow, buildPeople, type SlotRow, type ClockRow, type PlanRow, type StoreNow,
+  buildStoreNow, buildPeople, personKey, type SlotRow, type ClockRow, type PlanRow, type StoreNow,
 } from '@/lib/core/intraday'
 
 // THE NOW SCREEN's data: each store's day so far, as of the last 30-minute Brink pull.
@@ -50,7 +51,7 @@ export type NowPayload = {
   })[]
 }
 
-type DayShift = { store: string; d: string; employee: string; role: string; start: string; end: string | null }
+type DayShift = { store: string; d: string; employee: string; role: string; start: string; end: string | null; key: string | null }
 /** Minutes a shift spans; an end "before" its start crossed midnight. */
 const spanMin = (start: string, end: string | null) => {
   if (!end) return 0
@@ -106,26 +107,29 @@ export async function GET(req: Request) {
     histSlots: query<SlotRow[]>(salesBySlot(`(${histWhere})`)),
     clock: query<(ClockRow & { store: string })[]>(`
       SELECT store, employee, role, CONVERT(char(5), shift_start, 108) AS start,
-             CONVERT(char(5), shift_end, 108) AS [end]
+             CONVERT(char(5), shift_end, 108) AS [end], ${resolvedKeySql('employee')} AS [key]
         FROM ${LABOR_SHIFTS} WHERE d = '${today}' AND basis = 'clock' ${tag}`),
     plan: query<(PlanRow & { store: string })[]>(`
       SELECT store, employee, role, CONVERT(char(5), start_time, 108) AS start,
-             CONVERT(char(5), end_time, 108) AS [end]
+             CONVERT(char(5), end_time, 108) AS [end], ${resolvedKeySql('employee')} AS [key]
         FROM smoothieking.labor_schedule WHERE work_date = '${today}'`),
     rates: query<EmpRateRow[]>(LATEST_RATES),
     // The lookback: who was late before today, and the hours already worked this week.
     pastClock: query<DayShift[]>(`
       SELECT store, CONVERT(char(10), d, 23) AS d, employee, role,
-             CONVERT(char(5), shift_start, 108) AS start, CONVERT(char(5), shift_end, 108) AS [end]
+             CONVERT(char(5), shift_start, 108) AS start, CONVERT(char(5), shift_end, 108) AS [end],
+             ${resolvedKeySql('employee')} AS [key]
         FROM ${LABOR_SHIFTS} WHERE basis = 'clock' AND d >= '${lookStart}' AND d < '${today}'`),
     pastPlan: query<DayShift[]>(`
       SELECT store, CONVERT(char(10), work_date, 23) AS d, employee, role,
-             CONVERT(char(5), start_time, 108) AS start, CONVERT(char(5), end_time, 108) AS [end]
+             CONVERT(char(5), start_time, 108) AS start, CONVERT(char(5), end_time, 108) AS [end],
+             ${resolvedKeySql('employee')} AS [key]
         FROM smoothieking.labor_schedule WHERE work_date >= '${lookStart}' AND work_date < '${today}'`),
     // The rest of this week, for whoever is heading past WEEKLY_OT_HOURS.
     aheadPlan: query<DayShift[]>(`
       SELECT store, CONVERT(char(10), work_date, 23) AS d, employee, role,
-             CONVERT(char(5), start_time, 108) AS start, CONVERT(char(5), end_time, 108) AS [end]
+             CONVERT(char(5), start_time, 108) AS start, CONVERT(char(5), end_time, 108) AS [end],
+             ${resolvedKeySql('employee')} AS [key]
         FROM smoothieking.labor_schedule WHERE work_date > '${today}' AND work_date <= '${sunday}'`),
     lastSale: query<{ store: string; t: string }[]>(`
       SELECT store, CONVERT(char(5), MAX(closed_datetime), 108) AS t FROM smoothieking.sales
@@ -150,13 +154,13 @@ export async function GET(req: Request) {
   for (const r of pastPlan) day(r).plan.push(r)
   for (const { clock: c, plan: pl } of byDay.values()) {
     const ppl = buildPeople(c, pl.filter((x): x is DayShift & { end: string } => x.end != null), 1440)
-    for (const x of ppl) if (x.inAt != null && x.lateBy) lateHistory.set(x.employee, (lateHistory.get(x.employee) ?? 0) + 1)
+    for (const x of ppl) if (x.inAt != null && x.lateBy) lateHistory.set(x.key, (lateHistory.get(x.key) ?? 0) + 1)
   }
   // This week, every store: hours clocked Mon..yesterday, and hours scheduled after today.
   const week = new Map<string, { worked: number; ahead: number }>()
   const wk = (e: string) => week.get(e) ?? week.set(e, { worked: 0, ahead: 0 }).get(e)!
-  for (const r of pastClock) if (r.d >= monday) wk(r.employee).worked += spanMin(r.start, r.end) / 60
-  for (const r of aheadPlan) if (!isSalaried(r.role)) wk(r.employee).ahead += spanMin(r.start, r.end) / 60
+  for (const r of pastClock) if (r.d >= monday) wk(personKey(r)).worked += spanMin(r.start, r.end) / 60
+  for (const r of aheadPlan) if (!isSalaried(r.role)) wk(personKey(r)).ahead += spanMin(r.start, r.end) / 60
   const num = (r: SlotRow) => ({ ...r, slot: Number(r.slot) })
 
   const stores = wanted.map(st => {

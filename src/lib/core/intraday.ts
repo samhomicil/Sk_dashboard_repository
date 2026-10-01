@@ -5,6 +5,7 @@ import {
 import { dowOf, hmToMin } from './dates'
 import { buildForecaster } from './forecast'
 import { isSalaried } from './labor'
+import { empKey } from './employee'
 
 /**
  * THE NOW SCREEN — a store's day while it is still running, and the send-home calls.
@@ -31,13 +32,23 @@ export type SlotRow = {
   all_orders?: number; menu_orders?: number; ee_orders?: number; digital_orders?: number
   void_orders?: number; void_amount?: number; gross?: number; discounts?: number
 }
-/** A clocked shift today (vw_labor_floor_shifts, basis 'clock'). end null = still on the clock. */
-export type ClockRow = { employee: string; role: string; start: string; end: string | null }
+/** A clocked shift today (vw_labor_floor_shifts, basis 'clock'). end null = still on the clock.
+ *  `key` is the person's resolved identity (core/employee resolvedKeySql) when the query
+ *  supplies it; without it the plain empKey is used, which still absorbs capitalisation. */
+export type ClockRow = { employee: string; role: string; start: string; end: string | null; key?: string | null }
 /** A scheduled shift today (labor_schedule). */
-export type PlanRow = { employee: string; role: string; start: string; end: string }
+export type PlanRow = { employee: string; role: string; start: string; end: string; key?: string | null }
+
+/** One identity per person across the schedule and the timecard. Raw names are NOT an
+ *  identity: Brink's schedule prints "Mclaren" and "Vasquez-Escobar" where its timecard
+ *  prints "McLaren" and "Vasques-Escobar". Pairing on the raw name made 25 of September's
+ *  48 "no clock-in" shifts — each person shown as not in AND as clocked in unscheduled. */
+export const personKey = (r: { employee: string; key?: string | null }): string =>
+  r.key ?? empKey(r.employee) ?? r.employee.trim().toLowerCase()
 
 export type Person = {
   employee: string
+  key: string                   // personKey — compare people by this, never by name
   role: string
   salaried: boolean
   lead: boolean
@@ -165,8 +176,9 @@ export function buildPeople(clock: ClockRow[], plan: PlanRow[], asOf: number): P
     const outAt = endMin(inAt, c.end)
     // nearest unused scheduled shift for the same person, within 3 hours of the clock-in
     let best = -1, gap = 181
+    const ck = personKey(c)
     crewPlan.forEach((p, i) => {
-      if (used.has(i) || p.employee !== c.employee) return
+      if (used.has(i) || personKey(p) !== ck) return
       const g = Math.abs(hmToMin(p.start) - inAt)
       if (g < gap) { gap = g; best = i }
     })
@@ -176,7 +188,7 @@ export function buildPeople(clock: ClockRow[], plan: PlanRow[], asOf: number): P
     const schedEnd = p ? endMin(hmToMin(p.start), p.end) : null
     const late = schedStart != null && inAt - schedStart > LATE_MINUTES ? inAt - schedStart : null
     out.push({
-      employee: c.employee, role: c.role || (p?.role ?? ''), salaried: false, lead: LEAD.test(c.role || ''),
+      employee: c.employee, key: ck, role: c.role || (p?.role ?? ''), salaried: false, lead: LEAD.test(c.role || ''),
       inAt, outAt, schedStart, schedEnd,
       status: outAt != null && outAt <= asOf ? 'done' : 'on',
       lateBy: late,
@@ -188,7 +200,7 @@ export function buildPeople(clock: ClockRow[], plan: PlanRow[], asOf: number): P
     const overdue = asOf - s
     const status: Person['status'] = e <= asOf ? 'noshow' : overdue > LATE_MINUTES ? 'late' : 'coming'
     out.push({
-      employee: p.employee, role: p.role, salaried: false, lead: LEAD.test(p.role),
+      employee: p.employee, key: personKey(p), role: p.role, salaried: false, lead: LEAD.test(p.role),
       inAt: null, outAt: null, schedStart: s, schedEnd: e, status,
       lateBy: status === 'late' || status === 'noshow' ? Math.min(overdue, e - s) : null,
     })
@@ -196,7 +208,7 @@ export function buildPeople(clock: ClockRow[], plan: PlanRow[], asOf: number): P
   for (const p of plan.filter(x => isSalaried(x.role))) {
     const s = hmToMin(p.start), e = endMin(s, p.end)!
     out.push({
-      employee: p.employee, role: p.role, salaried: true, lead: true,
+      employee: p.employee, key: personKey(p), role: p.role, salaried: true, lead: true,
       inAt: s <= asOf ? s : null, outAt: e <= asOf ? e : null, schedStart: s, schedEnd: e,
       status: e <= asOf ? 'done' : s <= asOf ? 'on' : 'coming', lateBy: null,
     })
@@ -224,10 +236,10 @@ export function buildStoreNow(input: {
   clock: ClockRow[]
   plan: PlanRow[]
   rateFor: (store: string, emp: string) => number
-  /** late starts per person over the lookback days before today (any store) */
+  /** late starts per person (by personKey) over the lookback days before today, any store */
   lateHistory?: Map<string, number>
-  /** this Mon–Sun week per person, any store: hours worked before today, hours still
-   *  scheduled after today */
+  /** this Mon–Sun week per person (by personKey), any store: hours worked before today,
+   *  hours still scheduled after today */
   week?: Map<string, { worked: number; ahead: number }>
 }): StoreNow {
   const { store, today, asOf, todaySlots, histSlots, clock, plan, rateFor } = input
@@ -462,7 +474,7 @@ export function buildStoreNow(input: {
       : p.status === 'coming' || p.status === 'late' ? Math.max(0, p.schedEnd! - Math.max(asOf, p.schedStart!)) / 60
       : 0
     p.hoursToday = Math.round(today_ * 10) / 10
-    const wk = input.week?.get(p.employee)
+    const wk = input.week?.get(p.key)
     if (input.week) {
       p.weekWorked = Math.round(((wk?.worked ?? 0) + today_) * 10) / 10
       p.weekProjected = Math.round(((wk?.worked ?? 0) + today_ + left + (wk?.ahead ?? 0)) * 10) / 10
@@ -487,18 +499,19 @@ export function buildStoreNow(input: {
     if ((p.status === 'on' || p.status === 'done') && p.schedStart == null && p.inAt != null) {
       attendance.push({ ...base, kind: 'unscheduled', at: p.inAt })
     }
-    if (!seen.has(p.employee)) {
-      seen.add(p.employee)
-      const count = (input.lateHistory?.get(p.employee) ?? 0)
-        + (people.some(x => x.employee === p.employee && x.lateBy) ? 1 : 0)
+    if (!seen.has(p.key)) {
+      seen.add(p.key)
+      const count = (input.lateHistory?.get(p.key) ?? 0)
+        + (people.some(x => x.key === p.key && x.lateBy) ? 1 : 0)
       if (input.lateHistory && count >= REPEAT_LATE_MIN && p.status !== 'done') {
         // One line per person: a late or not-in flag today carries the count; otherwise it
         // is its own heads-up for someone still to come in.
         const today_ = attendance.find(f => f.employee === p.employee && (f.kind === 'late' || f.kind === 'missing'))
+          ?? attendance.find(f => (f.kind === 'late' || f.kind === 'missing') && people.some(x => x.key === p.key && x.employee === f.employee))
         if (today_) today_.count = count
         else attendance.push({ ...base, kind: 'repeat-late', count, sched: p.schedStart ?? undefined })
       }
-      const proj = people.filter(x => x.employee === p.employee).map(x => x.weekProjected ?? 0)
+      const proj = people.filter(x => x.key === p.key).map(x => x.weekProjected ?? 0)
       const hours = Math.max(0, ...proj)
       if (hours > WEEKLY_OT_HOURS) attendance.push({ ...base, kind: 'overtime', hours })
     }

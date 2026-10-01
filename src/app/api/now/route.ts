@@ -1,5 +1,5 @@
 import { query, queryLive } from '@/lib/db'
-import { requireStore } from '@/lib/store-guard'
+import { requireStore, currentScope } from '@/lib/store-guard'
 import { holidayName } from '@/lib/holiday'
 import {
   STORES, DOW, HIST_WEEKS, LABOR_TARGET, LABOR_AMBER, UNITS_PER_PERSON_HALF_HOUR, LATE_MINUTES,
@@ -66,6 +66,13 @@ export async function GET(req: Request) {
   const s = await requireStore(new URL(req.url).searchParams.get('store'))
   if (s instanceof Response) return s
   const wanted = s === 'all' ? [...STORES] : STORES.filter(x => x.key === s)
+  // A store's own login sees only its own store — including the history that is built from
+  // other stores' rows. Three people work at both Pines and Miramar; without this a Pines
+  // login would see their Miramar late starts and Miramar hours. Owners and Dan ('all')
+  // keep the every-store view, which is what catches overtime across stores.
+  const scope = await currentScope()
+  const own = scope && scope !== 'all' ? STORES.find(x => x.key === scope)?.name ?? null : null
+  const inScope = (r: { store: string }) => own == null || r.store === own
 
   const today = etToday()
   const now = etNowMinutes()
@@ -152,8 +159,8 @@ export async function GET(req: Request) {
     if (!byDay.has(k)) byDay.set(k, { clock: [], plan: [] })
     return byDay.get(k)!
   }
-  for (const r of pastClock) day(r).clock.push(r)
-  for (const r of pastPlan) day(r).plan.push(r)
+  for (const r of pastClock.filter(inScope)) day(r).clock.push(r)
+  for (const r of pastPlan.filter(inScope)) day(r).plan.push(r)
   for (const [k, { clock: c, plan: pl }] of byDay) {
     const d = k.split('|')[1]
     const ppl = buildPeople(c, pl.filter((x): x is DayShift & { end: string } => x.end != null), 1440)
@@ -168,8 +175,8 @@ export async function GET(req: Request) {
   // This week, every store: hours clocked Mon..yesterday, and hours scheduled after today.
   const week = new Map<string, { worked: number; ahead: number }>()
   const wk = (e: string) => week.get(e) ?? week.set(e, { worked: 0, ahead: 0 }).get(e)!
-  for (const r of pastClock) if (r.d >= monday) wk(personKey(r)).worked += spanMin(r.start, r.end) / 60
-  for (const r of aheadPlan) if (!isSalaried(r.role)) wk(personKey(r)).ahead += spanMin(r.start, r.end) / 60
+  for (const r of pastClock.filter(inScope)) if (r.d >= monday) wk(personKey(r)).worked += spanMin(r.start, r.end) / 60
+  for (const r of aheadPlan.filter(inScope)) if (!isSalaried(r.role)) wk(personKey(r)).ahead += spanMin(r.start, r.end) / 60
   const num = (r: SlotRow) => ({ ...r, slot: Number(r.slot) })
 
   const stores = wanted.map(st => {

@@ -1,12 +1,13 @@
 import {
   startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   startOfQuarter, endOfQuarter, startOfYear,
-  subWeeks, subYears, format, subMonths, subQuarters,
+  subWeeks, subYears, format, subMonths, subQuarters, subDays,
 } from 'date-fns'
 import type { DateRange, Period } from './types'
 
 export function resolveDateRange(period: Period, customStart?: string, customEnd?: string): DateRange {
   const today = new Date()
+  const yesterday = subDays(today, 1)
 
   let start: Date, end: Date
 
@@ -15,17 +16,21 @@ export function resolveDateRange(period: Period, customStart?: string, customEnd
       start = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 })
       end   = endOfWeek(subWeeks(today, 1), { weekStartsOn: 1 })
       break
+    // Month / quarter / YTD run to the LAST FINISHED day, never today: with Brink pulled
+    // every 30 min, today is a partial day and would read as a complete one against a full
+    // prior-year day. Anchoring on yesterday also handles the 1st of a month/quarter/year
+    // (the period that just closed). Today lives on the Now page. (core/dates lastCompleteDay)
     case 'monthly':
-      start = startOfMonth(subMonths(today, today.getDate() === 1 ? 1 : 0))
-      end   = today.getDate() === 1 ? endOfMonth(subMonths(today, 1)) : today
+      start = startOfMonth(yesterday)
+      end   = yesterday
       break
     case 'quarterly':
-      start = startOfQuarter(today)
-      end   = today
+      start = startOfQuarter(yesterday)
+      end   = yesterday
       break
     case 'ytd':
-      start = startOfYear(today)
-      end   = today
+      start = startOfYear(yesterday)
+      end   = yesterday
       break
     case 'custom':
       if (customStart && customEnd) {

@@ -4,6 +4,7 @@ import { query, dateFilter } from '@/lib/db'
 import type { Store, DailyRow } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
 import { LABOR_DAILY } from '@/lib/core/sources'
+import { capToComplete } from '@/lib/core/dates'
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
@@ -93,9 +94,14 @@ export async function GET(req: NextRequest) {
   const scoped = await requireStore(p.get('store')); if (scoped instanceof Response) return scoped
   const store = scoped as Store
   const start   = p.get('start')   ?? ''
-  const end     = p.get('end')     ?? ''
+  const endReq  = p.get('end')     ?? ''
   const pyStart = p.get('pyStart') ?? ''
-  const pyEnd   = p.get('pyEnd')   ?? ''
+  const pyEndReq = p.get('pyEnd')  ?? ''
+  // A custom range never runs into today (a partial day once Brink is pulled intraday);
+  // the prior-year end moves back with it so the comparison stays like-for-like.
+  const capped  = capToComplete(endReq, pyEndReq)
+  const end     = capped.end
+  const pyEnd   = capped.pyEnd ?? ''
 
   if (start && end) {
     const [current, py] = await Promise.all([

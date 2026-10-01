@@ -30,6 +30,7 @@ import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
   QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee, Promotion,
 } from './types'
+import { lastCompleteDay } from './core/dates'
 
 // ── DB helper ────────────────────────────────────────────────────
 async function dbQuery<T = Record<string, unknown>[]>(sql: string): Promise<T> {
@@ -573,7 +574,7 @@ async function fetchHeatmap(store: Store): Promise<unknown[]> {
   const baseCells = sigmaHeatmap(store)
   const today     = new Date()
   const weekStart = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd')
-  const weekEnd   = format(today, 'yyyy-MM-dd')
+  const weekEnd   = lastCompleteDay()   // this week so far, finished days only
   const filter    = sf(store)
 
   const shiftRows = await dbQuery<{ employee: string; shift_date: string; shift_start: string; shift_end: string }[]>(`
@@ -766,7 +767,8 @@ async function fetchQuarters(store: Store): Promise<QuarterRow[]> {
     const isFuture  = qStart > today
     const isCurrent = qStart <= today && qEnd >= today
     if (isFuture) return { quarter: `Q${q}`, sales:null, salesPY:null, orders:null, laborPct:null, laborCost:null, laborHours:null, eePct:null, cogsPct:null, atv:null, isCurrent:false, isFuture:true }
-    const eff    = qEnd > today ? today : qEnd
+    const lastDone = lastCompleteDay()                 // never a partial today
+    const eff    = qEnd > lastDone ? lastDone : qEnd
     const sales   = sigmaSales(store, qStart, eff).net_sales
     const salesPY = sigmaSales(store, pyStart, pyEnd).net_sales
     const orders  = sigmaOrders(store, qStart, eff)

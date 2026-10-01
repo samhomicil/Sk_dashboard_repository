@@ -9,6 +9,7 @@ import { buildForecaster, type SalesRow } from '@/lib/core/forecast'
 import { pfgFood, wmtFood } from '@/lib/core/sources'
 import { BASIS_FACTOR } from '@/lib/bills/periods'
 import { cogsWeeklySeries, type CogsWindow } from '@/lib/core/cogs'
+import { lastCompleteDay } from '@/lib/core/dates'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -183,8 +184,11 @@ export async function GET() {
   for (const r of cogsRows) { const nm = NAME_OF[r.store]; if (nm && num(r.sales) > 0) cogsRate.set(nm, num(r.theo) / num(r.sales)) }
 
   // ---- index live data per store ----
-  const maxSales = salesRows.reduce((m, r) => r.d > m ? r.d : m, '')
-  const maxLabor = laborRows.reduce((m, r) => r.d > m ? r.d : m, '')
+  // "Actual through" = the newest day with data, but never today: an intraday pull makes
+  // today a partial day, which must stay forecast/scheduled, not count as a full actual day.
+  const lastDone = lastCompleteDay()
+  const maxSales = [salesRows.reduce((m, r) => r.d > m ? r.d : m, ''), lastDone].sort()[0]
+  const maxLabor = [laborRows.reduce((m, r) => r.d > m ? r.d : m, ''), lastDone].sort()[0]
   const maxPfg = pfgRows.reduce((m, r) => r.d > m ? r.d : m, '')
   const maxWm = wmRows.reduce((m, r) => r.d > m ? r.d : m, '')
   const maxTill = tipRows.reduce((m, r) => r.d > m ? r.d : m, '')

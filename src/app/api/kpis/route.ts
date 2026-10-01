@@ -7,6 +7,7 @@ import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
 import { LABOR_DAILY } from '@/lib/core/sources'
+import { capToComplete } from '@/lib/core/dates'
 
 const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
 
@@ -58,9 +59,14 @@ export async function GET(req: NextRequest) {
   const store = scoped as Store
   const period  = (p.get('period') ?? 'weekly') as Period
   const start   = p.get('start')   ?? ''
-  const end     = p.get('end')     ?? ''
+  const endReq  = p.get('end')     ?? ''
   const pyStart = p.get('pyStart') ?? ''
-  const pyEnd   = p.get('pyEnd')   ?? ''
+  const pyEndReq = p.get('pyEnd')  ?? ''
+  // A custom range never runs into today (a partial day once Brink is pulled intraday);
+  // the prior-year end moves back with it so the comparison stays like-for-like.
+  const capped  = capToComplete(endReq, pyEndReq)
+  const end     = capped.end
+  const pyEnd   = capped.pyEnd ?? ''
 
   if (period !== 'custom') {
     const data = await cacheKpisAsync(store, period)

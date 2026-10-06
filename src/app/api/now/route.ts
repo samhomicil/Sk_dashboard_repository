@@ -7,12 +7,12 @@ import {
   DISCOUNT_PCT_TARGET, WEEKLY_OT_HOURS,
 } from '@/lib/core/targets'
 import { etToday, etNowMinutes, isoAdd, dowOf, hmToMin } from '@/lib/core/dates'
-import { salesBySlot, LATEST_RATES, LABOR_SHIFTS, INTRADAY_RUNS } from '@/lib/core/sources'
+import { salesBySlot, eeBySlot, LATEST_RATES, LABOR_SHIFTS, INTRADAY_RUNS } from '@/lib/core/sources'
 import { resolvedKeySql } from '@/lib/core/employee'
 import { buildRateFor, isSalaried, type EmpRateRow } from '@/lib/core/labor'
 import { allKeyed } from '@/lib/core/keyed'
 import {
-  buildStoreNow, buildPeople, personKey, type SlotRow, type ClockRow, type PlanRow, type StoreNow,
+  buildStoreNow, buildPeople, personKey, type SlotRow, type EESlotRow, type ClockRow, type PlanRow, type StoreNow,
   type LateEvent,
 } from '@/lib/core/intraday'
 
@@ -110,10 +110,13 @@ export async function GET(req: Request) {
   const histWhere = histDates
     .map(d => `(s.closed_datetime >= '${d}' AND s.closed_datetime < '${isoAdd(d, 1)}')`).join(' OR ')
 
-  const { todaySlots, histSlots, clock, plan, rates, pastClock, pastPlan, aheadPlan, lastSale, voidsBy } = await allKeyed({
+  const { todaySlots, histSlots, eeToday, eeHist, clock, plan, rates, pastClock, pastPlan, aheadPlan, lastSale, voidsBy } = await allKeyed({
     todaySlots: query<SlotRow[]>(
       salesBySlot(`s.closed_datetime >= '${today}' AND s.closed_datetime < '${tomorrow}'`) + tag),
     histSlots: query<SlotRow[]>(salesBySlot(`(${histWhere})`)),
+    // E&E is CrunchTime's (sources.ts EE_CHECKS), loaded from NetChef on its own schedule.
+    eeToday: queryLive<EESlotRow[]>(eeBySlot(`business_date = '${today}'`)),
+    eeHist: query<EESlotRow[]>(eeBySlot(`business_date IN (${histDates.map(d => `'${d}'`).join(', ')})`)),
     clock: query<(ClockRow & { store: string })[]>(`
       SELECT store, employee, role, CONVERT(char(5), shift_start, 108) AS start,
              CONVERT(char(5), shift_end, 108) AS [end], ${resolvedKeySql('employee')} AS [key]
@@ -179,6 +182,7 @@ export async function GET(req: Request) {
   for (const r of pastClock.filter(inScope)) if (r.d >= monday) wk(personKey(r)).worked += spanMin(r.start, r.end) / 60
   for (const r of aheadPlan.filter(inScope)) if (!isSalaried(r.role)) wk(personKey(r)).ahead += spanMin(r.start, r.end) / 60
   const num = (r: SlotRow) => ({ ...r, slot: Number(r.slot) })
+  const numEE = (r: EESlotRow) => ({ ...r, slot: Number(r.slot), ee: Number(r.ee) || 0, sm: Number(r.sm) || 0 })
 
   const stores = wanted.map(st => {
     const built = buildStoreNow({
@@ -187,6 +191,8 @@ export async function GET(req: Request) {
       asOf: asOf ?? Math.min(now, window.from),
       todaySlots: todaySlots.filter(r => r.store === st.name).map(num),
       histSlots: histSlots.filter(r => r.store === st.name).map(num),
+      eeToday: eeToday.filter(r => r.store === st.name).map(numEE),
+      eeHist: eeHist.filter(r => r.store === st.name).map(numEE),
       clock: clock.filter(r => r.store === st.name),
       plan: plan.filter(r => r.store === st.name),
       rateFor, lateHistory, week,

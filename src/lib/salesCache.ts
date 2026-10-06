@@ -15,6 +15,7 @@
  */
 import 'server-only'
 import { query } from './db'
+import { EE_CHECKS } from './core/sources'
 import type { Store } from './types'
 // Types formerly in sigma.ts (kept the names to avoid churn; sigma.ts is being removed).
 export interface SigmaSalesSummary { net_sales: number; gross_sales: number; voids_amount: number; void_orders: number }
@@ -29,31 +30,31 @@ type DayRow = {
   store: string; date: string
   net_sales: number; gross_sales: number; voids_amount: number
   orders: number; void_orders: number
-  sm: number; ee: number   // enhancer: sm = order_id (is_modifier=0), ee = order_id (revenue_center='Modifiers'), voided=0
 }
+/** CrunchTime's E&E per store-day (core/sources.ts EE_CHECKS): ee added ÷ sm smoothies sold. */
+type EEDayRow = { store: string; date: string; sm: number; ee: number }
 type ChanRow = { store: string; date: string; destination: string; sales: number }
 
 let _days: DayRow[] | null = null
 let _chans: ChanRow[] | null = null
+let _ee: EEDayRow[] | null = null
 let _loading: Promise<void> | null = null
 
 const n = (v: unknown) => Number(v) || 0
 
 /** Load daily sales + channel aggregates from smoothieking.sales (once per process). */
 export async function loadSalesCache(): Promise<void> {
-  if (_days && _chans) return
+  if (_days && _chans && _ee) return
   if (_loading) return _loading
   _loading = (async () => {
-    const [days, chans] = await Promise.all([
+    const [days, chans, ee] = await Promise.all([
       query<DayRow[]>(`
         SELECT LOWER(store) AS store, CONVERT(char(10), closed_datetime, 23) AS date,
                SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales   ELSE 0 END) AS net_sales,
                SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) AS gross_sales,
                SUM(CASE WHEN voided=1 AND is_modifier=0 THEN price        ELSE 0 END) AS voids_amount,
                COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END) AS orders,
-               COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END) AS void_orders,
-               COUNT(DISTINCT CASE WHEN voided=0 AND is_modifier=0 THEN order_id END) AS sm,
-               COUNT(DISTINCT CASE WHEN voided=0 AND revenue_center='Modifiers' THEN order_id END) AS ee
+               COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END) AS void_orders
           FROM smoothieking.sales
          GROUP BY LOWER(store), CONVERT(char(10), closed_datetime, 23)`),
       query<ChanRow[]>(`
@@ -62,13 +63,19 @@ export async function loadSalesCache(): Promise<void> {
           FROM smoothieking.sales
          WHERE destination IS NOT NULL
          GROUP BY LOWER(store), CONVERT(char(10), closed_datetime, 23), destination`),
+      query<EEDayRow[]>(`
+        SELECT LOWER(store) AS store, CONVERT(char(10), business_date, 23) AS date,
+               SUM(smoothie_qty) AS sm, SUM(ee_qty) AS ee
+          FROM ${EE_CHECKS}
+         GROUP BY LOWER(store), CONVERT(char(10), business_date, 23)`),
     ])
     _days = days.map(r => ({
       store: r.store, date: r.date,
       net_sales: n(r.net_sales), gross_sales: n(r.gross_sales), voids_amount: n(r.voids_amount),
-      orders: n(r.orders), void_orders: n(r.void_orders), sm: n(r.sm), ee: n(r.ee),
+      orders: n(r.orders), void_orders: n(r.void_orders),
     }))
     _chans = chans.map(r => ({ store: r.store, date: r.date, destination: r.destination, sales: n(r.sales) }))
+    _ee = ee.map(r => ({ store: r.store, date: r.date, sm: n(r.sm), ee: n(r.ee) }))
   })()
   await _loading
   _loading = null
@@ -179,10 +186,10 @@ export async function sqlEmployeeShifts(store: Store, start: string, end: string
   return out
 }
 
-/** Enhancer-attach % for a single day = ee / sm (both distinct order_id, voided=0). */
+/** CrunchTime's E&E % for a single business day = E&E added ÷ smoothies sold. */
 export function sqlEEDailyPct(store: Store, date: string): number | null {
   let sm = 0, ee = 0
-  for (const r of days()) if (r.date === date && matches(r.store, store)) { sm += r.sm; ee += r.ee }
+  for (const r of _ee ?? []) if (r.date === date && matches(r.store, store)) { sm += r.sm; ee += r.ee }
   return sm > 0 ? ee / sm : null
 }
 

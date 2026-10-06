@@ -279,8 +279,9 @@ function Register({ d, s }: { d: NowPayload; s: S }) {
           tone={ticketVs == null ? undefined : ticketVs >= 0 ? 'good' : 'warn'} />
         <Stat label="Online & delivery" value={pct0(f.digitalShare)}
           sub={<>{f.digitalNormal != null ? <><Avg v={pct0(f.digitalNormal)} /> · </> : null}of orders</>} />
-        <Stat label="Enhancers" value={pct0(f.ee)}
-          sub={<>{f.eeNormal != null ? <><Avg v={pct0(f.eeNormal)} /> · </> : null}target {pct0(t.ee)}</>}
+        <Stat label="E&E" value={pct0(f.ee)}
+          sub={<>{f.eeThrough != null ? `thru ${clock(f.eeThrough)} · ` : null}
+            {f.eeNormal != null ? <><Avg v={pct0(f.eeNormal)} /> · </> : null}target {pct0(t.ee)}</>}
           delta={f.ee == null ? undefined
             : f.ee >= t.ee ? 'at or over target' : `${Math.round((t.ee - f.ee) * 100)} pts under target`}
           tone={f.ee == null ? undefined : f.ee >= t.ee ? 'good' : 'warn'} />
@@ -563,7 +564,7 @@ function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void
                   <span key={`late-${a.employee}`}><span className={`sk-now-chip ${toneClass('warn')}`}>late</span>{' '}
                     {firstName(a.employee)} {inFor(a.at!, a.sched!)}</span>
                 ))}
-                <span>Enhancers <b>{pct0(s.facts.ee)}</b> · voids <b>{s.facts.voidOrders}</b> · ticket <b>{s.facts.avgTicket == null ? '—' : money2(s.facts.avgTicket)}</b></span>
+                <span>E&amp;E <b>{pct0(s.facts.ee)}</b> · voids <b>{s.facts.voidOrders}</b> · ticket <b>{s.facts.avgTicket == null ? '—' : money2(s.facts.avgTicket)}</b></span>
               </span>
             </button>
           )

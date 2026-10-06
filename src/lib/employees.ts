@@ -20,6 +20,7 @@
 // smoothieking.sales). Brink's report attributes all of them.
 
 import { query } from './db'
+import { EE_CHECKS } from './core/sources'
 
 // NOTE ON ERROR HANDLING: none of the queries below swallow failures. An earlier version
 // wrapped each in .catch(() => []), which meant a query that SQL Server rejected rendered
@@ -544,12 +545,13 @@ export async function getDobMap(store?: string): Promise<Map<string, string>> {
 // card exactly (cache-builder.ts): void% is void ORDERS ÷ orders, and discount% is
 // discount ÷ GROSS sales. Deriving them the "obvious" way instead — void LINES ÷ orders,
 // discount ÷ NET — reads more than double on voids (5.4% vs 2.5% at Margate) and pushes
-// discount over target where it isn't. EE% likewise reuses the dashboard's definition:
-// ee = distinct orders carrying a 'Modifiers' line, sm = distinct non-modifier orders.
+// discount over target where it isn't. EE% is CrunchTime's (core/sources.ts EE_CHECKS):
+// extras & enhancers added ÷ smoothies sold, by the server NetChef has on each check.
 //
-// COVERAGE CAVEAT: all three come from smoothieking.sales, whose cashier stamp is missing
-// for everyone hired since ~2026-05-05. Those employees get nulls here — NOT zeroes — and
-// the UI must show "no POS attribution" rather than a flattering 0% void rate.
+// COVERAGE CAVEAT: void% and discount% come from smoothieking.sales, whose cashier stamp is
+// missing for everyone hired since ~2026-05-05. Those employees get nulls there — NOT
+// zeroes — and the UI must show "no POS attribution" rather than a flattering 0% void rate.
+// EE% does not have the gap: NetChef attributes every check to its server.
 
 /** Minimum attributed orders before a rate is shown at all (design §5.7 exposure gates). */
 const MIN_ORDERS_FOR_RATE = 20
@@ -580,31 +582,40 @@ export async function getExceptions(start: string, end: string, store?: string) 
   const sf = store && store !== 'all' ? `AND s.store = '${store}'` : ''
   const rows = await query<{
     employee_key: string; orders: number; void_orders: number
-    disc: number; gross: number; ee: number; sm: number
+    disc: number; gross: number
   }[]>(`
     SELECT COALESCE(al.employee_key, ${empKeySql('s.employee')}) AS employee_key,
            COUNT(DISTINCT s.order_id)                                          AS orders,
            COUNT(DISTINCT CASE WHEN s.voided = 1 THEN s.order_id END)          AS void_orders,
            SUM(s.discount_total)                                               AS disc,
-           SUM(CASE WHEN s.voided = 0 THEN s.gross_sales ELSE 0 END)           AS gross,
-           COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.revenue_center = 'Modifiers'
-                               THEN s.order_id END)                            AS ee,
-           COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.is_modifier = 0
-                               THEN s.order_id END)                            AS sm
+           SUM(CASE WHEN s.voided = 0 THEN s.gross_sales ELSE 0 END)           AS gross
     FROM smoothieking.sales s
     LEFT JOIN smoothieking.employee_alias al ON al.alias = ${empKeySql('s.employee')}
     WHERE CAST(s.closed_datetime AS date) BETWEEN '${start}' AND '${end}' ${sf}
       AND s.employee IS NOT NULL AND s.employee NOT IN ('None', '')
     GROUP BY COALESCE(al.employee_key, ${empKeySql('s.employee')})
   `)
+  const sfE = store && store !== 'all' ? `AND e.store = '${store}'` : ''
+  const eeRows = await query<{ employee_key: string; ee: number; sm: number }[]>(`
+    SELECT COALESCE(al.employee_key, ${empKeySql('e.server_name')}) AS employee_key,
+           SUM(e.ee_qty) AS ee, SUM(e.smoothie_qty) AS sm
+    FROM ${EE_CHECKS} e
+    LEFT JOIN smoothieking.employee_alias al ON al.alias = ${empKeySql('e.server_name')}
+    WHERE e.business_date BETWEEN '${start}' AND '${end}' ${sfE} AND e.server_name <> 'DIGITAL'
+    GROUP BY COALESCE(al.employee_key, ${empKeySql('e.server_name')})
+  `)
+  const eeBy = new Map(eeRows.map(r => [r.employee_key, { ee: Number(r.ee) || 0, sm: Number(r.sm) || 0 }]))
+  // Anyone NetChef credits with smoothies but Brink's export left unnamed still gets an EE%.
+  const named = new Set(rows.map(r => r.employee_key))
+  const salesRows = [...rows, ...[...eeBy.keys()].filter(k => !named.has(k))
+    .map(k => ({ employee_key: k, orders: 0, void_orders: 0, disc: 0, gross: 0 }))]
 
   const out = new Map<string, ExceptionRow>()
-  for (const r of rows) {
+  for (const r of salesRows) {
     const orders = Number(r.orders) || 0
     const gross = Number(r.gross) || 0
     const disc = Number(r.disc) || 0
-    const sm = Number(r.sm) || 0
-    const ee = Number(r.ee) || 0
+    const { ee, sm } = eeBy.get(r.employee_key) ?? { ee: 0, sm: 0 }
     out.set(r.employee_key, {
       employeeKey: r.employee_key,
       orders,
@@ -617,8 +628,8 @@ export async function getExceptions(start: string, end: string, store?: string) 
       grossSales: gross,
       discountPct: orders >= MIN_ORDERS_FOR_RATE && gross > 0 ? disc / gross : null,
       ee, sm,
-      // Same 5-order floor the existing Employee Labor table uses — an attach rate off
-      // three orders is noise.
+      // Same 5-smoothie floor the Overview's employee table uses — a rate off three
+      // smoothies is noise.
       eePct: sm >= 5 ? ee / sm : null,
       shiftOrders: 0, shiftVoidPct: null, shiftDiscountPct: null,
     })

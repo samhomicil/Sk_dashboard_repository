@@ -74,6 +74,42 @@ export const LABOR_DAILY = 'smoothieking.vw_labor_hours_daily'
  */
 export const LABOR_SHIFTS = 'smoothieking.vw_labor_floor_shifts'
 
+// ── E&E (extras & enhancers) — CrunchTime's definition ───────────────────────
+/**
+ * Every E&E % in the app — Overview, stores, quarters, days, employees, weekday trends, the
+ * Now screen — is Σ ee_qty ÷ Σ smoothie_qty over this table: the extras and enhancers guests
+ * added per smoothie sold. That is the "E&E Qty %" store managers read in NetChef →
+ * Crunchtime Insights → E&E Report (a Smoothie King corporate report), to the unit.
+ *
+ * One row per check per server, loaded from NetChef's menu mix by
+ * src/scripts/load_ee_netchef.py. NetChef files each modifier with its POS prefix as its own
+ * recipe: "Add On - Banana" is microcategory Modifiers (counted), "20OZ - Angel Food - NO -
+ * P2 - Turbinado" is "Non-E&E Modifiers" (not counted); kids' cups ("KIDS") and bundle
+ * headers ("Bundles") are not in the Smoothies microcategory. server_name 'DIGITAL' is the
+ * report's DIGITAL row — online and delivery checks have no server. check_number is the
+ * Brink order id. Dates are NetChef business dates.
+ *
+ * NOT smoothieking.sales: Brink's item export carries no modifier prefix, so an added enhancer
+ * and a "NO Turbinado" line look alike there and free cup and milk lines read as add-ons. The
+ * per-order attach rate built on it (orders with a 'Modifiers' line ÷ orders with a menu item)
+ * ran 3–15 points off CrunchTime and was retired on 2026-10-06.
+ *
+ * NetChef's same-day data trails the POS by about an hour, so today's figure is "so far, as
+ * of the last check NetChef has".
+ */
+export const EE_CHECKS = 'smoothieking.ee_check'
+
+/** E&E and smoothies per store, business day and half-hour of the check's close (slot 0–47).
+ *  `where` filters EE_CHECKS, e.g. "business_date = '2026-10-06'". */
+export const eeBySlot = (where: string) => `
+  SELECT store, CONVERT(char(10), business_date, 23) AS d,
+         (CAST(LEFT(close_time, 2) AS int) * 60 + CAST(RIGHT(close_time, 2) AS int)) / 30 AS slot,
+         SUM(ee_qty) AS ee, SUM(smoothie_qty) AS sm
+    FROM ${EE_CHECKS}
+   WHERE close_time IS NOT NULL AND ${where}
+   GROUP BY store, CONVERT(char(10), business_date, 23),
+            (CAST(LEFT(close_time, 2) AS int) * 60 + CAST(RIGHT(close_time, 2) AS int)) / 30`
+
 // ── UNITS + SALES BY HALF-HOUR (the Now screen) ─────────────────────────────
 /**
  * A MADE UNIT is the unit of work behind the counter (Sam, 2026-10-01: staffing is judged
@@ -92,9 +128,8 @@ export const LABOR_SHIFTS = 'smoothieking.vw_labor_floor_shifts'
  * to the same daily net every other surface shows. Every line of a check shares its close
  * time, so per-slot DISTINCT order counts add up across slots without double counting.
  *
- * The other columns reuse the definitions already on other screens, not new ones:
- *   menu_orders / ee_orders  enhancer attach = orders with a 'Modifiers' item ÷ orders with a
- *                            menu item — cache-builder fetchEE and the daily recap (EE_TARGET)
+ * The other columns reuse the definitions already on other screens, not new ones (E&E is
+ * not here: it comes from EE_CHECKS below, never from sales lines):
  *   digital_orders           not 'To Go' / 'For Here' — cache-builder's in-store/digital split
  *   all_orders, void_orders  void rate = orders with a voided line ÷ all orders, and gross /
  *   discounts, gross         discounts as on Labor & crew (employees.ts). A voided line carries
@@ -115,8 +150,6 @@ export const salesBySlot = (where: string) => `
                   THEN 1 ELSE 0 END) AS units,
          COUNT(DISTINCT CASE WHEN s.voided = 0 THEN s.order_id END) AS orders,
          COUNT(DISTINCT s.order_id) AS all_orders,
-         COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.is_modifier = 0 THEN s.order_id END) AS menu_orders,
-         COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.revenue_center = 'Modifiers' THEN s.order_id END) AS ee_orders,
          COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.destination NOT IN ('To Go', 'For Here')
                              THEN s.order_id END) AS digital_orders,
          COUNT(DISTINCT CASE WHEN s.voided = 1 THEN s.order_id END) AS void_orders,

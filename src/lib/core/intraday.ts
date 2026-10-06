@@ -28,10 +28,12 @@ import { empKey } from './employee'
 
 export type SlotRow = {
   store: string; d: string; slot: number; net: number; units: number; orders: number
-  // salesBySlot's per-order measures (enhancers, channel, voids, discounts) — see sources.ts
-  all_orders?: number; menu_orders?: number; ee_orders?: number; digital_orders?: number
+  // salesBySlot's per-order measures (channel, voids, discounts) — see sources.ts
+  all_orders?: number; digital_orders?: number
   void_orders?: number; void_amount?: number; gross?: number; discounts?: number
 }
+/** E&E and smoothies per half-hour from EE_CHECKS (sources.ts eeBySlot) — CrunchTime's E&E. */
+export type EESlotRow = { store: string; d: string; slot: number; ee: number; sm: number }
 /** A clocked shift today (vw_labor_floor_shifts, basis 'clock'). end null = still on the clock.
  *  `key` is the person's resolved identity (core/employee resolvedKeySql) when the query
  *  supplies it; without it the plain empKey is used, which still absorbs capitalisation. */
@@ -127,6 +129,8 @@ export type Facts = {
   avgTicket: number | null; avgTicketNormal: number | null
   digitalShare: number | null; digitalNormal: number | null
   ee: number | null; eeNormal: number | null
+  /** minute of the day NetChef's E&E data reaches today (it trails the POS ~1 hour); null = none yet */
+  eeThrough: number | null
   voidPct: number | null; voidNormal: number | null; voidOrders: number; allOrders: number; voidAmount: number
   discountPct: number | null; discountNormal: number | null; discounts: number
 }
@@ -251,6 +255,9 @@ export function buildStoreNow(input: {
   todaySlots: SlotRow[]
   /** the HIST_WEEKS same weekdays before today, this store */
   histSlots: SlotRow[]
+  /** E&E by half-hour (EE_CHECKS): today so far, and the same HIST_WEEKS weekdays */
+  eeToday?: EESlotRow[]
+  eeHist?: EESlotRow[]
   clock: ClockRow[]
   plan: PlanRow[]
   rateFor: (store: string, emp: string) => number
@@ -462,13 +469,21 @@ export function buildStoreNow(input: {
     sumBy(rows.filter(r => r.slot < upto), r => Number(r[k] ?? 0))
   const histNow = histSlots.filter(r => days.includes(r.d))
   const ratio = (a: number, b: number) => (b > 0 ? a / b : null)
+  // E&E comes from NetChef, which trails the POS by about an hour: set today against a normal
+  // day through the half-hour NetChef has reached, not through asOf.
+  const eeToday = input.eeToday ?? []
+  const eeHist = (input.eeHist ?? []).filter(r => days.includes(r.d))
+  const eeUpTo = eeToday.length ? Math.max(...eeToday.map(r => r.slot)) + 1 : 0
+  const eeTot = (rows: EESlotRow[], k: 'ee' | 'sm', upto = 48) =>
+    sumBy(rows.filter(r => r.slot < upto), r => Number(r[k] ?? 0))
   const facts: Facts = {
     avgTicket: ratio(tot(todaySlots, 'net'), tot(todaySlots, 'orders')),
     avgTicketNormal: ratio(tot(histNow, 'net', upToSlot), tot(histNow, 'orders', upToSlot)),
     digitalShare: ratio(tot(todaySlots, 'digital_orders'), tot(todaySlots, 'orders')),
     digitalNormal: ratio(tot(histNow, 'digital_orders', upToSlot), tot(histNow, 'orders', upToSlot)),
-    ee: ratio(tot(todaySlots, 'ee_orders'), tot(todaySlots, 'menu_orders')),
-    eeNormal: ratio(tot(histNow, 'ee_orders', upToSlot), tot(histNow, 'menu_orders', upToSlot)),
+    ee: ratio(eeTot(eeToday, 'ee'), eeTot(eeToday, 'sm')),
+    eeNormal: eeUpTo ? ratio(eeTot(eeHist, 'ee', eeUpTo), eeTot(eeHist, 'sm', eeUpTo)) : null,
+    eeThrough: eeUpTo ? Math.min(eeUpTo * SLOT, 24 * 60) : null,
     voidPct: ratio(tot(todaySlots, 'void_orders'), tot(todaySlots, 'all_orders')),
     voidNormal: ratio(tot(histNow, 'void_orders', upToSlot), tot(histNow, 'all_orders', upToSlot)),
     voidOrders: tot(todaySlots, 'void_orders'),

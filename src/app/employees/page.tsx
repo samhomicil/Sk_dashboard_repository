@@ -391,7 +391,7 @@ function EmployeesInner() {
                       <th className="num" scope="col">Gross</th>
                       <th className="num" scope="col">$/hr</th>
                       <th className="num" scope="col">Avg sale</th>
-                      <th className="num" scope="col" title="Extras &amp; enhancers attach rate">EE%</th>
+                      <th className="num" scope="col" title="Extras &amp; enhancers per smoothie — CrunchTime's E&amp;E">EE%</th>
                     </>}
                     {view === 'Attendance' && <>
                       <th className="num" scope="col">Sched hrs</th>

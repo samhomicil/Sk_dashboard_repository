@@ -144,6 +144,13 @@ export const SOURCES: SourceContract[] = [
     cadence: 'daily', maxAgeDays: 4, fedBy: 'walmart-extractor',
     consumers: ['Overview', 'Budget', 'Inventory'] },
 
+  // CrunchTime's E&E per check (core/sources.ts EE_CHECKS), from NetChef's menu mix. Every
+  // EE% in the app reads it. NetChef trails the POS by about an hour, so today fills in through
+  // the day; a missing yesterday means the load has stopped.
+  { table: 'smoothieking.ee_check', label: 'E&E (CrunchTime)', dateColumn: 'business_date',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'src/scripts/load_ee_netchef.py (NetChef menu mix)',
+    consumers: ['Overview', 'Now', 'Menu Mix', 'Labor & crew', 'Daily recap'] },
+
   // ── Inventory / COGS ───────────────────────────────────────────────────────
   { table: 'smoothieking.netchef_usage_api', label: 'Recipe usage (COGS)', dateColumn: 'period_end',
     cadence: 'weekly', maxAgeDays: 10, fedBy: 'netchef-extractor',

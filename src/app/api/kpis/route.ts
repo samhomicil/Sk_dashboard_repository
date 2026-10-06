@@ -6,7 +6,7 @@ import { query, dateFilter } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store, Period, KpiData } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
-import { LABOR_DAILY } from '@/lib/core/sources'
+import { LABOR_DAILY, EE_CHECKS } from '@/lib/core/sources'
 import { capToComplete } from '@/lib/core/dates'
 
 const DB_STORE: Record<string, string> = { pines: 'Pines', miramar: 'Miramar', margate: 'Margate' }
@@ -17,8 +17,8 @@ function sfDb(store: Store) {
 
 // Net sales / gross / voids / orders / EE (sm,ee) for a date range, live from
 // smoothieking.sales. Definitions validated against Sigma: net = non-void non-modifier;
-// orders = distinct non-void order_id; sm = distinct order_id w/ a non-modifier item;
-// ee = distinct order_id w/ a 'Modifiers' revenue-center item.
+// orders = distinct non-void order_id. E&E is CrunchTime's (core/sources.ts EE_CHECKS):
+// sm = smoothies sold, ee = extras & enhancers added, by NetChef business date.
 async function salesAgg(store: Store, s: string, e: string) {
   const zero = { net: 0, gross: 0, voids: 0, orders: 0, voidOrders: 0, sm: 0, ee: 0 }
   if (!s || !e) return zero
@@ -30,8 +30,10 @@ async function salesAgg(store: Store, s: string, e: string) {
          SUM(CASE WHEN voided=1 AND is_modifier=0 THEN price       ELSE 0 END) AS voids,
          COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END)                              AS orders,
          COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END)                              AS voidOrders,
-         COUNT(DISTINCT CASE WHEN voided=0 AND is_modifier=0 THEN order_id END)            AS sm,
-         COUNT(DISTINCT CASE WHEN voided=0 AND revenue_center='Modifiers' THEN order_id END) AS ee
+         (SELECT SUM(smoothie_qty) FROM ${EE_CHECKS}
+           WHERE ${sfDb(store)} AND ${dateFilter(s, e, 'business_date')})                  AS sm,
+         (SELECT SUM(ee_qty) FROM ${EE_CHECKS}
+           WHERE ${sfDb(store)} AND ${dateFilter(s, e, 'business_date')})                  AS ee
        FROM smoothieking.sales WHERE ${sfDb(store)} AND ${dateFilter(s, e, 'closed_datetime')}`)
     const x = r[0] ?? {}
     return {

@@ -59,7 +59,7 @@ function WeekdayTooltip({ active, payload, metric }: any) {
       <div className="font-semibold text-slate-600 mb-1">{p.label}</div>
       {metric === 'sales' && <div className="text-slate-500">{money(p.avgSales)} avg/day</div>}
       {metric === 'qty'   && <div className="text-slate-500">{Math.round(p.avgQty).toLocaleString()} units avg/day</div>}
-      {metric === 'ee'    && <div className="text-slate-500">{pct(p.eePct)} EE% ({p.eeSum}/{p.smSum} checks)</div>}
+      {metric === 'ee'    && <div className="text-slate-500">{pct(p.eePct)} EE% ({p.eeSum} E&amp;E / {p.smSum} smoothies)</div>}
     </div>
   )
 }
@@ -235,7 +235,9 @@ export default function DaypartTrends({ store }: { store: string }) {
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-3">
-            {data.windowStart} – {data.windowEnd} · avg per weekday occurrence{isGrouped ? ' · by store' : ''}
+            {metric === 'ee' && data.eeWindowStart
+              ? <>{data.eeWindowStart} – {data.eeWindowEnd} · E&amp;E per smoothie, as in CrunchTime{isGrouped ? ' · by store' : ''}</>
+              : <>{data.windowStart} – {data.windowEnd} · avg per weekday occurrence{isGrouped ? ' · by store' : ''}</>}
           </div>
           <ResponsiveContainer width="100%" height={150}>
             {isGrouped ? (
@@ -270,7 +272,7 @@ export default function DaypartTrends({ store }: { store: string }) {
           )}
           <div className="text-xs text-slate-400 mt-2 pt-2 border-t border-slate-50">
             {metric === 'ee'
-              ? <>{DOW_LABELS[peakDow]} has the highest EE% ({pct(wdValue(wdRows[peakDow]))}){store !== 'all' ? '' : ' across all stores'} — add-on attach rate peaks here.</>
+              ? <>{DOW_LABELS[peakDow]} has the highest EE% ({pct(wdValue(wdRows[peakDow]))}){store !== 'all' ? '' : ' across all stores'} — E&amp;E per smoothie peaks here.</>
               : <>{DOW_LABELS[peakDow]} is the busiest day by {metric === 'sales' ? 'revenue' : 'units'}{store !== 'all' ? '' : ' across all stores'} — plan staffing accordingly.</>}
           </div>
         </div>

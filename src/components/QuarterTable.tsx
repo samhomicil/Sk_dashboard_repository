@@ -89,7 +89,7 @@ export default function QuarterTable({ quarters, loading }: Props) {
                   <td className="num">
                     {q.eePct !== null
                       ? <Toned tone={band(q.eePct, TARGETS.eePct, false)}>{fmtP(q.eePct)}</Toned>
-                      : none('No enhancer attachment recorded.')}
+                      : none('No E&E recorded.')}
                   </td>
                   <td className="num">{q.atv !== null ? `$${q.atv.toFixed(2)}` : none('No ATV for this quarter.')}</td>
                 </tr>

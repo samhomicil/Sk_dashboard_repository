@@ -161,7 +161,7 @@ Everything lands in Azure SQL; this app only reads. Extractors live in sibling r
 | **Brink timekeeping** | `labor`, `labor_schedule`, `labor_edits` | actual + scheduled labor cost/hours |
 | **PFG** | `pfs_invoices` (`pfg_compat` is a view alias) | food purchases |
 | **Walmart** | `walmart_spend` | local top-up buys |
-| **NetChef / CrunchTime** | `netchef_usage_api`, `netchef_onhand` | recipe (theoretical) COGS, on-hand |
+| **NetChef / CrunchTime** | `netchef_usage_api`, `netchef_onhand`, `ee_check` | recipe (theoretical) COGS, on-hand, **E&E %** |
 | **SMG360** | `guest_feedback`, `guest_daily`, `guest_comments` | guest satisfaction |
 | **Jolt** | `jolt_list_instances`, `jolt_image_quality` | SOP completion |
 | **SOCi** | `soci_reviews`, `soci_daily` | reviews / social |
@@ -169,6 +169,13 @@ Everything lands in Azure SQL; this app only reads. Extractors live in sibling r
 | **OpenBudget** | `sk_bills.QbBalance`, `/api/transactions` | **live bank balances** (anchor for the cash forecast) + raw transactions, enriched via the vendor-alias table |
 
 ### Gotchas that have caused real bugs
+
+- **E&E % is CrunchTime's, from `ee_check` — never from `sales`.** Every EE% in the app is
+  Σ `ee_qty` ÷ Σ `smoothie_qty`, the "E&E Qty %" managers read in Crunchtime Insights → E&E
+  Report, loaded from NetChef's menu mix by `src/scripts/load_ee_netchef.py`. Brink's item
+  export has no modifier prefix, so from `sales` an added enhancer and a "NO Turbinado" line
+  look alike and free cup/milk lines read as add-ons; the per-order attach rate built on it
+  ran 3–15 points off CrunchTime. Definition and caveats: `core/sources.ts` `EE_CHECKS`.
 
 - **`netchef_usage_api`, not `netchef_usage`.** The old table holds ~1 week;
   `_api` holds ~30. Trailing-average COGS off the old table silently collapses to a

@@ -3,7 +3,7 @@ import { cacheDailyAsync } from '@/lib/cache'
 import { query, dateFilter } from '@/lib/db'
 import type { Store, DailyRow } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
-import { LABOR_DAILY } from '@/lib/core/sources'
+import { LABOR_DAILY, EE_CHECKS } from '@/lib/core/sources'
 import { capToComplete } from '@/lib/core/dates'
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -16,8 +16,8 @@ function sfDb(store: Store) {
 
 interface DaySales { net: number; gross: number; voids: number; orders: number; voidOrders: number; sm: number; ee: number }
 
-// Per-day sales/orders/EE live from smoothieking.sales (validated defs) — replaces the
-// bundled sigma-daily/ee-daily reads so custom date ranges are always current.
+// Per-day sales/orders live from smoothieking.sales (validated defs); per-day E&E is
+// CrunchTime's (core/sources.ts EE_CHECKS: sm = smoothies sold, ee = extras & enhancers added).
 async function fetchSalesByDay(store: Store, start: string, end: string): Promise<Map<string, DaySales>> {
   const map = new Map<string, DaySales>()
   try {
@@ -27,15 +27,20 @@ async function fetchSalesByDay(store: Store, start: string, end: string): Promis
         SUM(CASE WHEN voided=0 AND is_modifier=0 THEN gross_sales ELSE 0 END) AS gross,
         SUM(CASE WHEN voided=1 AND is_modifier=0 THEN price       ELSE 0 END) AS voids,
         COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END)                              AS orders,
-        COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END)                              AS voidOrders,
-        COUNT(DISTINCT CASE WHEN voided=0 AND is_modifier=0 THEN order_id END)            AS sm,
-        COUNT(DISTINCT CASE WHEN voided=0 AND revenue_center='Modifiers' THEN order_id END) AS ee
+        COUNT(DISTINCT CASE WHEN voided=1 THEN order_id END)                              AS voidOrders
       FROM smoothieking.sales WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'closed_datetime')}
       GROUP BY CONVERT(char(10), closed_datetime, 23)
     `)
+    const eeRows = await query<{ d: string; sm: number; ee: number }[]>(`
+      SELECT CONVERT(char(10), business_date, 23) AS d, SUM(smoothie_qty) AS sm, SUM(ee_qty) AS ee
+      FROM ${EE_CHECKS} WHERE ${sfDb(store)} AND ${dateFilter(start, end, 'business_date')}
+      GROUP BY CONVERT(char(10), business_date, 23)
+    `).catch(() => [])
+    const eeBy = new Map(eeRows.map(r => [r.d, { sm: Number(r.sm) || 0, ee: Number(r.ee) || 0 }]))
     for (const r of rows) {
+      const e = eeBy.get(r.d) ?? { sm: 0, ee: 0 }
       map.set(r.d, { net: Number(r.net) || 0, gross: Number(r.gross) || 0, voids: Number(r.voids) || 0,
-        orders: Number(r.orders) || 0, voidOrders: Number(r.voidOrders) || 0, sm: Number(r.sm) || 0, ee: Number(r.ee) || 0 })
+        orders: Number(r.orders) || 0, voidOrders: Number(r.voidOrders) || 0, sm: e.sm, ee: e.ee })
     }
   } catch { /* DB unavailable — daily sales blank for this range */ }
   return map

@@ -88,7 +88,7 @@ export default function DailyTable({ data, loading }: Props) {
                   <td className="num">
                     {row.eePct != null
                       ? <Toned tone={row.eePct >= TARGETS.eePct ? 'good' : row.eePct >= TARGETS.eePct * 0.75 ? 'warn' : 'bad'}>{pct(row.eePct, 0)}</Toned>
-                      : gap('No enhancer attachment recorded.')}
+                      : gap('No E&E recorded.')}
                   </td>
                   <td className="num">
                     {row.laborPct != null
@@ -118,7 +118,7 @@ export default function DailyTable({ data, loading }: Props) {
               <td className="num">
                 {avgEE != null
                   ? <Toned tone={avgEE >= TARGETS.eePct ? 'good' : 'bad'}>{pct(avgEE, 0)}</Toned>
-                  : gap('No enhancer attachment in range.')}
+                  : gap('No E&E in range.')}
               </td>
               <td className="num">
                 {avgLabor != null

@@ -12,7 +12,7 @@ import {
 } from 'date-fns'
 import { PROXY_URL, TARGETS } from './config'
 import { wmtFood } from './core/sources'
-import { empKey, keyFromParts, isRealEmployee } from './core/employee'
+import { empKey, keyFromParts, isRealEmployee, resolvedKeySql } from './core/employee'
 // Sales/orders/channels: live from smoothieking.sales (Phase 1 of removing Sigma).
 // Reconciled to the dollar vs Sigma for settled periods; aliased to the sigma* names
 // so every call site is unchanged. COGS / EE / heatmap / employees stay on Sigma for now.
@@ -25,7 +25,7 @@ import {
 } from './salesCache'
 import { loadHeatmapCache, sqlHeatmap as sigmaHeatmap, sqlHeatmapWeekly as sigmaHeatmapWeekly } from './heatmapCache'
 import { loadCogsCache, sqlCogsPct as sigmaCogsPct } from './cogsCache'
-import { LABOR_DAILY, LABOR_SHIFTS } from './core/sources'
+import { LABOR_DAILY, LABOR_SHIFTS, EE_CHECKS } from './core/sources'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
   QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee, Promotion,
@@ -71,18 +71,17 @@ function df(start: string, end: string, col = 'closed_datetime'): string {
   return `CAST(${col} AS DATE) BETWEEN '${start}' AND '${end}'`
 }
 
-// EE attach live from smoothieking.sales (not the bundled ee-periods.json, which is keyed by an
-// exact week-start and silently blanks when the period rolls over). Same definition as the daily
-// recap: sm = distinct non-modifier orders, ee = distinct orders with a 'Modifiers' item.
+// E&E is CrunchTime's (core/sources.ts EE_CHECKS): ee = extras & enhancers added, sm = smoothies
+// sold, so ee / sm is the "E&E Qty %" of the E&E Report in Crunchtime Insights. Digital = the
+// report's DIGITAL row (checks with no server: online and delivery).
 type EETotals = { ee: number; sm: number; inStore: { ee: number; sm: number }; digital: { ee: number; sm: number } }
 async function fetchEE(store: Store, start: string, end: string): Promise<EETotals> {
   const rows = await dbQuery<{ ch: string; sm: number; ee: number }[]>(`
-    SELECT CASE WHEN destination IN ('To Go','For Here') THEN 'in' ELSE 'dg' END AS ch,
-           COUNT(DISTINCT CASE WHEN is_modifier = 0 THEN order_id END) AS sm,
-           COUNT(DISTINCT CASE WHEN revenue_center = 'Modifiers' THEN order_id END) AS ee
-    FROM smoothieking.sales
-    WHERE voided = 0 AND ${sf(store)} AND ${df(start, end, 'closed_datetime')}
-    GROUP BY CASE WHEN destination IN ('To Go','For Here') THEN 'in' ELSE 'dg' END
+    SELECT CASE WHEN server_name = 'DIGITAL' THEN 'dg' ELSE 'in' END AS ch,
+           SUM(smoothie_qty) AS sm, SUM(ee_qty) AS ee
+    FROM ${EE_CHECKS}
+    WHERE ${sf(store)} AND ${df(start, end, 'business_date')}
+    GROUP BY CASE WHEN server_name = 'DIGITAL' THEN 'dg' ELSE 'in' END
   `).catch(() => [])
   const inStore = { ee: 0, sm: 0 }, digital = { ee: 0, sm: 0 }
   for (const r of rows) {
@@ -92,26 +91,37 @@ async function fetchEE(store: Store, start: string, end: string): Promise<EETota
   return { ee: inStore.ee + digital.ee, sm: inStore.sm + digital.sm, inStore, digital }
 }
 
-// Per-employee EE attach + net sales, live from smoothieking.sales (the `employee` column is
-// "Last, First", same format as labor). Replaces the ee-periods.json / emp-key path, which
-// silently blanked when keys didn't match. Keyed `last|first` (lowercased) to match the shift map.
+// Per-employee E&E (CrunchTime's, by the server NetChef has on each check — it has every
+// cashier, including the ones Brink's item export leaves blank) + net sales from
+// smoothieking.sales. Keyed `last|first` (lowercased) to match the shift map.
 async function fetchEmployeeEE(store: Store, start: string, end: string): Promise<Map<string, { ee: number; sm: number; net: number }>> {
-  const rows = await dbQuery<{ employee: string; sm: number; ee: number; net: number }[]>(`
-    SELECT employee,
-           COUNT(DISTINCT CASE WHEN is_modifier = 0 THEN order_id END)             AS sm,
-           COUNT(DISTINCT CASE WHEN revenue_center = 'Modifiers' THEN order_id END) AS ee,
-           SUM(CASE WHEN is_modifier = 0 THEN net_sales ELSE 0 END)                AS net
-    FROM smoothieking.sales
-    WHERE voided = 0 AND employee IS NOT NULL AND employee NOT IN ('None', '')
-      AND ${sf(store)} AND ${df(start, end, 'closed_datetime')}
-    GROUP BY employee
-  `).catch(() => [])
+  const [eeRows, netRows] = await Promise.all([
+    // NetChef and Brink spell a few people differently (Vasquez-/Vasques-Escobar):
+    // resolve through employee_alias, as every cross-source join must (core/employee.ts).
+    dbQuery<{ ekey: string; sm: number; ee: number }[]>(`
+      SELECT k AS ekey, SUM(sm) AS sm, SUM(ee) AS ee FROM (
+        SELECT ${resolvedKeySql('server_name')} AS k, smoothie_qty AS sm, ee_qty AS ee
+        FROM ${EE_CHECKS}
+        WHERE server_name <> 'DIGITAL' AND ${sf(store)} AND ${df(start, end, 'business_date')}
+      ) x GROUP BY k
+    `).catch(() => []),
+    dbQuery<{ employee: string; net: number }[]>(`
+      SELECT employee, SUM(CASE WHEN is_modifier = 0 THEN net_sales ELSE 0 END) AS net
+      FROM smoothieking.sales
+      WHERE voided = 0 AND employee IS NOT NULL AND employee NOT IN ('None', '')
+        AND ${sf(store)} AND ${df(start, end, 'closed_datetime')}
+      GROUP BY employee
+    `).catch(() => []),
+  ])
+  const rows = [
+    ...eeRows.map(r => ({ key: r.ekey as string | null, ee: r.ee, sm: r.sm, net: 0 })),
+    ...netRows.map(r => ({ key: empKey(r.employee), ee: 0, sm: 0, net: r.net })),
+  ]
   // sales.employee comes in two formats across the history ("Last, First" and "First Last").
   // empKey (core/employee.ts) normalises both — the same person can appear under both
   // within a single range, so accumulate rather than overwrite.
   const out = new Map<string, { ee: number; sm: number; net: number }>()
-  for (const r of rows) {
-    const key = empKey(r.employee)
+  for (const { key, ...r } of rows) {
     if (!isRealEmployee(key)) continue
     const acc = out.get(key) ?? { ee: 0, sm: 0, net: 0 }
     acc.ee += Number(r.ee) || 0; acc.sm += Number(r.sm) || 0; acc.net += Number(r.net) || 0

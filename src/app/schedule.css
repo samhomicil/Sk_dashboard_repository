@@ -76,6 +76,8 @@
 }
 .sk-sched-dayrow[aria-current="true"] { border-color: var(--accent); }
 .sk-sched-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); width: 100%; }
+.sk-sched-dayrow .sk-sched-row > b { white-space: nowrap; }
+.sk-sched-more { align-self: center; }
 .sk-sched-chip {
   font-size: var(--text-table-cell); font-weight: 600; border: 1px solid var(--border); border-radius: 999px;
   padding: 0 var(--space-3); white-space: nowrap; color: var(--ink-muted);
@@ -193,12 +195,56 @@
   font-size: var(--text-table-cell);
 }
 
+/* breadcrumb in the page bar: Schedule › This week · Oct 6–12 › Tuesday */
+.sk-sched-crumbs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+.sk-sched-crumbs :is(a, button) {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit;
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.sk-sched-crumbs [aria-current] { color: var(--ink); }
+@media (hover: hover) { .sk-sched-crumbs :is(a, button):hover { color: var(--ink); } }
+
+/* a week under way */
+.sk-sched-grow { flex: 1 1 260px; align-self: center; }
+.sk-sched-note {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3);
+  padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.sk-sched-note > span { flex: 1 1 260px; }
+.sk-sched-link { display: inline-flex; align-items: center; text-decoration: none; }
+.sk-sched-name:disabled { color: var(--ink); cursor: default; }
+.sk-sched-bar.locked { opacity: 0.5; cursor: default; }
+
+/* scheduled vs worked */
+.sk-sched-table { display: flex; flex-direction: column; }
+.sk-sched-tr {
+  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 4px var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-table-cell); align-items: baseline;
+}
+.sk-sched-tr.sk-sched-th { color: var(--ink-muted); border-top: 0; border-bottom: 1px solid var(--border); padding: 4px 0; }
+.sk-sched-kind { font-weight: 600; }
+
 /* ── narrow: one pane at a time (phones, iPad portrait) ── */
 @media (max-width: 899px) {
   .sk-sched-panes[data-view="week"] > .sk-sched-day { display: none; }
   .sk-sched-panes[data-view="day"] > .sk-sched-week,
   .sk-sched-panes[data-view="entry"] > .sk-sched-week { display: none; }
   .sk-sched-back { display: inline-flex; align-items: center; }
+  /* an open day or the entry sheet is the whole screen: the week's summary is one step back */
+  .sk-sched:not([data-view="week"]) > :is(.sk-sched-summary, .sk-take) { display: none; }
   .sk-sched-shiftrow { grid-template-columns: 96px minmax(0, 1fr); }
   .sk-sched-bar .t { display: none; }        /* too narrow to read: the time sits under the name */
+}
+
+/* phones: scheduled vs worked folds to two lines a person — name and note, then the times */
+@media (max-width: 599px) {
+  .sk-sched-tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sk-sched-tr.sk-sched-th { display: none; }
+  .sk-sched-tr > :nth-child(2) { order: 3; }
+  .sk-sched-tr > :nth-child(3) { order: 4; }
+  .sk-sched-tr > :nth-child(4) { order: 2; text-align: right; }
+  .sk-sched-tr > :nth-child(2)::before { content: "Sched "; color: var(--ink-muted); font-family: var(--font-sans); }
+  .sk-sched-tr > :nth-child(3)::before { content: "Clocked "; color: var(--ink-muted); font-family: var(--font-sans); }
 }

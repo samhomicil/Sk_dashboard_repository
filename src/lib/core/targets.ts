@@ -382,3 +382,8 @@ export const RUSH_UNITS = 7
  *  many recent weeks (from the week they first appear). The draft fills the people furthest
  *  below their usual first. */
 export const USUAL_HOURS_WEEKS = 6
+
+/** Holiday forecast factor = last year's holiday net ÷ the surrounding same-weekday baseline
+ *  (4 weeks before, 2 after), clamped to this range — identical to the daily recap. Relocated
+ *  from ops-week so Weekly Ops and the schedule builder read one rule. */
+export const HOLIDAY_FACTOR_CLAMP: readonly [number, number] = [0.4, 2.2]

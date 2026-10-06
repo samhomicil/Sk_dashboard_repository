@@ -1,5 +1,6 @@
 import { query } from '@/lib/db'
-import { holidayName, priorYearHoliday } from '@/lib/holiday'
+import { holidayName } from '@/lib/holiday'
+import { holidayPlans } from '@/lib/holidayPlan'
 import {
   LABOR_TARGET, LABOR_AMBER, COGS_TARGET, HIST_WEEKS, STORES, DOW,
 } from '@/lib/core/targets'
@@ -83,8 +84,6 @@ type SchedRow = { store: string; d: string; employee: string; role: string | nul
 type LaborRow = { store: string; d: string; h: number; pay: number }
 type EmpRateRow = { store: string; employee: string; rate: number }
 type PfgRow = { store_number: string; spend: number }
-type HolBaseRow = { store: string; d: string; net: number }
-
 async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
   try { return await p } catch { return fallback }
 }
@@ -194,37 +193,20 @@ export async function GET(req: Request) {
     laborPay.set(`${r.store}|${r.d}`, Number(r.pay) || 0)
   }
 
-  // Holiday factors: only if a PROJ day in the week is a holiday (rare). Per store,
-  // factor = last-year holiday net / its surrounding same-weekday baseline, clamped
-  // [0.4, 2.2] — identical to the daily recap. holidayFactor: `${store}|${date}` -> f.
+  // Holiday factors: only if a PROJ day in the week is a holiday (rare). Per store, factor =
+  // last-year holiday net / its surrounding same-weekday baseline, clamped — lib/holidayPlan,
+  // shared with the schedule builder. holidayFactor: `${store}|${date}` -> f.
   const holidayFactor = new Map<string, number>()
   const holidays: { date: string; day: string; name: string }[] = []
+  const plans = await holidayPlans(STORES.map(s => s.name), weekDates, today)
   for (const d of weekDates) {
     if (d < today) continue                        // actuals use real sales, no factor
     const name = holidayName(d)
     if (!name) continue
     holidays.push({ date: d, day: DOW[dowOf(d)], name })
-    const { date: hly } = priorYearHoliday(d)
-    if (!hly) continue
-    const baseDates = [-4, -3, -2, -1, 1, 2].map(k => isoAdd(hly, 7 * k))
-    const need = [hly, ...baseDates].map(x => `'${x}'`).join(', ')
-    const rows = await safe(query<HolBaseRow[]>(`
-      SELECT store, CONVERT(char(10), closed_datetime, 23) d,
-             SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END) net
-      FROM smoothieking.sales WHERE CONVERT(date, closed_datetime) IN (${need})
-      GROUP BY store, CONVERT(char(10), closed_datetime, 23)`), [])
-    const got = new Map<string, Map<string, number>>()
-    for (const r of rows) {
-      if (!got.has(r.store)) got.set(r.store, new Map())
-      got.get(r.store)!.set(r.d, Number(r.net) || 0)
-    }
     for (const s of STORES) {
-      const g = got.get(s.name)
-      const hv = g?.get(hly) ?? 0
-      const base = baseDates.map(x => g?.get(x) ?? 0).filter(v => v > 0)
-      if (hv > 0 && base.length >= 3) {
-        holidayFactor.set(`${s.name}|${d}`, Math.max(0.4, Math.min(2.2, hv / (base.reduce((a, b) => a + b, 0) / base.length))))
-      }
+      const f = plans.get(`${s.name}|${d}`)?.factor
+      if (f != null) holidayFactor.set(`${s.name}|${d}`, f)
     }
   }
 

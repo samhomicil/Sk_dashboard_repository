@@ -2,9 +2,9 @@ import { query } from '@/lib/db'
 import { auth } from '@/auth'
 import { requireStore } from '@/lib/store-guard'
 import { STORES } from '@/lib/core/targets'
-import { etToday, isoAdd } from '@/lib/core/dates'
-import { draftWeek, weekDates, type SchedShift, type SchedDay, type SchedPerson } from '@/lib/core/schedule'
-import { loadScheduleInputs, weekStart } from '@/lib/scheduleData'
+import { etToday, etNowMinutes, isoAdd } from '@/lib/core/dates'
+import { draftWeek, weekDates, type SchedShift, type SchedDay, type SchedPerson, type ElsewhereShift } from '@/lib/core/schedule'
+import { loadScheduleInputs, weekStart, type WeekMode, type WeekActual } from '@/lib/scheduleData'
 import { ageOn } from '@/lib/minorLabor'
 
 // THE SCHEDULE BUILDER's data: one store, one business week (Tue–Mon). This route fetches
@@ -31,10 +31,16 @@ async function storeFor(requested: string | null) {
 export type SchedulePayload = {
   store: { key: string; name: string }
   today: string
+  /** minutes past midnight ET — today's shifts that have started are no longer editable */
+  now: number
   tuesday: string
+  mode: WeekMode
   dates: string[]
   days: SchedDay[]
+  ifOpen: Record<string, SchedDay>
   people: SchedPerson[]
+  elsewhere: ElsewhereShift[]
+  actual: WeekActual | null
   starts: { draft: SchedShift[]; posted: SchedShift[]; lastWeek: SchedShift[]; blank: SchedShift[] }
   saved: { id: number; name: string; source: string; by: string | null; at: string; shifts: Omit<SchedShift, 'id'>[] }[]
   asOf: { availability: string | null; timeOff: string | null }
@@ -57,13 +63,15 @@ export async function GET(req: Request) {
       SELECT id, name, source, created_by, CONVERT(varchar(16), created_at, 120) AS created_at, shifts
         FROM ${DRAFTS} WHERE store = '${store.name}' AND week_start = '${tuesday}' ORDER BY created_at`),
   ])
-  const draft = draftWeek(inputs.store, inputs.days, inputs.people, inputs.fixed)
+  // A week that has started is worked from what's posted, never re-drafted.
+  const draft = inputs.mode === 'ahead' ? draftWeek(inputs.store, inputs.days, inputs.people, inputs.fixed, inputs.elsewhere) : []
   const lastWeekMoved: SchedShift[] = inputs.posted.lastWeek.map(s => ({ ...s, date: isoAdd(s.date, 7) }))
 
   const payload: SchedulePayload = {
     store: { key: store.key, name: store.name },
-    today, tuesday, dates: weekDates(tuesday),
-    days: inputs.days,
+    today, now: etNowMinutes(), tuesday, mode: inputs.mode, dates: weekDates(tuesday),
+    days: inputs.days, ifOpen: inputs.ifOpen,
+    elsewhere: inputs.elsewhere, actual: inputs.actual,
     // Birth dates are only needed for minor-labor checks: send them for minors, never adults.
     people: inputs.people.map(x => ({ ...x, dob: x.dob && ageOn(x.dob, inputs.days[6].date) < 18 ? x.dob : null })),
     starts: {
@@ -92,6 +100,7 @@ export async function POST(req: Request) {
   }
   if (!body.week || !/^\d{4}-\d{2}-\d{2}$/.test(body.week)) return Response.json({ error: 'week is required' }, { status: 400 })
   const tuesday = weekStart(body.week)
+  if (tuesday < weekStart(etToday())) return Response.json({ error: 'past weeks are read-only' }, { status: 400 })
   const dates = new Set(weekDates(tuesday))
   const source = ['draft', 'posted', 'lastWeek', 'blank'].includes(body.source ?? '') ? body.source! : 'draft'
   if (!Array.isArray(body.shifts) || body.shifts.length > MAX_SHIFTS) {

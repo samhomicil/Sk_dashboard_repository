@@ -93,6 +93,22 @@ export const SOURCES: SourceContract[] = [
   { table: 'smoothieking.labor_schedule', label: 'Posted schedule', dateColumn: 'work_date',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'Brink schedule extractor', forwardLooking: true,
     consumers: ['Weekly Ops', 'Budget', 'payroll model'] },
+  // The schedule builder's inputs from the CrunchTime side (Sam: NetChef/CrunchTime supplies
+  // availability and time off; Brink supplies everything about scheduled and worked time).
+  // Each is a whole-snapshot reload every night, so the reload stamp is what ages.
+  { table: 'smoothieking.netchef_availability_roster', label: 'Availability roster (NetChef)', dateColumn: 'loaded_at',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'netchef-daily job → load_availability.py (NetChef app over HTTP, no browser)',
+    consumers: ['Schedule'] },
+  { table: 'smoothieking.netchef_availability_day', label: 'Availability by day (NetChef)', dateColumn: 'loaded_at',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'netchef-daily job → load_availability.py (NetChef app over HTTP, no browser)',
+    consumers: ['Schedule'] },
+  { table: 'smoothieking.teamworx_time_off', label: 'Time off (Teamworx)', dateColumn: 'loaded_at',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'netchef-daily job → load_time_off.py (Teamworx via NetChef sign-on)',
+    consumers: ['Schedule'] },
+  // Written by the app itself when a manager saves a version — no feed to go stale.
+  { table: 'smoothieking.schedule_drafts', label: 'Saved schedule versions', dateColumn: 'created_at',
+    cadence: 'on-demand', maxAgeDays: 400, fedBy: 'Schedule page (Save as a version)',
+    consumers: ['Schedule'] },
   // Views over labor + labor_schedule — the one definition of labor hours (no owners;
   // salaried manager at scheduled hours) and of shifts on the floor. Same Brink feed,
   // so the same 2-day contract as labor.

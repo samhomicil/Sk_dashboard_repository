@@ -1,0 +1,204 @@
+/* ── Schedule builder ───────────────────────────────────────────────────────────
+   Build next week's schedule on a laptop, iPad or phone (Sam, 2026-10-06). Below 900px
+   one pane shows at a time (week list → a day → back); wider, the week list and the open
+   day sit side by side. Colours: brand = people and shifts, a neutral grey = demand,
+   status red = something to fix, status amber = over the labor target. Base rules first,
+   responsive blocks last. */
+
+.sk-sched { display: flex; flex-direction: column; gap: var(--space-4); }
+.sk-sched :is(.sk-tone-bad, .sk-tone-warn, .sk-tone-good):not(.sk-take) { color: var(--tone); }
+.sk-sched-muted { color: var(--ink-muted); }
+.sk-sched-small { font-size: var(--text-table-cell); }
+.sk-sched-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.sk-sched-label {
+  font-family: var(--font-mono); font-size: var(--text-eyebrow); letter-spacing: var(--text-eyebrow-tracking);
+  text-transform: uppercase; color: var(--ink-muted);
+}
+.sk-sched-big {
+  font-size: var(--text-metric-card); font-weight: var(--text-metric-card-weight); line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.sk-sched b, .sk-sched-row, .sk-sched-total, .sk-sched-facts { font-variant-numeric: tabular-nums; }
+
+/* buttons: one style, touch-sized */
+.sk-sched-btn {
+  min-height: var(--touch-min); padding: 0 var(--space-3); border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.sk-sched-btn.primary { background: var(--brand); border-color: var(--brand); color: var(--ink-inverse); }
+.sk-sched-btn:disabled { color: var(--ink-muted); cursor: default; }
+.sk-sched-btn.sk-tone-bad { border-color: var(--status-bad); }
+
+/* week stepper in the page bar */
+.sk-sched-week-step {
+  display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); min-height: var(--touch-min);
+}
+.sk-sched-week-step button {
+  min-width: var(--touch-min); min-height: var(--touch-min); border: 0; background: transparent;
+  font: inherit; font-weight: 600; color: var(--ink); cursor: pointer;
+}
+.sk-sched-week-step button:disabled { color: var(--ink-muted); cursor: default; }
+.sk-sched-week-step span { padding: 0 var(--space-1); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* summary: the forecast and the week's labor, nothing else */
+.sk-sched-summary { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.sk-sched-summary > .sk-card { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* the verdict's jump buttons */
+.sk-sched-jumps { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.sk-sched-jump {
+  min-height: 40px; padding: 0 var(--space-3); border-radius: 999px; border: 1px solid var(--tone);
+  background: var(--surface); font: inherit; font-weight: 600; cursor: pointer;
+}
+
+/* setup row */
+.sk-sched-setup { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; }
+.sk-sched-setup label, .sk-sched-steps label {
+  display: flex; flex-direction: column; gap: 2px; font-size: var(--text-table-cell); color: var(--ink-muted);
+}
+.sk-sched-setup select, .sk-sched-steps select {
+  min-height: var(--touch-min); padding: 0 var(--space-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit;
+}
+.sk-sched-setup label { flex: 1 1 220px; }
+
+/* the two panes */
+.sk-sched-panes { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+.sk-sched-week { flex: 1 1 330px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.sk-sched-day { flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.sk-sched-back { display: none; }
+
+.sk-sched-dayrow {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; width: 100%;
+  font: inherit; color: var(--ink); cursor: pointer; border-left: 4px solid transparent;
+}
+.sk-sched-dayrow[aria-current="true"] { border-color: var(--accent); }
+.sk-sched-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); width: 100%; }
+.sk-sched-chip {
+  font-size: var(--text-table-cell); font-weight: 600; border: 1px solid var(--border); border-radius: 999px;
+  padding: 0 var(--space-3); white-space: nowrap; color: var(--ink-muted);
+}
+.sk-sched-chip.sk-tone-bad, .sk-sched-chip.sk-tone-warn { border-color: var(--tone); }
+.sk-sched-total {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border-top: 2px solid var(--ink);
+}
+.sk-sched-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.sk-sched-actions > .sk-sched-btn { flex: 1 1 auto; }
+.sk-sched-versions { display: flex; flex-direction: column; gap: var(--space-2); }
+.sk-sched-crew { display: flex; flex-direction: column; }
+.sk-sched-crew > .sk-sched-row { padding: 6px 0; border-top: 1px solid var(--border-subtle); }
+
+/* the open day */
+.sk-sched-dayhead { display: flex; align-items: center; gap: var(--space-2); }
+.sk-sched-dayhead h2 { margin: 0; flex: 1 1 auto; font-size: var(--text-section); font-weight: var(--text-section-weight); }
+.sk-sched-day p { margin: 0; }
+.sk-sched-facts { display: flex; flex-wrap: wrap; gap: 6px var(--space-4); font-size: var(--text-table-cell); }
+.sk-sched-problems {
+  display: flex; flex-direction: column; gap: 4px; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--status-bad); border-radius: var(--r-sm); font-size: var(--text-table-cell);
+}
+
+/* people needed vs scheduled */
+.sk-sched-chart { display: flex; flex-direction: column; gap: 4px; }
+.sk-sched-plot { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; }
+.sk-sched-yaxis { position: relative; height: 120px; }
+.sk-sched-yaxis span {
+  position: absolute; right: 0; transform: translateY(50%);
+  font-family: var(--font-mono); font-size: var(--text-eyebrow); color: var(--ink-muted);
+}
+.sk-sched-area { position: relative; height: 120px; border-bottom: 1px solid var(--ink-muted); }
+.sk-sched-area i { position: absolute; display: block; }
+.sk-sched-area i.grid { left: 0; right: 0; height: 1px; background: var(--border-subtle); }
+.sk-sched-area i.need { bottom: 0; background: var(--border); }
+.sk-sched-area i.short { background: color-mix(in srgb, var(--status-bad) 45%, transparent); }
+.sk-sched-area i.line { height: 3px; transform: translateY(50%); background: var(--brand); }
+.sk-sched-area i.join { width: 3px; transform: translateX(-50%); background: var(--brand); }
+.sk-sched-axis { position: relative; height: 16px; }
+.sk-sched-axis span {
+  position: absolute; transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: var(--text-eyebrow); color: var(--ink-muted);
+}
+.sk-sched-axis-chart { margin-left: 28px; }
+.sk-sched-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); font-size: var(--text-table-cell); color: var(--ink-muted); }
+.sk-sched-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sk-sched-legend i { display: inline-block; width: 14px; height: 10px; }
+.sk-sched-legend i.need { background: var(--border); }
+.sk-sched-legend i.line { height: 3px; background: var(--brand); }
+.sk-sched-legend i.short { background: color-mix(in srgb, var(--status-bad) 45%, transparent); }
+
+/* shift rows: one shift per row, full width, big enough to drag with a finger */
+.sk-sched-shift { display: flex; flex-direction: column; border-top: 1px solid var(--border-subtle); padding: 6px 0; }
+.sk-sched-shiftrow { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 6px; align-items: center; }
+.sk-sched-axisrow { padding: 0; }
+.sk-sched-name {
+  display: flex; flex-direction: column; justify-content: center; text-align: left; min-height: var(--touch-min);
+  padding: 0 6px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--ink);
+  font: inherit; cursor: pointer; min-width: 0;
+}
+.sk-sched-name > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-sched-name[aria-expanded="true"] { background: var(--surface-2); }
+.sk-sched-track { position: relative; height: 40px; background: var(--surface-2); border-radius: var(--r-sm); }
+.sk-sched-bar {
+  position: absolute; top: 4px; bottom: 4px; box-sizing: border-box; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap;
+  background: var(--brand); border: 2px solid var(--brand); color: var(--ink-inverse);
+  font-family: var(--font-mono); font-size: var(--text-eyebrow); font-variant-numeric: tabular-nums;
+  cursor: grab; touch-action: none; user-select: none;
+}
+.sk-sched-bar.open { background: var(--surface); border-style: dashed; border-color: var(--status-bad); color: var(--status-bad); }
+.sk-sched-bar.bad { border-color: var(--status-bad); }
+.sk-sched-bar .grip { position: absolute; top: 0; bottom: 0; width: 14px; cursor: ew-resize; }
+.sk-sched-bar .grip.l { left: 0; }
+.sk-sched-bar .grip.r { right: 0; }
+.sk-sched-add {
+  margin-top: var(--space-2); min-height: var(--touch-min); border-radius: var(--r-sm);
+  border: 1px dashed var(--brand); background: transparent; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer;
+}
+
+/* the inline editor */
+.sk-sched-editor {
+  margin-top: var(--space-2); padding: var(--space-3); border-radius: var(--r); background: var(--surface-2);
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.sk-sched-steps { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.sk-sched-step { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.sk-sched-step > span { font-size: var(--text-table-cell); color: var(--ink-muted); min-width: 2.5em; }
+.sk-sched-step > b { min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+.sk-sched-step > button {
+  min-width: var(--touch-min); min-height: var(--touch-min); border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--surface); font: inherit; font-weight: 600; cursor: pointer;
+}
+.sk-sched-choice {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); text-align: left;
+  min-height: var(--touch-min); padding: 4px var(--space-3); border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer;
+}
+.sk-sched-choice[aria-pressed="true"] { border-color: var(--accent); }
+
+/* who's available */
+.sk-sched-person {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);
+  padding: 6px 0; border-top: 1px solid var(--border-subtle);
+}
+.sk-sched-person.out { opacity: 0.55; }
+.sk-sched-person > .sk-sched-btn { flex: 0 0 auto; }
+
+/* entry sheet */
+.sk-sched-entry { border-top: 1px solid var(--accent); padding-top: 6px; }
+.sk-sched-entryline {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: var(--space-2); padding: 4px 0;
+  font-size: var(--text-table-cell);
+}
+
+/* ── narrow: one pane at a time (phones, iPad portrait) ── */
+@media (max-width: 899px) {
+  .sk-sched-panes[data-view="week"] > .sk-sched-day { display: none; }
+  .sk-sched-panes[data-view="day"] > .sk-sched-week,
+  .sk-sched-panes[data-view="entry"] > .sk-sched-week { display: none; }
+  .sk-sched-back { display: inline-flex; align-items: center; }
+  .sk-sched-shiftrow { grid-template-columns: 96px minmax(0, 1fr); }
+  .sk-sched-bar .t { display: none; }        /* too narrow to read: the time sits under the name */
+}

@@ -2,6 +2,7 @@
 @import "./tokens.css";
 @import "./design.css";
 @import "./now.css";
+@import "./schedule.css";
 /* Styling for the screens merged from sk-bills that never got their stylesheet.
    Entirely scoped to .bills-legacy — see the file header. Debt, and it shrinks
    as each of those screens moves onto the design system. */

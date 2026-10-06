@@ -125,6 +125,14 @@ export default function AppSidebar() {
           <span className="sk-lbl">Now</span>
         </Link>
 
+        <Link href="/schedule" className={item(pathname.startsWith('/schedule'))}>
+          <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="17" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18M8 14h3M8 17h6" />
+          </svg>
+          <span className="sk-lbl">Schedule</span>
+        </Link>
+
         <Link href="/" className={item(pathname === '/')}>
           <svg className="sk-ico" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
             <rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" />

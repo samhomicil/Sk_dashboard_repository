@@ -347,3 +347,38 @@ export const WEEKLY_OT_HOURS = 40
  *  repeat-lateness summary; these numbers are the first proposal, not a policy Sam set. */
 export const LATE_LOOKBACK_DAYS = 14
 export const REPEAT_LATE_MIN = 2
+
+// ── Schedule builder (approved mock-up, Sam 2026-10-06) ──────────────────────────
+// The builder plans each half-hour with the Now page's own rule (UNITS_PER_PERSON_HALF_HOUR,
+// BUSY_RANK, HIST_WEEKS, TRUCK_WINDOWS) so a schedule and the day it produces are judged
+// the same way. These are the settings it adds.
+
+/** When the crew is on, by store and JS getDay (0 = Sun) — first person in, last person out.
+ *  Measured, not set: the most common first start and last end on the posted Brink schedule,
+ *  hourly crew, Aug 11 – Oct 5 2026. All three stores moved Sunday's start from 9:30 to 8:30
+ *  on Sep 13; Margate's Sunday crew has finished at 8 since Sep 27. */
+export const CREW_HOURS: Record<string, Record<number, [string, string]>> = {
+  Pines:   { 0: ['08:30', '20:30'], 1: ['06:30', '21:30'], 2: ['06:30', '21:30'], 3: ['06:30', '21:30'],
+             4: ['06:30', '21:30'], 5: ['06:30', '21:30'], 6: ['07:30', '21:30'] },
+  Miramar: { 0: ['08:30', '20:30'], 1: ['06:30', '21:30'], 2: ['06:30', '21:30'], 3: ['06:30', '21:30'],
+             4: ['06:30', '21:30'], 5: ['06:30', '21:30'], 6: ['07:30', '21:30'] },
+  Margate: { 0: ['08:30', '20:00'], 1: ['06:30', '21:00'], 2: ['06:30', '21:00'], 3: ['06:30', '21:00'],
+             4: ['06:30', '21:00'], 5: ['06:30', '21:00'], 6: ['07:30', '21:00'] },
+}
+
+/** Nobody closes alone (Sam, 2026-09-24): the last half-hour of the day needs this many. */
+export const CLOSE_MIN_PEOPLE = 2
+
+/** Shortest and longest shift the draft will propose, in hours. Proposed with the mock-up
+ *  (Margate's posted shifts run 3.5–7.5 h, median 5) — not yet a policy Sam has set. */
+export const SHIFT_MIN_HOURS = 3.5
+export const SHIFT_MAX_HOURS = 8
+
+/** A "rush" in the plain-language day summary: a stretch where more than one person's worth
+ *  of made units is expected in a half-hour (one person = UNITS_PER_PERSON_HALF_HOUR). */
+export const RUSH_UNITS = 7
+
+/** A person's "usual" hours = their average weekly scheduled hours at that store over this
+ *  many recent weeks (from the week they first appear). The draft fills the people furthest
+ *  below their usual first. */
+export const USUAL_HOURS_WEEKS = 6

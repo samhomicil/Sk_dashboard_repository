@@ -27,6 +27,11 @@ server (online and delivery orders) — the label the E&E Report uses. check_num
 Brink order id, so it joins smoothieking.sales.order_id. NetChef's same-day data runs about
 an hour behind the POS.
 
+TABLE smoothieking.netchef_recipe_daily — NetChef's menu mix per store, business day and
+recipe (category SALES only): quantity, sales and theoretical recipe cost. The Menu Mix tab
+reads its cost ÷ sales as each item's COGS %, joined to Brink items by PLU; units, sales and
+prices on that tab stay Brink's.
+
 RUN
     python3 load_ee_netchef.py                          # yesterday and today (idempotent)
     python3 load_ee_netchef.py 2026-01-01 2026-10-05    # a range, e.g. a backfill
@@ -49,6 +54,7 @@ HOST = "https://smoothieking0108.net-chef.com"
 # NetChef's own location ids (not store numbers), from /resource/ceslogin/locations.
 LOCATIONS = {"Pines": 645, "Miramar": 728, "Margate": 1168}
 TABLE = "smoothieking.ee_check"
+RECIPES = "smoothieking.netchef_recipe_daily"
 CHUNK_DAYS = 7          # a week of checks is ~3,000 menu-mix rows, well under one page
 PAGE = 20000
 
@@ -122,11 +128,19 @@ def _creds():
 
 
 def checks_for(nc, store, begin, end):
-    """One row per (business date, check, server) with E&E and smoothie quantity and sales."""
-    kind = {}
-    for r in nc.menu_mix(begin, end, "CATEGORY"):
-        k = (r.get("categoryName"), r.get("subcategoryName"), r.get("microcategoryName"))
-        kind[r["productNumber"]] = "ee" if k == EE else "sm" if k == SMOOTHIE else None
+    """(checks, recipes): one row per (business date, check, server) with E&E and smoothie
+    quantity and sales, and one per (business date, recipe) with quantity, sales and cost."""
+    kind, recipes = {}, []
+    d = begin
+    while d <= end:                     # day by day, so recipe rows carry their own date
+        for r in nc.menu_mix(d, d, "CATEGORY"):
+            k = (r.get("categoryName"), r.get("subcategoryName"), r.get("microcategoryName"))
+            kind[r["productNumber"]] = "ee" if k == EE else "sm" if k == SMOOTHIE else None
+            if k[0] == "SALES":
+                recipes.append((store, d, r.get("plu"), r["productNumber"], r.get("recipeName"),
+                                k[1], k[2], int(r.get("transactions") or 0),
+                                round(float(r.get("sales") or 0), 2), round(float(r.get("cost") or 0), 4)))
+        d += timedelta(days=1)
     acc = defaultdict(lambda: {"ee_qty": 0, "ee_sales": 0.0, "sm_qty": 0, "sm_sales": 0.0, "close": None})
     for r in nc.menu_mix(begin, end, "SERVER", "CHECK_NUMBER"):
         k = kind.get(r["productNumber"])
@@ -138,9 +152,10 @@ def checks_for(nc, store, begin, end):
         a[f"{k}_qty"] += int(r.get("transactions") or 0)
         a[f"{k}_sales"] += float(r.get("sales") or 0)
         a["close"] = a["close"] or (r.get("checkCloseTime") or None)
-    return [(store, d, chk, srv, a["close"], a["ee_qty"], round(a["ee_sales"], 2),
-             a["sm_qty"], round(a["sm_sales"], 2))
-            for (d, chk, srv), a in acc.items() if a["ee_qty"] or a["sm_qty"]]
+    checks = [(store, d, chk, srv, a["close"], a["ee_qty"], round(a["ee_sales"], 2),
+               a["sm_qty"], round(a["sm_sales"], 2))
+              for (d, chk, srv), a in acc.items() if a["ee_qty"] or a["sm_qty"]]
+    return checks, recipes
 
 
 # ── Database: pymssql in the cloud, the local proxy on a Mac ─────────────────────────────
@@ -193,6 +208,23 @@ CREATE TABLE {TABLE} (
   CONSTRAINT PK_ee_check PRIMARY KEY (store, business_date, check_number, server_name)
 )"""
 
+DDL_RECIPES = f"""
+IF OBJECT_ID('{RECIPES}') IS NULL
+CREATE TABLE {RECIPES} (
+  store          NVARCHAR(20)  NOT NULL,
+  business_date  DATE          NOT NULL,
+  plu            BIGINT        NULL,
+  product_number NVARCHAR(20)  NOT NULL,
+  recipe_name    NVARCHAR(200) NULL,
+  subcategory    NVARCHAR(60)  NULL,
+  microcategory  NVARCHAR(60)  NULL,
+  qty            INT           NOT NULL,
+  sales          DECIMAL(12,2) NOT NULL,
+  cost           DECIMAL(14,4) NOT NULL,
+  loaded_at      DATETIME2     NOT NULL CONSTRAINT DF_recipe_daily_loaded_at DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT PK_netchef_recipe_daily PRIMARY KEY (store, business_date, product_number)
+)"""
+
 
 def q(v):
     return "NULL" if v is None else "N'" + str(v).replace("'", "''") + "'"
@@ -210,19 +242,32 @@ def write(db, store, begin, end, rows):
                f"ee_qty, ee_sales, smoothie_qty, smoothie_sales) VALUES {values}")
 
 
+def write_recipes(db, store, begin, end, rows):
+    db.run(f"DELETE FROM {RECIPES} WHERE store = {q(store)} "
+           f"AND business_date BETWEEN '{begin}' AND '{end}'")
+    for i in range(0, len(rows), 900):
+        values = ",".join(
+            f"({q(s)},'{d}',{'NULL' if plu is None else int(plu)},{q(pn)},{q(name)},{q(sub)},{q(mic)},{qty},{sales},{cost})"
+            for s, d, plu, pn, name, sub, mic, qty, sales, cost in rows[i:i + 900])
+        db.run(f"INSERT INTO {RECIPES} (store, business_date, plu, product_number, recipe_name, "
+               f"subcategory, microcategory, qty, sales, cost) VALUES {values}")
+
+
 def main(argv):
     today = date.today()
     begin = date.fromisoformat(argv[0]) if argv else today - timedelta(days=1)
     end = date.fromisoformat(argv[1]) if len(argv) > 1 else today
     db = DB()
     db.run(DDL)
+    db.run(DDL_RECIPES)
     for store in LOCATIONS:
         nc = NetChef(store)
         d = begin
         while d <= end:
             e = min(end, d + timedelta(days=CHUNK_DAYS - 1))
-            rows = checks_for(nc, store, d, e)
+            rows, recipes = checks_for(nc, store, d, e)
             write(db, store, d, e, rows)
+            write_recipes(db, store, d, e, recipes)
             ee = sum(r[5] for r in rows); sm = sum(r[7] for r in rows)
             print(f"  [ee] {store:8} {d}..{e}: {len(rows):5} checks  E&E {ee:5} / smoothies {sm:5}",
                   file=sys.stderr, flush=True)

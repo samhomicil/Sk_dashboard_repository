@@ -235,9 +235,7 @@ export default function DaypartTrends({ store }: { store: string }) {
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-3">
-            {metric === 'ee' && data.eeWindowStart
-              ? <>{data.eeWindowStart} – {data.eeWindowEnd} · E&amp;E per smoothie, as in CrunchTime{isGrouped ? ' · by store' : ''}</>
-              : <>{data.windowStart} – {data.windowEnd} · avg per weekday occurrence{isGrouped ? ' · by store' : ''}</>}
+            {data.windowStart} – {data.windowEnd} · {metric === 'ee' ? 'E&E per smoothie, as in CrunchTime' : 'avg per weekday occurrence'}{isGrouped ? ' · by store' : ''}
           </div>
           <ResponsiveContainer width="100%" height={150}>
             {isGrouped ? (

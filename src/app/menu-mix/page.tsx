@@ -178,7 +178,7 @@ function TopSellers({ products, modifiers, coreUnits, days }: {
                 <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
                   <td className="py-1.5 text-slate-300 tabular-nums">{i + 1}</td>
                   <td className="py-1.5 pr-2 font-medium text-slate-700 max-w-[230px] truncate" title={p.product}>
-                    {parseFlavor(p.product)}
+                    {p.subcategory === 'Smoothies' ? `${parseSize(p.product)} · ${parseFlavor(p.product)}` : parseFlavor(p.product)}
                   </td>
                   <td className="py-1.5 text-slate-500 hidden sm:table-cell">
                     <span className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style={{ background: dot }} />
@@ -202,7 +202,7 @@ function TopSellers({ products, modifiers, coreUnits, days }: {
 // ── Sortable + searchable product table ───────────────────────────
 type SortDir = 'asc' | 'desc'
 
-type ColKey = 'product' | 'qty' | 'perDay' | 'avgPrice' | 'cogsPct' | 'sales' | 'mix' | 'attach'
+type ColKey = 'product' | 'size' | 'qty' | 'perDay' | 'avgPrice' | 'cogsPct' | 'sales' | 'mix' | 'attach'
 
 interface ColDef {
   key:      ColKey
@@ -221,7 +221,7 @@ function productCols(showSize: boolean, days = 90): ColDef[] {
     },
   ]
   if (showSize) cols.push({
-    key: 'qty', label: 'Size', sortable: false, right: true, width: 'w-12',
+    key: 'size', label: 'Size', sortable: false, right: true, width: 'w-12',
     render: r => <span className="text-slate-500">{parseSize(r.product)}</span>,
   })
   cols.push(
@@ -359,29 +359,31 @@ function SmoothiesSection({ products, totalSales, days }: { products: ProductSum
   const [tab, setTab] = useState<'all' | 'size' | 'flavor'>('all')
 
   const sizeRows = useMemo(() => {
-    const m = new Map<string, ProductSummary>()
+    const m = new Map<string, { rows: ProductSummary[]; qty: number; sales: number }>()
     for (const p of products) {
       const sz  = parseSize(p.product)
-      const cur = m.get(sz) ?? { product: sz, subcategory: 'Smoothies', qty: 0, sales: 0, cogsPct: null, avgPrice: null }
-      cur.qty += p.qty; cur.sales += p.sales
+      const cur = m.get(sz) ?? { rows: [], qty: 0, sales: 0 }
+      cur.rows.push(p); cur.qty += p.qty; cur.sales += p.sales
       m.set(sz, cur)
     }
-    return Array.from(m.values()).sort((a, b) => b.sales - a.sales)
+    return Array.from(m, ([sz, c]): ProductSummary => ({
+      product: sz, subcategory: 'Smoothies', qty: c.qty, sales: c.sales,
+      cogsPct: blendedCogs(c.rows), avgPrice: c.qty > 0 ? c.sales / c.qty : null,
+    })).sort((a, b) => b.sales - a.sales)
   }, [products])
 
   const flavorRows = useMemo(() => {
-    const m = new Map<string, ProductSummary & { _c: number }>()
+    const m = new Map<string, { rows: ProductSummary[]; qty: number; sales: number }>()
     for (const p of products) {
       const fl  = parseFlavor(p.product)
-      const cur = m.get(fl) ?? { product: fl, subcategory: 'Smoothies', qty: 0, sales: 0, cogsPct: null, avgPrice: null, _c: 0 }
-      cur.qty += p.qty; cur.sales += p.sales
-      if (p.cogsPct != null) {
-        cur.cogsPct = cur.cogsPct != null ? (cur.cogsPct * cur._c + p.cogsPct) / (cur._c + 1) : p.cogsPct
-        cur._c++
-      }
+      const cur = m.get(fl) ?? { rows: [], qty: 0, sales: 0 }
+      cur.rows.push(p); cur.qty += p.qty; cur.sales += p.sales
       m.set(fl, cur)
     }
-    return Array.from(m.values()).sort((a, b) => b.sales - a.sales)
+    return Array.from(m, ([fl, c]): ProductSummary => ({
+      product: fl, subcategory: 'Smoothies', qty: c.qty, sales: c.sales,
+      cogsPct: blendedCogs(c.rows), avgPrice: c.qty > 0 ? c.sales / c.qty : null,
+    })).sort((a, b) => b.sales - a.sales)
   }, [products])
 
   const tabBtn = (key: typeof tab, label: string) => (
@@ -457,23 +459,28 @@ function CategorySection({ cat, products, totalSales, days }: {
 }
 
 // ── Modifiers card ────────────────────────────────────────────────
-function ModifiersSection({ mods, coreUnits, days }: { mods: ProductSummary[]; coreUnits: number; days: number }) {
+function ModifiersSection({ mods, coreUnits, days, eePct }: { mods: ProductSummary[]; coreUnits: number; days: number; eePct: number | null }) {
   const [open, setOpen] = useState(false)
   const modTotal = mods.reduce((s, m) => s + m.sales, 0)
   const modUnits = mods.reduce((s, m) => s + m.qty,   0)
-  const attach   = coreUnits > 0 ? modUnits / coreUnits : 0
 
   return (
     <div className="card">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between">
         <div className="text-left">
           <div className="font-bold text-slate-700">Add-Ons (Modifiers)</div>
-          <div className="text-xs text-slate-400 mt-0.5">Not included in category mix — tracked separately</div>
+          <div className="text-xs text-slate-400 mt-0.5">Paid add-ons only · not part of the category mix</div>
         </div>
         <div className="flex items-center gap-6 text-sm text-right">
-          <div>
-            <div className="text-xs text-slate-400">Attach Rate</div>
-            <div className="font-bold text-slate-700 tabular-nums">{pct(attach)}</div>
+          {eePct != null && (
+            <div>
+              <div className="text-xs text-slate-400">E&amp;E</div>
+              <div className="font-bold text-slate-700 tabular-nums">{pct(eePct)}</div>
+            </div>
+          )}
+          <div className="hidden sm:block">
+            <div className="text-xs text-slate-400">Paid Add-Ons</div>
+            <div className="font-bold text-slate-700 tabular-nums">{num(modUnits)}</div>
           </div>
           <div>
             <div className="text-xs text-slate-400">Revenue</div>
@@ -503,9 +510,9 @@ export default function MenuMixPage() {
   useEffect(() => {
     setLoading(true)
     fetch(`/api/menu-mix?period=${period}&store=${store}`)
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setData(d?.categories ? d : null); setLoading(false) })
+      .catch(() => { setData(null); setLoading(false) })
   }, [period, store])
 
   const coreCats  = (data?.categories ?? []).filter(c => c.subcategory !== 'Discounts' && c.sales > 0)
@@ -528,7 +535,7 @@ export default function MenuMixPage() {
           <div className="w-px h-4 bg-slate-200" />
           <div>
             <h1 className="text-xl font-bold text-slate-800">Menu Mix &amp; Velocity</h1>
-            {data && <p className="text-xs text-slate-400 mt-0.5">Data through {data.thruDate}{period === 'l7d' ? ' · showing current month (day-level data not yet available)' : ''}</p>}
+            {data && <p className="text-xs text-slate-400 mt-0.5">{data.startDate ? `${data.startDate} – ` : 'Through '}{data.thruDate} · {data.days} days · Brink sales, CrunchTime recipe cost</p>}
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -589,7 +596,7 @@ export default function MenuMixPage() {
             </div>
           </div>
 
-          <ModifiersSection mods={data.modifiers} coreUnits={coreUnits} days={days} />
+          <ModifiersSection mods={data.modifiers} coreUnits={coreUnits} days={days} eePct={data.eePct ?? null} />
 
         </div>
       )}

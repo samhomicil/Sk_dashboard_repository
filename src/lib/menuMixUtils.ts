@@ -19,12 +19,15 @@ export interface CategorySummary {
 export interface MenuMixPayload {
   refreshedAt:  string
   thruDate:     string
+  startDate?:   string
   days:         number
   period:       string
   store:        string
   categories:   CategorySummary[]
   products:     Record<string, ProductSummary[]>
   modifiers:    ProductSummary[]
+  /** CrunchTime's E&E % over the same days (core/sources.ts EE_CHECKS) */
+  eePct?:       number | null
 }
 
 export interface DaypartRow {
@@ -68,9 +71,6 @@ export interface DaypartPayload {
   categories:  Record<string, DaypartCategoryRow[]>
   products:    Record<string, DaypartProductRow[]>
   ee:          EeRow[]
-  /** ee rows are CrunchTime's E&E over their own trailing window, not windowStart..windowEnd */
-  eeWindowStart?: string
-  eeWindowEnd?:   string
   weekdayByStore?: Record<'pines' | 'miramar' | 'margate', WeekdayRow[]>
   eeByStore?:      Record<'pines' | 'miramar' | 'margate', EeRow[]>
 }

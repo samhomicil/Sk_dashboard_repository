@@ -84,7 +84,7 @@ export const SOURCES: SourceContract[] = [
   // out of date and blanked the category and product panels.
   { table: 'smoothieking.menu_item_category', label: 'Menu taxonomy', dateColumn: 'synced_at',
     cadence: 'weekly', maxAgeDays: 14, fedBy: 'Brink extractor (run_pmix.py)',
-    consumers: ['Overview category mix', 'Overview top products'] },
+    consumers: ['Overview category mix', 'Overview top products', 'Menu Mix'] },
 
   // ── Labor ──────────────────────────────────────────────────────────────────
   { table: 'smoothieking.labor', label: 'Labor actuals', dateColumn: 'shift_date',
@@ -166,6 +166,11 @@ export const SOURCES: SourceContract[] = [
   { table: 'smoothieking.ee_check', label: 'E&E (CrunchTime)', dateColumn: 'business_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'src/scripts/load_ee_netchef.py (NetChef menu mix)',
     consumers: ['Overview', 'Now', 'Menu Mix', 'Labor & crew', 'Daily recap'] },
+  // NetChef's theoretical recipe cost and sales per item per day, same load as ee_check.
+  // Menu Mix takes only its COGS% from here; units and sales there are Brink's.
+  { table: 'smoothieking.netchef_recipe_daily', label: 'Recipe cost by item (CrunchTime)', dateColumn: 'business_date',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'src/scripts/load_ee_netchef.py (NetChef menu mix)',
+    consumers: ['Menu Mix'] },
 
   // ── Inventory / COGS ───────────────────────────────────────────────────────
   { table: 'smoothieking.netchef_usage_api', label: 'Recipe usage (COGS)', dateColumn: 'period_end',

@@ -7,12 +7,12 @@ import {
   DISCOUNT_PCT_TARGET, WEEKLY_OT_HOURS,
 } from '@/lib/core/targets'
 import { etToday, etNowMinutes, isoAdd, dowOf, hmToMin } from '@/lib/core/dates'
-import { salesBySlot, eeBySlot, LATEST_RATES, LABOR_SHIFTS, INTRADAY_RUNS } from '@/lib/core/sources'
+import { salesBySlot, eeBySlot, madeUnitsByItem, SALES_SLOT, LATEST_RATES, LABOR_SHIFTS, INTRADAY_RUNS } from '@/lib/core/sources'
 import { resolvedKeySql } from '@/lib/core/employee'
 import { buildRateFor, isSalaried, type EmpRateRow } from '@/lib/core/labor'
 import { allKeyed } from '@/lib/core/keyed'
 import {
-  buildStoreNow, buildPeople, personKey, type SlotRow, type EESlotRow, type ClockRow, type PlanRow, type StoreNow,
+  buildStoreNow, buildPeople, personKey, usualUpTo, type SlotRow, type EESlotRow, type ItemRow, type ClockRow, type PlanRow, type StoreNow,
   type LateEvent,
 } from '@/lib/core/intraday'
 
@@ -109,11 +109,17 @@ export async function GET(req: Request) {
   const histDates = Array.from({ length: HIST_WEEKS }, (_, i) => isoAdd(today, -7 * (i + 1)))
   const histWhere = histDates
     .map(d => `(s.closed_datetime >= '${d}' AND s.closed_datetime < '${isoAdd(d, 1)}')`).join(' OR ')
+  // Before the first pull of the day there is nothing for today yet: judge as of now.
+  const asOfUsed = asOf ?? Math.min(now, window.from)
 
-  const { todaySlots, histSlots, eeToday, eeHist, clock, plan, rates, pastClock, pastPlan, aheadPlan, lastSale, voidsBy } = await allKeyed({
+  const { todaySlots, histSlots, todayItems, histItems, eeToday, eeHist, clock, plan, rates, pastClock, pastPlan, aheadPlan, lastSale, voidsBy } = await allKeyed({
     todaySlots: query<SlotRow[]>(
       salesBySlot(`s.closed_datetime >= '${today}' AND s.closed_datetime < '${tomorrow}'`) + tag),
     histSlots: query<SlotRow[]>(salesBySlot(`(${histWhere})`)),
+    // What's selling: today's items so far, and the usual days' items through the same half-hour.
+    todayItems: query<ItemRow[]>(
+      madeUnitsByItem(`s.closed_datetime >= '${today}' AND s.closed_datetime < '${tomorrow}'`) + tag),
+    histItems: query<ItemRow[]>(madeUnitsByItem(`(${histWhere}) AND ${SALES_SLOT} < ${usualUpTo(asOfUsed)}`)),
     // E&E is CrunchTime's (sources.ts EE_CHECKS), loaded from NetChef on its own schedule.
     eeToday: queryLive<EESlotRow[]>(eeBySlot(`business_date = '${today}'`)),
     eeHist: query<EESlotRow[]>(eeBySlot(`business_date IN (${histDates.map(d => `'${d}'`).join(', ')})`)),
@@ -182,17 +188,19 @@ export async function GET(req: Request) {
   for (const r of pastClock.filter(inScope)) if (r.d >= monday) wk(personKey(r)).worked += spanMin(r.start, r.end) / 60
   for (const r of aheadPlan.filter(inScope)) if (!isSalaried(r.role)) wk(personKey(r)).ahead += spanMin(r.start, r.end) / 60
   const num = (r: SlotRow) => ({ ...r, slot: Number(r.slot) })
+  const numItem = (r: ItemRow) => ({ ...r, units: Number(r.units) || 0 })
   const numEE = (r: EESlotRow) => ({ ...r, slot: Number(r.slot), ee: Number(r.ee) || 0, sm: Number(r.sm) || 0 })
 
   const stores = wanted.map(st => {
     const built = buildStoreNow({
       store: st.name, today,
-      // Before the first pull of the day there is nothing for today yet: judge as of now.
-      asOf: asOf ?? Math.min(now, window.from),
+      asOf: asOfUsed,
       todaySlots: todaySlots.filter(r => r.store === st.name).map(num),
       histSlots: histSlots.filter(r => r.store === st.name).map(num),
       eeToday: eeToday.filter(r => r.store === st.name).map(numEE),
       eeHist: eeHist.filter(r => r.store === st.name).map(numEE),
+      todayItems: todayItems.filter(r => r.store === st.name).map(numItem),
+      histItems: histItems.filter(r => r.store === st.name).map(numItem),
       clock: clock.filter(r => r.store === st.name),
       plan: plan.filter(r => r.store === st.name),
       rateFor, lateHistory, week,

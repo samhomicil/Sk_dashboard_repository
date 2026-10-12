@@ -348,6 +348,21 @@ export const WEEKLY_OT_HOURS = 40
 export const LATE_LOOKBACK_DAYS = 14
 export const REPEAT_LATE_MIN = 2
 
+/** What's selling (approved mock-up, Sam 2026-10-12): the Now screen's top sellers and the
+ *  items moving away from their usual-by-now. Hourly counts are small, so a swing is listed
+ *  only when chance is an unlikely explanation:
+ *    ahead       today ≥ MIX_AHEAD_RATIO × usual AND at least MIX_AHEAD_MIN more units
+ *    behind      usual ≥ MIX_BEHIND_MIN_USUAL by now AND today under MIX_BEHIND_RATIO of it
+ *    may be out  none today where MIX_OUT_MIN_USUAL or more usually sold (Poisson P(0) < 2%)
+ *  "Usual" is the Now screen's own: the last HIST_WEEKS same weekdays through this half-hour.
+ *  Phones list the top 3 of MIX_TOP_N (a now.css rule). */
+export const MIX_TOP_N = 5
+export const MIX_AHEAD_RATIO = 2
+export const MIX_AHEAD_MIN = 4
+export const MIX_BEHIND_MIN_USUAL = 5
+export const MIX_BEHIND_RATIO = 0.5
+export const MIX_OUT_MIN_USUAL = 4
+
 // ── Schedule builder (approved mock-up, Sam 2026-10-06) ──────────────────────────
 // The builder plans each half-hour with the Now page's own rule (UNITS_PER_PERSON_HALF_HOUR,
 // BUSY_RANK, HIST_WEEKS, TRUCK_WINDOWS) so a schedule and the day it produces are judged

@@ -21,7 +21,7 @@ import { SegControl } from '@/components/design/controls'
 import { useStoreLock } from '@/components/useStoreLock'
 import { minToClock } from '@/lib/core/dates'
 import type { NowPayload } from '@/app/api/now/route'
-import type { StoreNow, Person, Call, AttendanceFlag, LateEvent, AheadRow } from '@/lib/core/intraday'
+import type { StoreNow, Person, Call, AttendanceFlag, LateEvent, AheadRow, Mix, Mover } from '@/lib/core/intraday'
 
 type StoreKey = 'all' | 'pines' | 'miramar' | 'margate'
 type S = NowPayload['stores'][number]
@@ -221,6 +221,8 @@ function StoreView({ d, s }: { d: NowPayload; s: S }) {
 
       <Register d={d} s={s} />
 
+      {s.mix ? <WhatsSelling d={d} mix={s.mix} /> : null}
+
       <Section label="Hour by hour" aside={<span className="sk-meta">
         {avgHeader(d)}{s.sales.normalByNow > 0 ? ` · running ${signedMoney(s.sales.soFar - s.sales.normalByNow)}` : ''}
       </span>}>
@@ -295,6 +297,69 @@ function Register({ d, s }: { d: NowPayload; s: S }) {
       </Grid4></div>
     </Section>
   )
+}
+
+/** Food in orders, today against usual, compared as the whole percents the tile shows. */
+function foodDelta(m: Mix): { text: string; tone: Tone } | null {
+  if (m.foodShare == null || m.foodShareNormal == null) return null
+  const diff = Math.round(m.foodShare * 100) - Math.round(m.foodShareNormal * 100)
+  if (diff === 0) return { text: 'in line with usual', tone: 'good' }
+  return diff < 0 ? { text: `${-diff} pts under usual`, tone: 'warn' } : { text: `${diff} pts over usual`, tone: 'good' }
+}
+
+const MOVER_TONE: Record<Mover['kind'], Flag['tone']> = { out: 'bad', behind: 'warn', ahead: 'good' }
+const moverText = (m: Mover) => {
+  const usual = Math.round(m.usual)
+  if (m.kind === 'out') return `none sold yet, usually ${usual} by now. Check if it’s 86’d.`
+  return `${m.today} so far, usually ${usual} by now. ${m.kind === 'ahead'
+    ? 'Running more than twice its usual pace.' : 'Less than half its usual pace.'}`
+}
+
+function WhatsSelling({ d, mix }: { d: NowPayload; mix: Mix }) {
+  const fd = foodDelta(mix)
+  const share = (c: Mix['categories'][number]) => (
+    <Stat key={c.category} label={c.category} value={pct0(c.share)}
+      sub={<>{c.shareNormal != null ? <><Avg v={pct0(c.shareNormal)} /> · </> : null}
+        {c.category === 'Smoothies' ? `${c.units} of ${mix.units} units` : `${c.units} unit${c.units === 1 ? '' : 's'}`}</>} />
+  )
+  return (
+    <Section label="What’s selling" aside={<span className="sk-meta">{avgHeader(d)}</span>}>
+      <div className="sk-now-tiles"><Grid4>
+        {mix.categories.map(share)}
+        <Stat label="Orders with food" value={pct0(mix.foodShare)}
+          sub={<>{mix.foodShareNormal != null ? <><Avg v={pct0(mix.foodShareNormal)} /> · </> : null}
+            {mix.foodOrders} of {mix.orders} orders</>}
+          delta={fd?.text} tone={fd?.tone} />
+      </Grid4></div>
+      <div className="sk-grid11">
+        <div className="sk-card">
+          <h3 className="sk-card-title">Top sellers so far</h3>
+          <div className="sk-table-wrap"><table className="sk-table sk-now-table sk-now-top">
+            <thead><tr><th>Item, all sizes</th><th className="num">Today</th><th className="num">Avg by now</th></tr></thead>
+            <tbody>
+              {mix.top.map(t => (
+                <tr key={`${t.category}|${t.item}`}>
+                  <td>{t.item}{t.category !== 'Smoothies' ? <> <span className="sk-meta">{t.category === 'Food' ? 'FOOD' : 'BOWL'}</span></> : null}</td>
+                  <td className="num">{t.today}</td>
+                  <td className="num"><i className="sk-now-avg">{Math.round(t.usual)}</i></td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </div>
+        <FlagList title="Moving" flags={mix.movers.map(m => ({ tone: MOVER_TONE[m.kind], who: m.item, text: moverText(m) }))}
+          emptyNote="Nothing unusual so far. An item shows here when it runs at double its usual pace, falls under half of it, or hasn’t sold when it usually has." />
+      </div>
+    </Section>
+  )
+}
+
+/** The All stores card's one line: food in orders, the top seller, and anything moving. */
+function mixLine(m: Mix) {
+  const names = (k: Mover['kind']) => m.movers.filter(x => x.kind === k).slice(0, 2).map(x => x.item).join(', ')
+  const moving = ([['out', 'may be out'], ['behind', 'behind'], ['ahead', 'ahead']] as const)
+    .filter(([k]) => names(k)).map(([k, w]) => `${w}: ${names(k)}`)
+  return [m.top[0] ? `top ${m.top[0].item}` : '', ...moving].filter(Boolean).join(' · ')
 }
 
 function HourTable({ s }: { s: StoreNow }) {
@@ -565,6 +630,11 @@ function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void
                     {firstName(a.employee)} {inFor(a.at!, a.sched!)}</span>
                 ))}
                 <span>E&amp;E <b>{pct0(s.facts.ee)}</b> · voids <b>{s.facts.voidOrders}</b> · ticket <b>{s.facts.avgTicket == null ? '—' : money2(s.facts.avgTicket)}</b></span>
+                {s.mix ? (
+                  <span>Food in <b>{pct0(s.mix.foodShare)}</b> of orders
+                    {s.mix.foodShareNormal != null ? <> <Avg v={pct0(s.mix.foodShareNormal)} /></> : null}
+                    {mixLine(s.mix) ? ` · ${mixLine(s.mix)}` : ''}</span>
+                ) : null}
               </span>
             </button>
           )

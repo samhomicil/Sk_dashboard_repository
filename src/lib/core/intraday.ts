@@ -1,7 +1,9 @@
 import {
   UNITS_PER_PERSON_HALF_HOUR, TRUCK_WINDOWS, DELIVERY_DOWS, SEND_HOME_MIN_HOURS, BUSY_RANK,
   PACE_CLAMP, LATE_MINUTES, WEEKLY_OT_HOURS, REPEAT_LATE_MIN,
+  MIX_TOP_N, MIX_AHEAD_RATIO, MIX_AHEAD_MIN, MIX_BEHIND_MIN_USUAL, MIX_BEHIND_RATIO, MIX_OUT_MIN_USUAL,
 } from './targets'
+import { itemFamily } from './menuNames'
 import { dowOf, hmToMin } from './dates'
 import { buildForecaster } from './forecast'
 import { isSalaried } from './labor'
@@ -31,7 +33,11 @@ export type SlotRow = {
   // salesBySlot's per-order measures (channel, voids, discounts) — see sources.ts
   all_orders?: number; digital_orders?: number
   void_orders?: number; void_amount?: number; gross?: number; discounts?: number
+  food_orders?: number
 }
+/** Made units by item, one store and day (sources.ts madeUnitsByItem). For the usual days the
+ *  route cuts the rows at usualUpTo(asOf), the same half-hour every "/ avg" on the screen uses. */
+export type ItemRow = { store: string; d: string; item: string; category: string; units: number }
 /** E&E and smoothies per half-hour from EE_CHECKS (sources.ts eeBySlot) — CrunchTime's E&E. */
 export type EESlotRow = { store: string; d: string; slot: number; ee: number; sm: number }
 /** A clocked shift today (vw_labor_floor_shifts, basis 'clock'). end null = still on the clock.
@@ -135,6 +141,26 @@ export type Facts = {
   discountPct: number | null; discountNormal: number | null; discounts: number
 }
 
+/** The three kinds of made unit, as the screen names them. A priced item the taxonomy does
+ *  not know (the Hi Pro coffees) is counted with smoothies, as it is in the unit count. */
+export type MixCategory = 'Smoothies' | 'Bowls' | 'Food'
+/** One drink or food item, all cup sizes together: made today, and usually by now. */
+export type MixItem = { item: string; category: MixCategory; today: number; usual: number }
+/** ahead / behind / out — the rules are in targets.ts beside MIX_TOP_N. */
+export type Mover = MixItem & { kind: 'ahead' | 'behind' | 'out' }
+
+/** What's selling: today's made units so far against a usual day through this half-hour. */
+export type Mix = {
+  units: number                 // made units today, = sales.units
+  categories: { category: MixCategory; units: number; share: number | null; shareNormal: number | null }[]
+  foodOrders: number            // orders with at least one food item
+  orders: number
+  foodShare: number | null
+  foodShareNormal: number | null
+  top: MixItem[]                // the MIX_TOP_N best sellers today
+  movers: Mover[]               // may be out first, then behind, then ahead
+}
+
 export type AheadRow = {
   from: number; to: number      // minutes
   units: number                 // expected made units (usual × pace)
@@ -169,10 +195,16 @@ export type StoreNow = {
   hold: Hold | null
   facts: Facts
   attendance: AttendanceFlag[]
+  /** null before the first made unit of the day */
+  mix: Mix | null
 }
 
 const LEAD = /manager|captain|lead/i
 const SLOT = 30
+
+/** Half-hours of a usual day that count against today as of the pull: every "/ avg" on the
+ *  screen sums the usual days' slots below this. */
+export const usualUpTo = (asOf: number) => Math.ceil(asOf / SLOT)
 
 function sumBy<T>(xs: T[], f: (x: T) => number) { return xs.reduce((s, x) => s + f(x), 0) }
 function clamp(x: number, [lo, hi]: readonly [number, number]) { return Math.min(hi, Math.max(lo, x)) }
@@ -258,6 +290,9 @@ export function buildStoreNow(input: {
   /** E&E by half-hour (EE_CHECKS): today so far, and the same HIST_WEEKS weekdays */
   eeToday?: EESlotRow[]
   eeHist?: EESlotRow[]
+  /** made units by item: today so far, and the HIST_WEEKS weekdays through usualUpTo(asOf) */
+  todayItems?: ItemRow[]
+  histItems?: ItemRow[]
   clock: ClockRow[]
   plan: PlanRow[]
   rateFor: (store: string, emp: string) => number
@@ -464,7 +499,7 @@ export function buildStoreNow(input: {
   }
 
   // ── snapshot facts: today vs a normal day through the same half-hour ────────
-  const upToSlot = Math.ceil(asOf / SLOT)
+  const upToSlot = usualUpTo(asOf)
   const tot = (rows: SlotRow[], k: keyof SlotRow, upto = 48) =>
     sumBy(rows.filter(r => r.slot < upto), r => Number(r[k] ?? 0))
   const histNow = histSlots.filter(r => days.includes(r.d))
@@ -493,6 +528,12 @@ export function buildStoreNow(input: {
     discountNormal: ratio(tot(histNow, 'discounts', upToSlot), tot(histNow, 'gross', upToSlot)),
     discounts: Math.round(tot(todaySlots, 'discounts')),
   }
+
+  // ── what's selling: the same comparison, item by item ───────────────────────
+  const mix = buildMix(input.todayItems ?? [], (input.histItems ?? []).filter(r => days.includes(r.d)), n, {
+    foodOrders: tot(todaySlots, 'food_orders'), orders: tot(todaySlots, 'orders'),
+    foodNormal: ratio(tot(histNow, 'food_orders', upToSlot), tot(histNow, 'orders', upToSlot)),
+  })
 
   // ── hour by hour: who was (or will be) on, and what the hour cost ──────────
   // Worked: each clocked shift up to the pull. To come: the schedule, the same way the
@@ -582,6 +623,56 @@ export function buildStoreNow(input: {
       soFar: Math.round(soFarNet), normalByNow: Math.round(normalByNow), normalDay,
       onPace: Math.round(onPace), orders, units: soFarUnits, byHour,
     },
-    labor, people, ahead, calls, hold, facts, attendance,
+    labor, people, ahead, calls, hold, facts, attendance, mix,
+  }
+}
+
+const MIX_CATEGORIES: MixCategory[] = ['Smoothies', 'Bowls', 'Food']
+const mixCategory = (c: string): MixCategory => (c === 'Smoothie Bowls' ? 'Bowls' : c === 'Food' ? 'Food' : 'Smoothies')
+
+/**
+ * Category shares, the top sellers and the movers. `hist` holds only the usual days (n of
+ * them), already cut at this half-hour; shares are pooled the way every other "/ avg" ratio
+ * on the screen is (sum over the usual days ÷ sum), and an item's usual is its total ÷ n.
+ */
+export function buildMix(
+  today: ItemRow[], hist: ItemRow[], n: number,
+  food: { foodOrders: number; orders: number; foodNormal: number | null },
+): Mix | null {
+  const units = sumBy(today, r => Number(r.units) || 0)
+  if (!units) return null
+  const histUnits = sumBy(hist, r => Number(r.units) || 0)
+  const categories = MIX_CATEGORIES.map(category => {
+    const t = sumBy(today.filter(r => mixCategory(r.category) === category), r => Number(r.units) || 0)
+    const h = sumBy(hist.filter(r => mixCategory(r.category) === category), r => Number(r.units) || 0)
+    return { category, units: t, share: t / units, shareNormal: histUnits > 0 ? h / histUnits : null }
+  })
+
+  const items = new Map<string, MixItem & { histSum: number }>()
+  const at = (r: ItemRow) => {
+    const category = mixCategory(r.category), item = itemFamily(r.item), k = `${category}|${item}`
+    return items.get(k) ?? items.set(k, { item, category, today: 0, usual: 0, histSum: 0 }).get(k)!
+  }
+  for (const r of today) at(r).today += Number(r.units) || 0
+  for (const r of hist) at(r).histSum += Number(r.units) || 0
+  const list: MixItem[] = [...items.values()].map(({ histSum, ...x }) => ({ ...x, usual: n ? histSum / n : 0 }))
+
+  const top = list.filter(x => x.today > 0)
+    .sort((a, b) => b.today - a.today || b.usual - a.usual || a.item.localeCompare(b.item))
+    .slice(0, MIX_TOP_N)
+  const movers: Mover[] = n === 0 ? [] : [
+    ...list.filter(x => x.today === 0 && x.usual >= MIX_OUT_MIN_USUAL)
+      .sort((a, b) => b.usual - a.usual).map(x => ({ ...x, kind: 'out' as const })),
+    ...list.filter(x => x.today > 0 && x.usual >= MIX_BEHIND_MIN_USUAL && x.today < x.usual * MIX_BEHIND_RATIO)
+      .sort((a, b) => (b.usual - b.today) - (a.usual - a.today)).map(x => ({ ...x, kind: 'behind' as const })),
+    ...list.filter(x => x.today >= x.usual * MIX_AHEAD_RATIO && x.today - x.usual >= MIX_AHEAD_MIN)
+      .sort((a, b) => (b.today - b.usual) - (a.today - a.usual)).map(x => ({ ...x, kind: 'ahead' as const })),
+  ]
+  return {
+    units, categories,
+    foodOrders: food.foodOrders, orders: food.orders,
+    foodShare: food.orders > 0 ? food.foodOrders / food.orders : null,
+    foodShareNormal: food.foodNormal,
+    top, movers,
   }
 }

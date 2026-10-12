@@ -2,9 +2,11 @@ import 'server-only'
 import { query } from './db'
 import { etToday, isoAdd } from './core/dates'
 import { EE_CHECKS } from './core/sources'
+import { displayName } from './core/menuNames'
 import type { ProductSummary, CategorySummary, MenuMixPayload } from './menuMixUtils'
 export type { ProductSummary, CategorySummary, MenuMixPayload }
 export { parseSize, parseFlavor } from './menuMixUtils'
+export { displayName }
 
 /**
  * Menu Mix, live from Brink.
@@ -51,20 +53,6 @@ export function periodWindow(period: string): { start: string; end: string; days
     return span(first.toISOString().slice(0, 10), last.toISOString().slice(0, 10))
   }
   return span(isoAdd(end, -89))                     // l90d (default)
-}
-
-/**
- * Brink names into the page's naming: "Angel Food 20" -> "20OZ - Angel Food",
- * "Hulk_Straw** 32 FUF" -> "32OZ - Hulk Straw", "Lil'_Angel" (a kids' cup) -> "KIDS - Lil' Angel".
- * Free Upsize Friday (FUF) cups and the asterisk variants Brink keeps are the same drink and
- * size, so they merge. parseSize / parseFlavor then read the size and flavor as designed.
- */
-export function displayName(raw: string, kids: boolean): string {
-  const s = raw.replace(/\*/g, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
-  const m = s.match(/^(.*?)\s*-?\s*\b(12|20|32|44)(\s*FUF)?$/i)
-  const base = m && m[1] ? m[1].trim() : s
-  if (kids) return `KIDS - ${base}`
-  return m && m[1] ? `${m[2]}OZ - ${base}` : s
 }
 
 /** "RETAIL - CORE - SK Snk Chc Almonds 5oz" and "SK Snk Chc Almonds 5oz" -> one key. */

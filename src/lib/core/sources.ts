@@ -134,7 +134,15 @@ export const eeBySlot = (where: string) => `
  *   all_orders, void_orders  void rate = orders with a voided line ÷ all orders, and gross /
  *   discounts, gross         discounts as on Labor & crew (employees.ts). A voided line carries
  *                            $0 in every money column; only `price` keeps what was voided.
+ *   food_orders              orders with at least one Food made unit (the Now screen's
+ *                            "orders with food")
  */
+/** One made unit (see above), for sales aliased `s` joined to the category map aliased `c`. */
+const MADE_UNIT = `s.voided = 0 AND s.is_modifier = 0
+                   AND s.item_name NOT LIKE 'Olo ID:%' AND s.item_name NOT LIKE '%Bundle'
+                   AND (c.category IN ('Smoothies', 'Smoothie Bowls', 'Food')
+                        OR (c.category IS NULL AND s.gross_sales > 0))`
+
 export const salesBySlot = (where: string) => `
   WITH c AS (
     SELECT LOWER(REPLACE(LTRIM(RTRIM(item_name)), '_', ' ')) AS k, MAX(category) AS category
@@ -143,12 +151,9 @@ export const salesBySlot = (where: string) => `
   SELECT s.store, CONVERT(char(10), s.closed_datetime, 23) AS d,
          DATEPART(hour, s.closed_datetime) * 2 + DATEPART(minute, s.closed_datetime) / 30 AS slot,
          ${NET_SALES} AS net,
-         SUM(CASE WHEN s.voided = 0 AND s.is_modifier = 0
-                   AND s.item_name NOT LIKE 'Olo ID:%' AND s.item_name NOT LIKE '%Bundle'
-                   AND (c.category IN ('Smoothies', 'Smoothie Bowls', 'Food')
-                        OR (c.category IS NULL AND s.gross_sales > 0))
-                  THEN 1 ELSE 0 END) AS units,
+         SUM(CASE WHEN ${MADE_UNIT} THEN 1 ELSE 0 END) AS units,
          COUNT(DISTINCT CASE WHEN s.voided = 0 THEN s.order_id END) AS orders,
+         COUNT(DISTINCT CASE WHEN ${MADE_UNIT} AND c.category = 'Food' THEN s.order_id END) AS food_orders,
          COUNT(DISTINCT s.order_id) AS all_orders,
          COUNT(DISTINCT CASE WHEN s.voided = 0 AND s.destination NOT IN ('To Go', 'For Here')
                              THEN s.order_id END) AS digital_orders,
@@ -161,6 +166,28 @@ export const salesBySlot = (where: string) => `
    WHERE ${where}
    GROUP BY s.store, CONVERT(char(10), s.closed_datetime, 23),
             DATEPART(hour, s.closed_datetime) * 2 + DATEPART(minute, s.closed_datetime) / 30`
+
+/**
+ * MADE UNITS BY ITEM, per store and day — the Now screen's "What's selling". Same rows as
+ * salesBySlot's `units` (MADE_UNIT), so the items add up to the units that screen already
+ * shows. `where` filters sales aliased `s`; the route adds the half-hour cut-off for the
+ * usual days. `category` is '' for a priced item the taxonomy does not know (the Hi Pro
+ * coffees), which the screen counts with smoothies.
+ */
+export const madeUnitsByItem = (where: string) => `
+  WITH c AS (
+    SELECT LOWER(REPLACE(LTRIM(RTRIM(item_name)), '_', ' ')) AS k, MAX(category) AS category
+      FROM smoothieking.menu_item_category
+     GROUP BY LOWER(REPLACE(LTRIM(RTRIM(item_name)), '_', ' ')))
+  SELECT s.store, CONVERT(char(10), s.closed_datetime, 23) AS d, s.item_name AS item,
+         ISNULL(MAX(c.category), '') AS category, COUNT(*) AS units
+    FROM smoothieking.sales s
+    LEFT JOIN c ON c.k = LOWER(REPLACE(LTRIM(RTRIM(s.item_name)), '_', ' '))
+   WHERE ${MADE_UNIT} AND (${where})
+   GROUP BY s.store, CONVERT(char(10), s.closed_datetime, 23), s.item_name`
+
+/** The half-hour of the day a sales line closed in, 0–47 — salesBySlot's `slot`. */
+export const SALES_SLOT = 'DATEPART(hour, s.closed_datetime) * 2 + DATEPART(minute, s.closed_datetime) / 30'
 
 /** Each employee's most-recent hourly rate — the daily recap's rate_lookup, fed to
  *  core/labor buildRateFor (which adds the store-average and DEFAULT_RATE fallbacks). */

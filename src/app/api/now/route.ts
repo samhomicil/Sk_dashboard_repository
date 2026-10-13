@@ -69,8 +69,8 @@ export async function GET(req: Request) {
   const wanted = s === 'all' ? [...STORES] : STORES.filter(x => x.key === s)
   // A store's own login sees only its own store — including the history that is built from
   // other stores' rows. Three people work at both Pines and Miramar; without this a Pines
-  // login would see their Miramar late starts and Miramar hours. Owners and Dan ('all')
-  // keep the every-store view, which is what catches overtime across stores.
+  // login would see their Miramar late starts and Miramar hours. Owners ('all') keep the
+  // every-store view, which is what catches overtime across stores.
   const scope = await currentScope()
   const own = scope && scope !== 'all' ? STORES.find(x => x.key === scope)?.name ?? null : null
   const inScope = (r: { store: string }) => own == null || r.store === own

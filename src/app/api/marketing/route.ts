@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { query } from '@/lib/db'
-import { requireStore } from '@/lib/store-guard'
+import { requireStore, currentScope } from '@/lib/store-guard'
 import { etToday, isoAdd } from '@/lib/core/dates'
 import type { Store } from '@/lib/types'
 
@@ -75,6 +75,8 @@ export async function GET(req: NextRequest) {
       ORDER BY start_date, promo_id`)
 
     const want = store === 'all' ? null : DB_STORE[store]
+    const scope = await currentScope()
+    const locked = scope !== 'all'
     const promos: PromoRow[] = rows
       .map(r => ({
         id: r.promo_id,
@@ -95,6 +97,8 @@ export async function GET(req: NextRequest) {
         stores: (r.stores ?? '').split(',').map(s => s.trim()).filter(Boolean),
       }))
       .filter(p => !want || p.stores.includes(want))
+      // A store's own login sees its own store only — not which other stores a promo runs at.
+      .map(p => (locked && want ? { ...p, stores: [want] } : p))
 
     return Response.json({ ...empty, promos } satisfies MarketingPayload)
   } catch (err) {

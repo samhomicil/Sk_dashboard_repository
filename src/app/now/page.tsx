@@ -581,7 +581,7 @@ function People({ s, late }: { s: StoreNow; late: number }) {
   )
 }
 
-/* ── All stores (Dan and owners) ───────────────────────────────────────────── */
+/* ── All stores (owners) ───────────────────────────────────────────── */
 
 function AllStores({ d, onPick }: { d: NowPayload; onPick: (k: StoreKey) => void }) {
   const calls = d.stores.flatMap(s => s.calls.map(c => ({ s, c })))

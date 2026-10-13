@@ -31,9 +31,9 @@ export const STORE_NAME: Record<StoreKey, string> = {
 export type Assignment = StoreKey | 'all'
 
 const DEFAULT_STORE_ACCESS: Record<string, Assignment> = {
-  // Dan, the original manager, uses this login across all three stores (Sam, 2026-09-29).
-  // 'all' widens the STORES a manager sees — it does not grant owner (financial) access.
-  'ops@smoothiekingmargate.com':   'all',
+  // Margate's own ops login sees Margate only (Sam, 2026-10-13: "Margate access should be just
+  // their store"). It covered all three stores from 2026-09-29 until then.
+  'ops@smoothiekingmargate.com':   'margate',
   'admin@smoothiekingmargate.com': 'margate',
   'ops@smoothiekingmiramar.com':   'miramar',
   'admin@smoothiekingmiramar.com': 'miramar',

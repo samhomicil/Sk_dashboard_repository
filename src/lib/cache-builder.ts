@@ -25,7 +25,7 @@ import {
 } from './salesCache'
 import { loadHeatmapCache, sqlHeatmap as sigmaHeatmap, sqlHeatmapWeekly as sigmaHeatmapWeekly } from './heatmapCache'
 import { loadCogsCache, sqlCogsPct as sigmaCogsPct } from './cogsCache'
-import { LABOR_DAILY, LABOR_SHIFTS, EE_CHECKS } from './core/sources'
+import { LABOR_DAILY, LABOR_SHIFTS, eeChecksCredited } from './core/sources'
 import type {
   Store, KpiData, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow,
   QuarterRow, TrendPoint, DailyRow, DailyData, StaffingData, StaffingCell, StaffingEmployee, Promotion,
@@ -72,16 +72,16 @@ function df(start: string, end: string, col = 'closed_datetime'): string {
 }
 
 // E&E is CrunchTime's (core/sources.ts EE_CHECKS): ee = extras & enhancers added, sm = smoothies
-// sold, so ee / sm is the "E&E Qty %" of the E&E Report in Crunchtime Insights. Digital = the
-// report's DIGITAL row (checks with no server: online and delivery).
+// sold, so ee / sm is the "E&E Qty %" of the E&E Report in Crunchtime Insights. Digital = online
+// and delivery checks; a walk-in check CrunchTime could not credit to a person counts in-store
+// by Brink's order type (sources.ts eeChecksCredited).
 type EETotals = { ee: number; sm: number; inStore: { ee: number; sm: number }; digital: { ee: number; sm: number } }
 async function fetchEE(store: Store, start: string, end: string): Promise<EETotals> {
   const rows = await dbQuery<{ ch: string; sm: number; ee: number }[]>(`
-    SELECT CASE WHEN server_name = 'DIGITAL' THEN 'dg' ELSE 'in' END AS ch,
+    SELECT CASE WHEN digital = 1 THEN 'dg' ELSE 'in' END AS ch,
            SUM(smoothie_qty) AS sm, SUM(ee_qty) AS ee
-    FROM ${EE_CHECKS}
-    WHERE ${sf(store)} AND ${df(start, end, 'business_date')}
-    GROUP BY CASE WHEN server_name = 'DIGITAL' THEN 'dg' ELSE 'in' END
+    FROM (${eeChecksCredited(`${sf(store)} AND ${df(start, end, 'business_date')}`, start, end)}) c
+    GROUP BY CASE WHEN digital = 1 THEN 'dg' ELSE 'in' END
   `).catch(() => [])
   const inStore = { ee: 0, sm: 0 }, digital = { ee: 0, sm: 0 }
   for (const r of rows) {
@@ -91,18 +91,19 @@ async function fetchEE(store: Store, start: string, end: string): Promise<EETota
   return { ee: inStore.ee + digital.ee, sm: inStore.sm + digital.sm, inStore, digital }
 }
 
-// Per-employee E&E (CrunchTime's, by the server NetChef has on each check — it has every
-// cashier, including the ones Brink's item export leaves blank) + net sales from
-// smoothieking.sales. Keyed `last|first` (lowercased) to match the shift map.
+// Per-employee E&E (CrunchTime's counts, credited by sources.ts eeChecksCredited: NetChef's
+// server on each check — it has the cashiers Brink's item export leaves blank — or, where
+// NetChef could not tie the login to a profile, the person Brink rang it under) + net sales
+// from smoothieking.sales. Keyed `last|first` (lowercased) to match the shift map.
 async function fetchEmployeeEE(store: Store, start: string, end: string): Promise<Map<string, { ee: number; sm: number; net: number }>> {
   const [eeRows, netRows] = await Promise.all([
     // NetChef and Brink spell a few people differently (Vasquez-/Vasques-Escobar):
     // resolve through employee_alias, as every cross-source join must (core/employee.ts).
     dbQuery<{ ekey: string; sm: number; ee: number }[]>(`
       SELECT k AS ekey, SUM(sm) AS sm, SUM(ee) AS ee FROM (
-        SELECT ${resolvedKeySql('server_name')} AS k, smoothie_qty AS sm, ee_qty AS ee
-        FROM ${EE_CHECKS}
-        WHERE server_name <> 'DIGITAL' AND ${sf(store)} AND ${df(start, end, 'business_date')}
+        SELECT ${resolvedKeySql('c.person')} AS k, c.smoothie_qty AS sm, c.ee_qty AS ee
+        FROM (${eeChecksCredited(`${sf(store)} AND ${df(start, end, 'business_date')}`, start, end)}) c
+        WHERE c.person <> 'DIGITAL'
       ) x GROUP BY k
     `).catch(() => []),
     dbQuery<{ employee: string; net: number }[]>(`

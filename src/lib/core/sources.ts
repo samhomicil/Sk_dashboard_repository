@@ -99,6 +99,40 @@ export const LABOR_SHIFTS = 'smoothieking.vw_labor_floor_shifts'
  */
 export const EE_CHECKS = 'smoothieking.ee_check'
 
+/**
+ * E&E checks credited to the person who rang them. CrunchTime files a check under 'DIGITAL'
+ * whenever it cannot tie the register login to an employee profile: online and delivery
+ * checks, but also every walk-in check of a crew member whose CrunchTime profile carries the
+ * wrong employee number. Dominic Brown (2026-10): both his real Brink IDs sit on terminated
+ * Margate profiles, so all of his Miramar checks landed in DIGITAL and he showed no E&E.
+ *
+ * For a DIGITAL check, Brink's order (check_number = sales.order_id) decides instead: the
+ * person Brink rang it under, when Brink names one, and in-store when Brink's order went out
+ * To Go / For Here. A check CrunchTime already credits to someone keeps CrunchTime's server,
+ * so per-person E&E still matches CrunchTime's E&E Report wherever CrunchTime knows the person.
+ * Store totals do not move — only who a check is credited to, and which channel it counts in.
+ *
+ * `where` filters EE_CHECKS (unaliased, e.g. "store = 'Pines' AND business_date BETWEEN …");
+ * start / end bound the Brink orders looked up and must cover the same business dates.
+ * Columns: store, business_date, person ('DIGITAL' when nobody is known), digital (1/0),
+ * ee_qty, smoothie_qty.
+ */
+export const eeChecksCredited = (where: string, start: string, end: string) => `
+  SELECT e.store, e.business_date, e.ee_qty, e.smoothie_qty,
+         CASE WHEN e.server_name = 'DIGITAL' AND b.employee IS NOT NULL THEN b.employee
+              ELSE e.server_name END AS person,
+         CASE WHEN e.server_name <> 'DIGITAL' THEN 0
+              WHEN b.in_store = 1 THEN 0 ELSE 1 END AS digital
+    FROM (SELECT store, business_date, check_number, server_name, ee_qty, smoothie_qty
+            FROM ${EE_CHECKS} WHERE ${where}) e
+    LEFT JOIN (SELECT store, order_id,
+                      MAX(CASE WHEN employee IS NOT NULL AND employee NOT IN ('None', '') THEN employee END) AS employee,
+                      MAX(CASE WHEN destination IN ('To Go', 'For Here') THEN 1 ELSE 0 END) AS in_store
+                 FROM smoothieking.sales
+                WHERE closed_datetime >= '${start}' AND closed_datetime < DATEADD(day, 1, '${end}')
+                GROUP BY store, order_id) b
+      ON e.server_name = 'DIGITAL' AND b.store = e.store AND b.order_id = e.check_number`
+
 /** E&E and smoothies per store, business day and half-hour of the check's close (slot 0–47).
  *  `where` filters EE_CHECKS, e.g. "business_date = '2026-10-06'". */
 export const eeBySlot = (where: string) => `

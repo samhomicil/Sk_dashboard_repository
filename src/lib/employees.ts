@@ -20,7 +20,7 @@
 // smoothieking.sales). Brink's report attributes all of them.
 
 import { query } from './db'
-import { EE_CHECKS } from './core/sources'
+import { eeChecksCredited } from './core/sources'
 
 // NOTE ON ERROR HANDLING: none of the queries below swallow failures. An earlier version
 // wrapped each in .catch(() => []), which meant a query that SQL Server rejected rendered
@@ -595,14 +595,16 @@ export async function getExceptions(start: string, end: string, store?: string) 
       AND s.employee IS NOT NULL AND s.employee NOT IN ('None', '')
     GROUP BY COALESCE(al.employee_key, ${empKeySql('s.employee')})
   `)
-  const sfE = store && store !== 'all' ? `AND e.store = '${store}'` : ''
+  const sfE = store && store !== 'all' ? `AND store = '${store}'` : ''
+  // Credited per sources.ts eeChecksCredited: CrunchTime's server, or Brink's cashier for a
+  // check CrunchTime could not tie to a profile (e.g. a wrong employee number in NetChef).
   const eeRows = await query<{ employee_key: string; ee: number; sm: number }[]>(`
-    SELECT COALESCE(al.employee_key, ${empKeySql('e.server_name')}) AS employee_key,
+    SELECT COALESCE(al.employee_key, ${empKeySql('e.person')}) AS employee_key,
            SUM(e.ee_qty) AS ee, SUM(e.smoothie_qty) AS sm
-    FROM ${EE_CHECKS} e
-    LEFT JOIN smoothieking.employee_alias al ON al.alias = ${empKeySql('e.server_name')}
-    WHERE e.business_date BETWEEN '${start}' AND '${end}' ${sfE} AND e.server_name <> 'DIGITAL'
-    GROUP BY COALESCE(al.employee_key, ${empKeySql('e.server_name')})
+    FROM (${eeChecksCredited(`business_date BETWEEN '${start}' AND '${end}' ${sfE}`, start, end)}) e
+    LEFT JOIN smoothieking.employee_alias al ON al.alias = ${empKeySql('e.person')}
+    WHERE e.person <> 'DIGITAL'
+    GROUP BY COALESCE(al.employee_key, ${empKeySql('e.person')})
   `)
   const eeBy = new Map(eeRows.map(r => [r.employee_key, { ee: Number(r.ee) || 0, sm: Number(r.sm) || 0 }]))
   // Anyone NetChef credits with smoothies but Brink's export left unnamed still gets an EE%.

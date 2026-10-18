@@ -1,7 +1,7 @@
 import { query } from '@/lib/db'
 import { getPrisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/owner-guard'
-import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS, PRIME_TARGET, MGR_WEEKLY, CARD_PROCESSING_RATE, CARD_PROCESSING_DEFAULT } from '@/lib/core/targets'
+import { STORES, LABOR_TARGET, COGS_TARGET, HIST_WEEKS, PRIME_TARGET, MGR_WEEKLY, MGR_LAST_WEEK, MGR_LAST_WEEK_SHARE, CARD_PROCESSING_RATE, CARD_PROCESSING_DEFAULT } from '@/lib/core/targets'
 import { etToday, isoAdd, dowOf } from '@/lib/core/dates'
 import { buildRateFor, schedRate, type EmpRateRow } from '@/lib/core/labor'
 import { empBurden, uncappedRate, TIP_PAYOUT } from '@/lib/core/laborBurden'
@@ -38,8 +38,13 @@ const HORIZON_HIST = 3         // completed weeks for context + 4-wk run-rate
 // $3,333 "consulting" on Miramar/Pines is NOT him — that's the Tome seller-
 // financing note, already booked to Debt.) Owners don't draw W-2 wages yet.
 // The figure itself lives in core/targets.ts, which also records its open
-// disagreement with cash-forecast/forecast.py.
+// disagreement with cash-forecast/forecast.py. He was let go 2026-10-12: the salary
+// runs through his final paid days and is $0 after (MGR_LAST_WEEK).
 const MGR_WK = MGR_WEEKLY
+const mgrForWeek = (store: string, weekMonday: string) =>
+  weekMonday < MGR_LAST_WEEK ? (MGR_WK[store] ?? 0)
+    : weekMonday === MGR_LAST_WEEK ? (MGR_WK[store] ?? 0) * MGR_LAST_WEEK_SHARE
+    : 0
 // Card processing accrues at each store's MEASURED PARPAY rate (core/targets.ts
 // CARD_PROCESSING_RATE) on the week's net sales. The fixed "Card Processing Fees"
 // bills are skipped below so the cost is not counted twice.
@@ -318,7 +323,7 @@ export async function GET() {
       //  applies to the whole taxable base.
       const [tipA, tipF] = weekSplit(D.tips, days, maxTill, tipsWkAvg)
       const tips = L(tipA * TIP_PAYOUT, 0, tipF * TIP_PAYOUT)      // 85% of CC tips, to hourly
-      const mgr = L(0, MGR_WK[name] ?? 0, 0)                        // salaried manager, committed
+      const mgr = L(0, mgrForWeek(name, w), 0)                      // salaried manager, committed
       const burden = scale(L(wages.a + tips.a + mgr.a, wages.c + tips.c + mgr.c, wages.f + tips.f + mgr.f), bRate)
 
       const fixedRun = (bk: string) => (fixedItems[bk] ?? []).reduce((t, it) => t + it.mo * WK, 0)
@@ -337,7 +342,8 @@ export async function GET() {
         { key: 'Labor', variable: true, items: [
           { name: 'Hourly wages', ...wages },
           { name: 'CC tips (85%, to hourly)', ...tips },
-          ...((MGR_WK[name] ?? 0) > 0 ? [{ name: 'Manager salary (D. Madaffari)', ...mgr }] : []),
+          // kept on every week while any week on screen still carries him, so rows line up
+          ...(weeks.some(x => mgrForWeek(name, x) > 0) ? [{ name: 'Manager salary (D. Madaffari)', ...mgr }] : []),
           { name: `Payroll taxes & WC (${(bRate * 100).toFixed(1)}%)`, ...burden },
           ...(fixedItems['Labor'] ?? []).map(it => ({ name: it.name, ...L(0, it.mo * WK, 0) })) ] },
         { key: 'Franchise', variable: false, items: [

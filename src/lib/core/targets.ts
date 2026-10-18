@@ -68,8 +68,20 @@ export const VARIANCE_FLAG_PCT = 0.15
  * forecast.py's 1386 is described as validated against the 7/31 ADP register. One of
  * those calibrations is stale. Do not resolve it by editing this line alone — the two
  * repos must move together or the Budget and Cash Flow tabs will disagree.
+ * (The 7/31 payroll preview split his $1,386 per store per check into $1,250 salary +
+ * $136 reimbursement, which is the whole gap: this figure is the salary alone.)
  */
 export const MGR_WEEKLY: Record<string, number> = { Miramar: 625, Pines: 625, Margate: 0 }
+
+/**
+ * When that salary stops. Dan Madaffari was let go Mon 2026-10-12 and is off payroll; his
+ * final check (Fri Oct 23, for the Oct 5–18 period) carries 4 days, taken here as four
+ * workdays of the week of Oct 5. Budget counts MGR_WEEKLY in full for weeks before
+ * MGR_LAST_WEEK, MGR_LAST_WEEK_SHARE of it that week, and nothing from the next week on.
+ * cash-forecast/forecast.py makes the same cut on his last payday (DAN_LAST_PAYDAY).
+ */
+export const MGR_LAST_WEEK = '2026-10-05'
+export const MGR_LAST_WEEK_SHARE = 4 / 5
 
 /**
  * Card processing (PAR Payment Services — "PARPAY" on the bank feed), as a share of

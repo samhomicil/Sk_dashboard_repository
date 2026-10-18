@@ -150,6 +150,33 @@ export const STORE_UPH: Record<string, number> = { pines: 7.5, miramar: 8.4, mar
 export const INVENTORY_PERIOD_MIN_DAYS = 5
 
 /**
+ * How far one store's unit cost may sit from the same product's other readings (the
+ * other stores, and its own a few weeks back) before it is treated as a CrunchTime
+ * entry error rather than a price.
+ *
+ * On 2026-10-13 Miramar's inventory price for fresh strawberries went from $2.82 to
+ * $634.88/LB, fresh blueberries $6.02 to $642.88/LB and hard-boiled eggs $0.38 to $19.00
+ * each, while PFG and Walmart charged their usual prices. Because COGS values every
+ * period at the last known price, Miramar's theoretical food cost read 133.7% and its
+ * already-closed September weeks re-valued to ~120%; CrunchTime's own recipe costs did
+ * the same from Oct 12 (bowls at $98 against $3.60 at the other two stores).
+ *
+ * The three stores buy the same products from the same vendors, so honest differences
+ * are small: across every product carried by more than one store, the widest is 5.6×
+ * (red pepper flakes), and the same recipe costs within ~10% store to store. 8× sits
+ * clear of both, and catches the Oct 13 prices (49-225×) plus a Feb 5-8 Protein Box at
+ * $56.53 against $3.95.
+ *
+ * A cost is refused when it is more than this from MOST of its independent readings:
+ * each other store's figure, plus the store's own from COST_HISTORY_DAYS earlier. The
+ * other stores are what make a genuine price move safe (every store sees it), and the
+ * own-history reading settles items only two stores carry, where one other store
+ * cannot say which of the pair is wrong. See core/cogs PRICE_CTE / recipeCostCtes.
+ */
+export const COST_OUTLIER_X = 8
+export const COST_HISTORY_DAYS = 28
+
+/**
  * WHAT COUNTS AS A "HOT" ITEM.
  *
  * There is no hot_item flag in the database. sk-inventory's spec describes the hot

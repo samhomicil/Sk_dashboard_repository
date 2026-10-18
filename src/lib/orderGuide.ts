@@ -10,6 +10,7 @@ import {
   type Bucket, type CasePack, type WalmartSub, type PooledOrder, type TransferMove, type Route,
 } from './core/sourcing'
 import { HOT_ITEM_VALUE_SHARE, HOT_ITEM_CATEGORIES } from './core/targets'
+import { PRICE_CTE } from './core/cogs'
 
 // Hybrid, delivery-cycle-aware order guide (predictive-ordering "crawl").
 // Trusted-source hybrid — NetChef for STRUCTURE (physical counts, pack, cost), Brink
@@ -124,7 +125,7 @@ export interface OrderGuideRow {
   orderTruck: string | null    // delivery date this item must ride to arrive before run-out
   coverDays: number            // length of this order's coverage window (delivery-to-delivery)
   suggestedOrder: number       // in stocking unit
-  estOrderCost: number | null  // suggestedOrder × last-known unit cost (NetChef inventory_price)
+  estOrderCost: number | null  // suggestedOrder × last-known unit cost (core/cogs PRICE_CTE)
   sourcing: 'order' | 'transfer'   // Margate shelf-stable → top up via transfer, not a direct PFG buy
   // --- purchasable form. A guide that says "2.1 LB of Gladiator" is not actionable:
   // the smallest thing PFG ships is a 25 LB case at $401.47.
@@ -189,7 +190,7 @@ export interface OrderGuidePayload {
   rows: OrderGuideRow[]
 }
 
-interface OnHandRow { store: string; product_number: string; product_name: string; sub_category_name: string | null; micro_category_name: string | null; inventory_unit: string | null; on_hand_qty: number; in_transit_qty: number; inventory_price: number | null; as_of: string }
+interface OnHandRow { store: string; product_number: string; product_name: string; sub_category_name: string | null; micro_category_name: string | null; inventory_unit: string | null; on_hand_qty: number; in_transit_qty: number; as_of: string }
 interface UsageRow { store: string; product_number: string; qty_beginning: number; qty_received: number; qty_physical: number; qty_issue: number; qty_variance: number; period_start: string; period_end: string }
 interface DriverRow { store: string; rc: string; net: number }
 interface DowRow { store: string; wd: number; net: number }
@@ -205,16 +206,22 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
   const usageStart = isoAdd(today, -USAGE_WINDOW_DAYS)
   const usageEnd = isoAdd(today, -1)
 
-  const [meta, blended, usageRates] = await Promise.all([
+  const [meta, blended, usageRates, prices] = await Promise.all([
     query<OnHandRow[]>(`
       SELECT store, product_number, product_name, sub_category_name, micro_category_name, inventory_unit,
-             on_hand_qty, in_transit_qty, inventory_price, CONVERT(char(10), as_of, 23) as_of
+             on_hand_qty, in_transit_qty, CONVERT(char(10), as_of, 23) as_of
       FROM smoothieking.netchef_onhand
       WHERE as_of = (SELECT MAX(as_of) FROM smoothieking.netchef_onhand)`),
     buildOnHand(usageStart, usageEnd),
     buildUsage(usageStart, usageEnd),
+    // Unit cost is COGS's own guarded last price, not today's snapshot: on 2026-10-13
+    // Miramar's snapshot put strawberries at $634.88/LB (see core/targets COST_OUTLIER_X).
+    query<{ store: string; product_number: string; inventory_price: number }[]>(`
+      WITH ${PRICE_CTE}
+      SELECT store, product_number, inventory_price FROM px WHERE rn = 1`),
   ])
   if (!meta.length) return null
+  const priceByKey = new Map(prices.map(p => [`${p.store}|${p.product_number}`, Number(p.inventory_price)]))
 
   // netchef_onhand still supplies category / unit / cost metadata, but NOT the quantity:
   // it carries blank counts through as negatives (-11 Pines, -19 Miramar flatbread on
@@ -380,7 +387,7 @@ export async function buildOrderGuide(): Promise<OrderGuidePayload | null> {
       const inTime = runOutDate ? dels.filter(d => d <= runOutDate) : []
       orderTruck = inTime.length ? inTime[inTime.length - 1] : dels[0]
     }
-    const unitCost = oh.inventory_price != null ? Number(oh.inventory_price) : null
+    const unitCost = priceByKey.get(key) ?? null
     const estOrderCost = unitCost != null && suggested > 0 ? Math.round(suggested * unitCost * 100) / 100 : null
 
     // ---- what you can actually buy, and therefore where this should come from.

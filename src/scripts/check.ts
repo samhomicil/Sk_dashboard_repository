@@ -323,6 +323,20 @@ console.log('\nInventory / order-guide core')
     + '(Margate 75.8%, Miramar 61.3% against a theoretical 26.9% / 26.0%). COGS comes '
     + 'from full inventory periods only.')
 
+  {
+    // Outside core/cogs, a file may read netchef_onhand for quantities and metadata, but a
+    // unit price only through PRICE_CTE (px), and recipe costs only through recipeCostCtes.
+    const rawPrice = FILES.filter(f => f.rel !== 'lib/core/cogs.ts' && !f.rel.startsWith('scripts/')
+      && /netchef_onhand/.test(f.code) && /inventory_price/.test(f.code) && !/PRICE_CTE/.test(f.code))
+    const rawRecipe = FILES.filter(f => f.rel !== 'lib/core/cogs.ts' && !f.rel.startsWith('scripts/')
+      && /FROM\s+smoothieking\.netchef_recipe_daily/.test(f.code))
+    check('unit prices and recipe costs pass the cross-store entry-error guard (core/cogs)',
+      /COST_OUTLIER_X/.test(cogsCore) && rawPrice.length === 0 && rawRecipe.length === 0,
+      'On 2026-10-13 Miramar\'s inventory price for strawberries became $634.88/LB and its '
+      + 'theoretical COGS read 133.7%. Read prices via PRICE_CTE and recipe costs via '
+      + `recipeCostCtes. Offenders: ${[...rawPrice, ...rawRecipe].map(f => f.rel).join(', ') || 'none'}`)
+  }
+
   check('the COGS rate is never surfaced without the window it was measured over',
     /cogsWindow/.test(src('app/api/ops-week/route.ts')) && /cogsWindow/.test(src('app/ops-report/page.tsx')),
     'A rate shown undated is how a 14-day-old figure got read as current.')

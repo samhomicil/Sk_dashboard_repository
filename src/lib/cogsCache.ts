@@ -39,6 +39,7 @@ import { query } from './db'
 import type { Store } from './types'
 import { sqlSales } from './salesCache'
 import { INVENTORY_PERIOD_MIN_DAYS } from './core/targets'
+import { PRICE_CTE } from './core/cogs'
 
 type CogsWeek = {
   store: string; start: string; end: string; theo: number; actual: number
@@ -61,14 +62,11 @@ export async function loadCogsCache(): Promise<void> {
     // (1510 of 1921 that carry real usage), and since nightly periods are now the most
     // recent ones, `qty_issue * price` made the Overview's COGS % read far too low —
     // 15-16% against a true 24-27%. Quantities on those rows are sound; only the price
-    // is missing. Same rule as src/lib/core/cogs.ts, so the Overview, Weekly Ops and
-    // Budget cannot disagree about how a dollar of food cost is derived.
+    // is missing. It is core/cogs.ts's own PRICE_CTE, so the Overview, Weekly Ops and
+    // Budget cannot disagree about how a dollar of food cost is derived — including
+    // which prices are refused as entry errors (COST_OUTLIER_X).
     const rows = await query<{ store: string; start: string; end: string; theo: number; actual: number; nightly: number; days: number }[]>(
-      `WITH px AS (
-         SELECT store, product_number, inventory_price,
-                ROW_NUMBER() OVER (PARTITION BY store, product_number ORDER BY as_of DESC) rn
-         FROM smoothieking.netchef_onhand
-         WHERE inventory_price > 0)
+      `WITH ${PRICE_CTE}
        SELECT LOWER(u.store) AS store,
               CONVERT(char(10), u.period_start, 23) AS start,
               CONVERT(char(10), u.period_end, 23)   AS [end],

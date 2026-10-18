@@ -2,6 +2,7 @@ import 'server-only'
 import { query } from './db'
 import { etToday, isoAdd } from './core/dates'
 import { EE_CHECKS } from './core/sources'
+import { recipeCostCtes } from './core/cogs'
 import { displayName } from './core/menuNames'
 import type { ProductSummary, CategorySummary, MenuMixPayload } from './menuMixUtils'
 export type { ProductSummary, CategorySummary, MenuMixPayload }
@@ -20,7 +21,8 @@ export { displayName }
  *
  * Two figures are CrunchTime's, as everywhere else in the app:
  *   - COGS % = NetChef's theoretical recipe cost ÷ its sales for the same item
- *     (smoothieking.netchef_recipe_daily). Menu items share Brink's PLU; an add-on's NetChef
+ *     (smoothieking.netchef_recipe_daily, through core/cogs recipeCostCtes so a day costed
+ *     off a mistyped inventory price is re-costed). Menu items share Brink's PLU; an add-on's NetChef
  *     PLU is Brink's with "14" appended (Banana 3030 -> "Add On - Banana" 303014); retail
  *     has no Brink PLU, so it matches on name ("GH PB 5.5oz Salt" = "RETAIL - GH PB 5.5oz Salt").
  *   - the add-ons card's E&E = core/sources.ts EE_CHECKS.
@@ -87,10 +89,13 @@ export async function getMenuMix(period: string, store: string): Promise<MenuMix
          AND ${inWindow('s.closed_datetime')}
        GROUP BY s.item_name
       HAVING SUM(CASE WHEN s.price > 0 THEN 1 ELSE 0 END) > 0`),
+    // Costs come through core/cogs's guard, which re-costs a day where one store's
+    // recipe cost is an entry error (Miramar's $98 bowls from Oct 12 2026).
     query<{ plu: number | null; name: string; cost: number; sales: number }[]>(`
+      WITH ${recipeCostCtes(start, end)}
       SELECT r.plu, MAX(r.recipe_name) AS name, SUM(r.cost) AS cost, SUM(r.sales) AS sales
-        FROM smoothieking.netchef_recipe_daily r
-       WHERE r.business_date BETWEEN '${start}' AND '${end}' ${rf}
+        FROM rc r
+       WHERE 1 = 1 ${rf}
        GROUP BY r.plu, r.product_number`).catch(() => []),
     query<{ ee: number; sm: number }[]>(`
       SELECT SUM(ee_qty) AS ee, SUM(smoothie_qty) AS sm FROM ${EE_CHECKS}

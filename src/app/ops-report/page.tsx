@@ -84,7 +84,7 @@ export default function OpsReportPage() {
   return (
     <Page>
       <PageBar
-        title="Weekly Operations Report"
+        title="Outlook"
         meta={data ? `${v?.name ?? ''} · ${data.weekLabel} · ${data.weekMode === 'next' ? 'next-week plan, all forecast' : 'actual to today, forecast after'}` : null}
       >
         {!lock && <SegControl label="Store" options={STORE_OPTS} value={store} onChange={setStore} />}

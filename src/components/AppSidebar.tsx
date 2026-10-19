@@ -123,7 +123,7 @@ export default function AppSidebar() {
             <rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" />
             <rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" />
           </svg>
-          <span className="sk-lbl">Overview</span>
+          <span className="sk-lbl">Scorecard</span>
         </Link>
 
         <Link href="/employees" className={item(pathname.startsWith('/employees'))}>
@@ -140,7 +140,7 @@ export default function AppSidebar() {
             <path d="M3 3v18h18" />
             <path d="M7 15l3-4 3 2 4-6" />
           </svg>
-          <span className="sk-lbl">Weekly Ops</span>
+          <span className="sk-lbl">Outlook</span>
         </Link>
 
         <Link href={storeLocked ? '/inventory/watchlist' : '/inventory'} className={item(onInventory, onInventory ? 'section' : '')}>

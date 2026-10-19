@@ -66,7 +66,7 @@ export const SOURCES: SourceContract[] = [
   // ── Sales / POS ────────────────────────────────────────────────────────────
   { table: 'smoothieking.sales', label: 'POS sales', dateColumn: 'closed_datetime',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink extractor',
-    consumers: ['Overview', 'Weekly Ops', 'Budget', 'Cash Flow', 'Menu Mix', 'Inventory'] },
+    consumers: ['Scorecard', 'Outlook', 'Budget', 'Cash Flow', 'Menu Mix', 'Inventory'] },
   // The 30-minute intraday pull's own log (brink-intraday job, 2026-10-01). Today's sales and
   // timecards land with each row; the Now screen dates itself by the last ok one and pauses
   // its send-home calls when that is over INTRADAY_STALE_MINUTES old inside open hours.
@@ -84,15 +84,15 @@ export const SOURCES: SourceContract[] = [
   // out of date and blanked the category and product panels.
   { table: 'smoothieking.menu_item_category', label: 'Menu taxonomy', dateColumn: 'synced_at',
     cadence: 'weekly', maxAgeDays: 14, fedBy: 'Brink extractor (run_pmix.py)',
-    consumers: ['Overview category mix', 'Overview top products', 'Menu Mix'] },
+    consumers: ['Scorecard category mix', 'Scorecard top products', 'Menu Mix'] },
 
   // ── Labor ──────────────────────────────────────────────────────────────────
   { table: 'smoothieking.labor', label: 'Labor actuals', dateColumn: 'shift_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard extractor',
-    consumers: ['Overview', 'Weekly Ops', 'Budget', 'Cash Flow', 'Employees'] },
+    consumers: ['Scorecard', 'Outlook', 'Budget', 'Cash Flow', 'Employees'] },
   { table: 'smoothieking.labor_schedule', label: 'Posted schedule', dateColumn: 'work_date',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'Brink schedule extractor', forwardLooking: true,
-    consumers: ['Weekly Ops', 'Budget', 'payroll model'] },
+    consumers: ['Outlook', 'Budget', 'payroll model'] },
   // The schedule builder's inputs from the CrunchTime side (Sam: NetChef/CrunchTime supplies
   // availability and time off; Brink supplies everything about scheduled and worked time).
   // Each is a whole-snapshot reload every night, so the reload stamp is what ages.
@@ -114,7 +114,7 @@ export const SOURCES: SourceContract[] = [
   // so the same 2-day contract as labor.
   { table: 'smoothieking.vw_labor_hours_daily', label: 'Labor hours & pay (view)', dateColumn: 'd',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard + schedule extractors',
-    consumers: ['Overview', 'Weekly Ops', 'daily recap email'] },
+    consumers: ['Scorecard', 'Outlook', 'daily recap email'] },
   { table: 'smoothieking.vw_labor_floor_shifts', label: 'Shifts on the floor (view)', dateColumn: 'd',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard + schedule extractors',
     consumers: ['Labor heatmap'] },
@@ -147,25 +147,25 @@ export const SOURCES: SourceContract[] = [
     consumers: ['Employees', 'minor-hour compliance'] },
   { table: 'smoothieking.employee_alias', label: 'Employee name aliases', dateColumn: 'created_at',
     cadence: 'weekly', maxAgeDays: 400, fedBy: 'manual mapping',
-    consumers: ['Employees', 'Weekly Ops'] },
+    consumers: ['Employees', 'Outlook'] },
 
   // ── Food ───────────────────────────────────────────────────────────────────
   { table: 'smoothieking.pfs_invoices', label: 'PFG invoices', dateColumn: 'invoice_date',
     cadence: 'weekly', maxAgeDays: 6, fedBy: 'pfg-portal extractor',
-    consumers: ['Budget', 'Inventory', 'Cash Flow', 'Weekly Ops'] },
+    consumers: ['Budget', 'Inventory', 'Cash Flow', 'Outlook'] },
   { table: 'smoothieking.pfg_compat', label: 'PFG (view alias)', dateColumn: 'order_date',
     cadence: 'weekly', maxAgeDays: 6, fedBy: 'view over pfs_invoices',
     consumers: ['Inventory'] },
   { table: 'smoothieking.walmart_spend', label: 'Walmart spend', dateColumn: 'order_date',
     cadence: 'daily', maxAgeDays: 4, fedBy: 'walmart-extractor',
-    consumers: ['Overview', 'Budget', 'Inventory'] },
+    consumers: ['Scorecard', 'Budget', 'Inventory'] },
 
   // CrunchTime's E&E per check (core/sources.ts EE_CHECKS), from NetChef's menu mix. Every
   // EE% in the app reads it. NetChef trails the POS by about an hour, so today fills in through
   // the day; a missing yesterday means the load has stopped.
   { table: 'smoothieking.ee_check', label: 'E&E (CrunchTime)', dateColumn: 'business_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'src/scripts/load_ee_netchef.py (NetChef menu mix)',
-    consumers: ['Overview', 'Now', 'Menu Mix', 'Labor & crew', 'Daily recap'] },
+    consumers: ['Scorecard', 'Now', 'Menu Mix', 'Labor & crew', 'Daily recap'] },
   // NetChef's theoretical recipe cost and sales per item per day, same load as ee_check.
   // Menu Mix takes only its COGS% from here; units and sales there are Brink's.
   { table: 'smoothieking.netchef_recipe_daily', label: 'Recipe cost by item (CrunchTime)', dateColumn: 'business_date',
@@ -175,7 +175,7 @@ export const SOURCES: SourceContract[] = [
   // ── Inventory / COGS ───────────────────────────────────────────────────────
   { table: 'smoothieking.netchef_usage_api', label: 'Recipe usage (COGS)', dateColumn: 'period_end',
     cadence: 'weekly', maxAgeDays: 10, fedBy: 'netchef-extractor',
-    consumers: ['Overview', 'Weekly Ops', 'Budget', 'Inventory'] },
+    consumers: ['Scorecard', 'Outlook', 'Budget', 'Inventory'] },
   { table: 'smoothieking.netchef_onhand', label: 'On-hand inventory', dateColumn: 'as_of',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'netchef-extractor',
     consumers: ['Inventory', 'Shrink'] },
@@ -189,7 +189,7 @@ export const SOURCES: SourceContract[] = [
   // ── Guest ──────────────────────────────────────────────────────────────────
   { table: 'smoothieking.guest_daily', label: 'Guest scores (daily)', dateColumn: 'survey_date',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'smg-extractor',
-    consumers: ['Overview', 'Guest Voice'] },
+    consumers: ['Scorecard', 'Guest Voice'] },
   { table: 'smoothieking.guest_feedback', label: 'Guest surveys (period)', dateColumn: 'period_end',
     cadence: 'on-demand', maxAgeDays: 10, fedBy: 'smg-extractor main.py (not scheduled)',
     consumers: ['Guest Voice (fallback only)'],
@@ -226,7 +226,7 @@ export const SOURCES: SourceContract[] = [
   // ── Derived / app-owned ────────────────────────────────────────────────────
   { table: 'smoothieking.dashboard_cache', label: 'Dashboard cache', dateColumn: 'refreshed_at',
     cadence: 'daily', maxAgeDays: 2, fedBy: '/api/ingest-refresh (6am cloud routine)',
-    consumers: ['Overview', 'Menu Mix', 'heatmap'] },
+    consumers: ['Scorecard', 'Menu Mix', 'heatmap'] },
   { table: 'sk_bills.Forecast', label: 'Cash forecast', dateColumn: 'as_of',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'cash-forecast/forecast.py --write (MANUAL today)',
     consumers: ['Cash Flow'] },

@@ -750,7 +750,7 @@ function SalesView({ sales, store, now }: { sales: SalesData; store: string; now
       <p className="text-[13px] text-slate-500">
         Auto-derived from POS. Completed months show realized net sales (actual); the current and
         upcoming months are projected with the shared sales forecast — the same figures Budget and
-        Weekly Ops use. % -of-sales bills resolve against these, month by month.
+        Outlook use. % -of-sales bills resolve against these, month by month.
       </p>
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">

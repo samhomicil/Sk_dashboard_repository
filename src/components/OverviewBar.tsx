@@ -66,7 +66,7 @@ export default function OverviewBar({
       <PageBar
         // A single-store login is not looking at a portfolio — name the store and stop.
         eyebrow={lock ? STORE_LABELS[lock] : `${store === 'all' ? 'All stores' : STORE_LABELS[store]} · Portfolio`}
-        title="Overview"
+        title="Scorecard"
         meta={
           <>
             <div>{md(dates.start)}–{md(dates.end)} · PY {md(dates.pyStart)}–{md(dates.pyEnd)}</div>

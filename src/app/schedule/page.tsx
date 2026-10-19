@@ -561,8 +561,8 @@ function Schedule() {
       </div>
 
       <BasisNote>
-        Sales forecast = the average of the last 4 same weekdays, the same rule as Weekly Ops and the Now page; on a holiday it is scaled by
-        how that holiday traded last year against the weeks around it (as Weekly Ops does), a holiday the store was closed on last year is
+        Sales forecast = the average of the last 4 same weekdays, the same rule as Outlook and the Now page; on a holiday it is scaled by
+        how that holiday traded last year against the weeks around it (as Outlook does), a holiday the store was closed on last year is
         planned closed, and a short-hours holiday keeps last year’s hours.
         People needed each half-hour = 1 person per {UNITS_PER_PERSON_HALF_HOUR} smoothies, bowls or food items, planned for a busy
         version of the day (the 2nd-busiest of the last 4) — if the day runs slower, the Now page says who can go home — plus 1 during
@@ -572,7 +572,7 @@ function Schedule() {
         at no extra wage. Checked as you go: not available (NetChef), approved time off (Teamworx), one shift per person per day, minors
         16–17, overtime past {WEEKLY_OT_HOURS} h — hours posted at another store count toward overtime and the minors’ weekly limit.
         Owners are not scheduled here.{' '}
-        {data.mode !== 'ahead' ? <>For a week under way or finished: the schedule week runs Tuesday–Monday like Teamworx (Weekly Ops runs
+        {data.mode !== 'ahead' ? <>For a week under way or finished: the schedule week runs Tuesday–Monday like Teamworx (Outlook runs
         Monday–Sunday); finished days use actual sales and actual pay from Brink, today and the days ahead the forecast and the schedule’s
         cost. Clock times are Brink’s; late, early or over is flagged past {LATE_MINUTES} minutes, as on the Now page. “Fewer crew
         hours” = how far the week’s cost is above {GOAL}% of its sales, at the crew’s average pay rate.</> : null}

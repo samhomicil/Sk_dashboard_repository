@@ -39,12 +39,20 @@ export type Route = 'pfg' | 'walmart' | 'transfer' | 'next-order' | 'decide' | '
 // Cold chain is the constraint, not price. Dry micro-categories move freely; fruit,
 // frozen, dairy and prepared food ride the truck or come from Walmart. Bottled juice
 // is shelf-stable despite sitting in Fruits/Juices.
-const DRY_MICROS = new Set(['Powders', 'Cups/Lids/Straws', 'Enhancers', 'Sweeteners'])
+// NetChef names packaging 'Smoothie Packaging' / 'Bowl Packaging' / 'Food Packaging'
+// (checked against netchef_onhand and company products 2026-10-19); the earlier
+// 'Cups/Lids/Straws' matched nothing, so cups and lids could never be lent.
+const DRY_MICROS = new Set(['Powders', 'Enhancers', 'Sweeteners', 'Smoothie Packaging', 'Bowl Packaging', 'Food Packaging'])
+// Mixed micro-categories: honey, granola, coconut, nut butters and seasoning sit beside
+// acai, sorbet, avocado and eggs. Where the item is counted decides it — a product
+// counted only on a shelf (never a freezer or fridge spot) is dry goods.
+const SHELF_MICROS = new Set(['Smoothie Bowls', 'Fruits/Juices', 'Food'])
 
-export function transferEligible(micro: string | null, unit: string | null): boolean {
+export function transferEligible(micro: string | null, unit: string | null, keep?: 'freezer' | 'fridge' | 'shelf'): boolean {
   if (!micro) return false
   if (DRY_MICROS.has(micro)) return true
   if (micro === 'Fruits/Juices' && /bottle|floz/i.test(unit || '')) return true
+  if (keep === 'shelf' && SHELF_MICROS.has(micro)) return true
   return false
 }
 

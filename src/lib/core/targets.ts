@@ -441,3 +441,44 @@ export const USUAL_HOURS_WEEKS = 6
  *  (4 weeks before, 2 after), clamped to this range — identical to the daily recap. Relocated
  *  from ops-week so Weekly Ops and the schedule builder read one rule. */
 export const HOLIDAY_FACTOR_CLAMP: readonly [number, number] = [0.4, 2.2]
+
+/* ── ORDER SCREEN (/inventory/order) ─────────────────────────────────────────────────
+ * Settings Sam reviewed on the Order mock-up, 2026-10-18. */
+
+/** Days one PFG order has to cover. All three stores order one truck a week since
+ *  2026-10-06 (Pines and Miramar moved off Tue+Fri); DELIVERY_DOWS still lists the Friday
+ *  PFG offers them, so the Order screen does not derive its cover from it. */
+export const ORDER_COVER_DAYS = 7
+
+/** Most an item should hold after an order, in days, by category. Past this the extra ties
+ *  up cash and risks waste, so the screen warns when someone orders beyond the suggestion.
+ *  Bananas are capped separately (ORDER_ITEMS maxPacks). */
+export const ORDER_MAX_DAYS: Record<string, number> = {
+  frozen: 14, fresh: 6, dairy: 10, chilled: 10, protein: 21, food: 21, pack: 21, dry: 21, juice: 21, retail: 21,
+}
+
+/** Another store lends shelf-stable goods only beyond what it needs to reach its own next
+ *  truck plus this many days (Sam, 2026-10-18: "enough to make it to the next truck and a
+ *  buffer"). */
+export const TRANSFER_BUFFER_DAYS = 7
+
+/** PFG adds a small-order fee below roughly this order total: charged on two ~$1,030
+ *  orders, not on $1,233 (pfs_invoices, Jul–Oct 2026). */
+export const PFG_MIN_ORDER = 1200
+export const PFG_SMALL_ORDER_FEE = 50
+
+/** "Usually bought by now": a PFG item bought at least this many times since March, still
+ *  live (last bought within the larger of these), and due by the next truck. */
+export const REGULAR_MIN_BUYS = 4
+export const REGULAR_STALE_MULTIPLE = 2.5
+export const REGULAR_STALE_MIN_DAYS = 60
+
+/** Count-based usage: weeks of weekly counts read, and the fewest count-to-count intervals
+ *  that make a rate (the median is used, so one bad count cannot swing it). */
+export const USAGE_COUNT_WEEKS = 10
+export const USAGE_MIN_INTERVALS = 3
+
+/** A count older than this is a projection, not a count: stores count weekly on Monday, so
+ *  past eight days a week was skipped (Pines and Miramar had no 10/12 count) and on-hand
+ *  is last count + deliveries − usage over a fortnight or more. Shown with "~". */
+export const COUNT_STALE_DAYS = 8

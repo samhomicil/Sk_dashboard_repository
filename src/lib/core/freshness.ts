@@ -176,6 +176,22 @@ export const SOURCES: SourceContract[] = [
   { table: 'smoothieking.netchef_usage_api', label: 'Recipe usage (COGS)', dateColumn: 'period_end',
     cadence: 'weekly', maxAgeDays: 10, fedBy: 'netchef-extractor',
     consumers: ['Scorecard', 'Outlook', 'Budget', 'Inventory'] },
+  // Weekly (and nightly) counts straight from CrunchTime, entered lines only, so a blank
+  // stays "not counted" instead of reading as zero. The Order screen's on-hand starts here.
+  { table: 'smoothieking.netchef_counts', label: 'Inventory counts (entered lines)', dateColumn: 'count_date',
+    cadence: 'weekly', maxAgeDays: 9, fedBy: '/Users/sam/netchef-counts/load_counts.py',
+    consumers: ['Inventory Order'] },
+  // PFG's own view the day before an order is due through the day after the truck
+  // (Sunday–Wednesday): this account's price per item, stock flags, delivery dates, cutoff.
+  { table: 'smoothieking.pfg_snapshot_items', label: 'PFG prices and stock', dateColumn: 'as_of_date',
+    cadence: 'weekly', maxAgeDays: 4, fedBy: 'pfg-weekly job → pfg-portal/snapshot.py',
+    consumers: ['Inventory Order'] },
+  { table: 'smoothieking.pfg_snapshot_calendar', label: 'PFG delivery dates and cutoff', dateColumn: 'as_of_date',
+    cadence: 'weekly', maxAgeDays: 4, fedBy: 'pfg-weekly job → pfg-portal/snapshot.py',
+    consumers: ['Inventory Order'] },
+  { table: 'smoothieking.netchef_vendor_items', label: 'NetChef PFG item mapping', dateColumn: 'loaded_at',
+    cadence: 'weekly', maxAgeDays: 9, fedBy: 'netchef-counts/load_vendor_items.py',
+    consumers: ['Inventory Order'] },
   { table: 'smoothieking.netchef_onhand', label: 'On-hand inventory', dateColumn: 'as_of',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'netchef-extractor',
     consumers: ['Inventory', 'Shrink'] },

@@ -22,6 +22,7 @@ const TABS = [
   { href: '/inventory/categories', label: 'By Category' },
   { href: '/inventory/stores',     label: 'By Store' },
   { href: '/inventory/vendors',    label: 'By Vendor' },
+  { href: '/inventory/order',      label: 'Order' },
   { href: '/inventory/watchlist',  label: 'Actions & Watchlist' },
   { href: '/inventory/shrink',     label: 'Shrink' },
 ]
@@ -31,7 +32,7 @@ const TABS = [
  *  Actions & watchlist joined Shrink here: it answers "what is missing right now, order
  *  it this week", which a 13-week or YTD window cannot ask. Leaving the control on
  *  screen offered four periods where only one exists, and the page ignored all of them. */
-const OWN_TIMEFRAME = ['/inventory/shrink', '/inventory/watchlist']
+const OWN_TIMEFRAME = ['/inventory/shrink', '/inventory/watchlist', '/inventory/order']
 
 export default function InventoryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

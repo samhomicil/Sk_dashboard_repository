@@ -391,8 +391,11 @@ export async function buildOrderList(store: OrderStore): Promise<OrderListPayloa
     // transfer when the item can move; a dead end ('decide') still goes on the truck.
     const transfer = transferFor(item)
     const idle = (o: OfferOut) => (o.price == null || o.suggested === 0 ? 0 : Math.max(0, o.suggested * o.perPack - short) * (o.price / o.perPack))
+    // ...and only for a slow mover: a pack that outlasts ORDER_MAX_DAYS. A fast mover's extra
+    // bag is next week's stock, not idle money, and should not lean on a sister store weekly.
+    const packDays = (o: OfferOut) => (!p.daily ? Infinity : (Math.max(atTruck ?? 0, 0) + o.suggested * o.perPack) / p.daily)
     let route: ItemOut['route'] = 'order'
-    if (!item.perRun && idle(offers[best]) > MAX_IDLE_CASE_VALUE) {
+    if (!item.perRun && idle(offers[best]) > MAX_IDLE_CASE_VALUE && packDays(offers[best]) > maxDays + 0.5) {
       const local = offers.findIndex(o => o.vendor !== 'PFG' && o.price != null && o.suggested > 0)
       if (local >= 0) best = local
       else if (transfer) route = 'transfer'

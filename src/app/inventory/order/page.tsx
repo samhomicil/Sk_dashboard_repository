@@ -22,6 +22,12 @@ type Vendor = 'PFG' | 'Walmart' | 'Restaurant Depot'
 type StoreOpt = 'Margate' | 'Miramar' | 'Pines'
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/** "1 bags" → "1 bag": unit labels are plural; one of anything is singular */
+const unitFor = (n: number, unit: string) => {
+  if (n !== 1 || unit === 'each' || unit === 'lb') return unit
+  const irregular: Record<string, string> = { loaves: 'loaf', boxes: 'box', pouches: 'pouch' }
+  return irregular[unit] ?? unit.replace(/s(\s|$)/, '$1')
+}
 const one = (n: number) => String(Math.round(n * 10) / 10)
 const day = (iso: string | null) => (iso ? new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' }).replace(',', '') : '—')
 const cutoffEt = (utc: string | null) => {
@@ -108,7 +114,7 @@ export default function OrderPage() {
         text: it.route === 'transfer'
           ? `${sug} × ${o.pack.toLowerCase()} would leave ${money(it.idle)} sitting. ${it.transfer.from} has extra: ~${it.transfer.has} ${it.unit}`
           : `${it.transfer.from} has extra: ~${it.transfer.has} ${it.unit}, needs ${it.transfer.keeps} until its truck + buffer`,
-        button: `Ask ${it.transfer.from} for ${it.transfer.qty} ${it.unit}`,
+        button: `Ask ${it.transfer.from} for ${it.transfer.qty} ${unitFor(it.transfer.qty, it.unit)}`,
         asked: isAsked,
         toggle: () => { setAsked(a => ({ ...a, [it.id]: !a[it.id] })); setQtyMap(m => { const c = { ...m }; delete c[it.id]; return c }) },
       } : null
@@ -289,7 +295,7 @@ export default function OrderPage() {
               <div className="ord-line"><b>All vendors</b><b>{money(grand)}</b></div>
               <div className="ord-line ord-soft"><span>PFG</span><span>{money(total('PFG'))}</span></div>
               <div className="ord-line ord-soft"><span>Walmart</span><span>{money(total('Walmart'))}</span></div>
-              <div className="ord-bar"><div style={{ width: `${budgetPct}%`, background: grand > data.budget.weekly ? 'var(--status-bad)' : 'var(--brand)' }} /></div>
+              <div className="ord-bar"><div style={{ width: `${budgetPct}%`, background: grand > data.budget.weekly ? 'var(--status-warn)' : 'var(--brand)' }} /></div>
               <span className="ord-note">{money(grand)} of {money(data.budget.weekly)} weekly food budget ({data.budget.basis})</span>
             </section>
           </div>

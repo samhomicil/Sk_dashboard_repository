@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
+import PulseMark from './PulseMark'
 
 const INVENTORY_SUB = [
   { label: 'Overview',            href: '/inventory',            group: true },
@@ -64,19 +65,11 @@ export default function AppSidebar() {
         so navigation moves into a slide-over drawer opened from here. */}
     <div className="sk-mobilebar">
       <Link href="/" className="sk-brand">
-        <span className="sk-mark" aria-hidden="true">
-          <svg viewBox="0 0 100 100" width="28" height="28">
-            <g fill="none" stroke="var(--ink-inverse)" strokeLinecap="butt">
-              <path strokeWidth="22" d="M 11 0 L 11 100" />
-              <path strokeWidth="22" d="M 89 0 L 89 100" />
-              <path strokeWidth="20" d="M 11 47 L 89 47" />
-            </g>
-          </svg>
-        </span>
+        <span className="sk-mark" aria-hidden="true"><PulseMark /></span>
         <span className="sk-rule" aria-hidden="true" />
         <span className="sk-nm">
-          <span className="sk-nm-1">HISPANIOLA</span>
-          <span className="sk-nm-2">WELLNESS</span>
+          <span className="sk-nm-1">PULSE</span>
+          <span className="sk-nm-2">HISPANIOLA WELLNESS</span>
         </span>
       </Link>
       <button className="sk-burger" aria-label="Open menu" onClick={() => setMobileOpen(true)}>
@@ -86,19 +79,11 @@ export default function AppSidebar() {
     {mobileOpen && <div className="sk-scrim" onClick={() => setMobileOpen(false)} />}
     <aside className={`sk-side${collapsed && !mobileOpen ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       <Link href="/" className="sk-brand">
-        <span className="sk-mark" aria-hidden="true">
-          <svg viewBox="0 0 100 100" width="28" height="28">
-            <g fill="none" stroke="var(--ink-inverse)" strokeLinecap="butt">
-              <path strokeWidth="22" d="M 11 0 L 11 100" />
-              <path strokeWidth="22" d="M 89 0 L 89 100" />
-              <path strokeWidth="20" d="M 11 47 L 89 47" />
-            </g>
-          </svg>
-        </span>
+        <span className="sk-mark" aria-hidden="true"><PulseMark /></span>
         <span className="sk-rule" aria-hidden="true" />
         <span className="sk-nm">
-          <span className="sk-nm-1">HISPANIOLA</span>
-          <span className="sk-nm-2">WELLNESS</span>
+          <span className="sk-nm-1">PULSE</span>
+          <span className="sk-nm-2">HISPANIOLA WELLNESS</span>
         </span>
       </Link>
 

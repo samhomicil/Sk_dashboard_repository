@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { auth, signIn } from '@/auth'
+import PulseMark from '@/components/PulseMark'
 
 function isAccessDenied(error?: string) {
   return error === 'AccessDenied'
@@ -29,16 +30,14 @@ export default async function LoginPage({
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 w-full max-w-sm text-center">
-        <div className="w-14 h-14 bg-teal-700 rounded-full flex items-center justify-center text-white text-xl font-bold mx-auto mb-4">
-          SK
-        </div>
+        <div className="flex justify-center mb-4"><PulseMark size={52} /></div>
         <div className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Hispaniola Wellness</div>
-        <div className="text-xl font-bold text-slate-800 mb-1">Performance Dashboard</div>
+        <div className="text-2xl font-bold text-slate-800 mb-1">Pulse</div>
 
         {denied ? (
           <>
             <div className="mt-3 mb-6 rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
-              This account isn&apos;t authorized to view the SK dashboard. Try a different Google
+              This account isn&apos;t authorized to view Pulse. Try a different Google
               account, or contact the owner if you think this is a mistake.
             </div>
             <form action={signInWithGoogle}>

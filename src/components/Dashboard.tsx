@@ -5,7 +5,6 @@ import { useDashboard } from './useDashboard'
 import OverviewBar  from './OverviewBar'
 import { Kpis, KpiTile, MetricTrend, type Metric, type Series } from './design/Kpi'
 import { Page } from './design/shell'
-import JoltPanel from './JoltPanel'
 import ForecastBanner from './ForecastBanner'
 import StoreBreakdown from './StoreBreakdown'
 import OpsHealth    from './OpsHealth'
@@ -101,7 +100,7 @@ export default function Dashboard() {
       setRefreshMsg('Failed — is the proxy running?')
     }
   }
-  const { kpis, stores, products, categories, channels, quarters, promotions, daily, dailyRange, jolt, joltQuality, guestSat, soci, loading, refreshedAt } = data
+  const { kpis, stores, products, categories, channels, quarters, promotions, daily, dailyRange, guestSat, soci, loading, refreshedAt } = data
   const k = kpis as KpiData | null
   const isAll      = state.store === 'all'
   const isCustom   = state.period === 'custom'
@@ -245,10 +244,15 @@ export default function Dashboard() {
         {/* Channel / category / product mix — the kit's 1:1:2 row. */}
         {!isCustom && <MixRow channels={channels} products={products} categories={categories} loading={loading} />}
 
-        {/* Jolt — completion and photo quality in one table, as the kit has it.
-            They were two panels, so answering "was it submitted AND done right?"
-            for one store meant scrolling between them. */}
-        <JoltPanel jolt={jolt} quality={joltQuality} />
+        {/* Checklists moved from Jolt to Ops Execution on 2026-10-22 (Sam). Jolt's
+            completion and photo quality read 0% from then on, so the Jolt panel is off
+            until an Ops Execution feed replaces it. */}
+        <div className="sk-card">
+          <h3 className="sk-card-title">Checklists</h3>
+          <p className="sk-subline" style={{ margin: '4px 0 0' }}>
+            Moved from Jolt to Ops Execution on Oct 22. Completion will show here again once Ops Execution is connected.
+          </p>
+        </div>
 
         {/* Quarter table (quarterly + YTD tabs) */}
         {showQuarters && (

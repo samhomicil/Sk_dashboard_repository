@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { resolveDateRange } from '@/lib/dates'
 import { swrGet, swrSet } from '@/lib/swrCache'
 import type { Store, Period, DateRange, KpiData, TrendPoint, StoreRow, EmployeeRow, ProductRow, CategoryRow, ChannelRow, QuarterRow, DailyData, DailyRangeData, StaffingData, Promotion } from '@/lib/types'
-import type { SopData, SopQualityData } from './joltTypes'
+import type { SopData } from './checklistTypes'
 import type { GuestSummary } from '@/app/api/guest-satisfaction/route'
 import type { SociData } from '@/app/api/soci/route'
 import { useStoreLock } from './useStoreLock'
@@ -31,8 +31,7 @@ interface DashboardData {
   unitsWindow: { start: string; end: string } | null
   daily:       DailyData | null
   dailyRange:  DailyRangeData | null
-  jolt:        SopData | null
-  joltQuality: SopQualityData | null
+  checklists:  SopData | null
   guestSat:    GuestSummary | null
   soci:        SociData | null
   loading:     boolean
@@ -56,7 +55,7 @@ export function useDashboard() {
 
   const [data, setData] = useState<DashboardData>({
     kpis: null, trend: [], stores: [], employees: [],
-    products: [], categories: [], channels: [], quarters: [], staffing: null, promotions: [], unitsWindow: null, daily: null, dailyRange: null, jolt: null, joltQuality: null, guestSat: null, soci: null,
+    products: [], categories: [], channels: [], quarters: [], staffing: null, promotions: [], unitsWindow: null, daily: null, dailyRange: null, checklists: null, guestSat: null, soci: null,
     loading: true, error: null, refreshedAt: null, hasCache: false,
   })
 
@@ -94,8 +93,7 @@ export function useDashboard() {
         : null,
       daily:       r.daily?.thisWeek ? r.daily : null,
       dailyRange:  r.dailyRange?.current ? r.dailyRange : null,
-      jolt:        r.jolt?.locations ? r.jolt : null,
-      joltQuality: r.joltQuality?.locations ? r.joltQuality : null,
+      checklists:  r.checklists?.locations ? r.checklists : null,
       guestSat:    r.guestSat?.connected ? r.guestSat : null,
       soci:        r.soci?.connected ? r.soci : null,
       refreshedAt: r.meta?.refreshedAt ?? null,

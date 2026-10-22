@@ -224,11 +224,10 @@ export const SOURCES: SourceContract[] = [
     cadence: 'daily', maxAgeDays: 5, fedBy: 'smg-extractor', consumers: ['Guest Voice'] },
 
   // ── Ops / SOPs / social ────────────────────────────────────────────────────
-  { table: 'smoothieking.jolt_list_instances', label: 'Jolt SOP lists', dateColumn: 'scheduled_date',
-    cadence: 'daily', maxAgeDays: 2, fedBy: 'jolt-extractor', forwardLooking: true,
-    consumers: ['Ops / SOPs'] },
-  { table: 'smoothieking.jolt_image_quality', label: 'Jolt photo scores', dateColumn: 'captured_datetime',
-    cadence: 'daily', maxAgeDays: 4, fedBy: 'jolt-extractor', consumers: ['Ops / SOPs'] },
+  { table: 'smoothieking.opsx_submissions', label: 'Ops Execution checklists', dateColumn: 'loaded_at',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'opsx-extractor (job jolt-daily)', consumers: ['Scorecard checklists'] },
+  { table: 'smoothieking.opsx_projects', label: 'Ops Execution schedule', dateColumn: 'loaded_at',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'opsx-extractor (job jolt-daily)', consumers: ['Scorecard checklists'] },
   { table: 'smoothieking.soci_daily', label: 'SOCi social (daily)', dateColumn: 'snapshot_date',
     cadence: 'daily', maxAgeDays: 4, fedBy: 'soci-extractor', consumers: ['Guest Voice'] },
   { table: 'smoothieking.soci_reviews', label: 'SOCi reviews', dateColumn: 'review_date',

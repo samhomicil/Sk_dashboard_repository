@@ -44,11 +44,18 @@ export const PRIME_TARGET = 0.52
  *  Was a literal in components/JoltQualityCard.tsx. */
 export const JOLT_QUALITY_TARGET = 0.85
 
-/** Jolt SOP completion target. Was a literal in components/SopCard.tsx.
+/** Checklist completion target: share of scheduled checklists done (Ops Execution since
+ *  Oct 2026, Jolt before). Was a literal in components/SopCard.tsx.
  *  Deliberately a separate constant from JOLT_QUALITY_TARGET despite sharing a
  *  value today — completing a checklist and photographing it well are different
  *  things, and tying them together would make one move when the other is tuned. */
 export const SOP_COMPLETE_TARGET = 0.85
+
+/** The day each store started running its checklists in Ops Execution (its first opening
+ *  checklist there). Ops Execution scheduled every list for every store from 2026-07-17,
+ *  while the stores were still on Jolt, so earlier days would read as all missed. Counting
+ *  starts here; Sam confirmed the switch on 2026-10-22. Margate's lone Oct 6 test is ignored. */
+export const CHECKLIST_SINCE: Record<string, string> = { Pines: '2026-10-12', Miramar: '2026-10-19', Margate: '2026-10-21' }
 
 /** Inventory watchlist thresholds. Were literals in lib/inventoryWatchlistUtils.ts. */
 export const FAST_MOVER_DAYS = 30

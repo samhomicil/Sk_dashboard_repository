@@ -11,8 +11,7 @@ import { GET as getHeatmap } from '../heatmap/route'
 import { GET as getMeta } from '../meta/route'
 import { GET as getDaily } from '../daily/route'
 import { GET as getPromotions } from '../promotions/route'
-import { GET as getJolt } from '../jolt/route'
-import { GET as getJoltQuality } from '../jolt-quality/route'
+import { GET as getChecklists } from '../checklists/route'
 import { GET as getGuestSat } from '../guest-satisfaction/route'
 import { GET as getSoci } from '../soci/route'
 import { requireStore } from '@/lib/store-guard'
@@ -48,7 +47,7 @@ export async function GET(req: NextRequest) {
   const range = { store, start: base.start, end: base.end }
   const isCustom = period === 'custom'
 
-  const [kpis, trend, stores, employees, products, categories, channels, quarters, heatmap, meta, daily, dailyRange, promotions, jolt, joltQuality, guestSat, soci] = await Promise.all([
+  const [kpis, trend, stores, employees, products, categories, channels, quarters, heatmap, meta, daily, dailyRange, promotions, checklists, guestSat, soci] = await Promise.all([
     sub(getKpis, '/api/kpis', base),
     sub(getTrend, '/api/trend', base),
     sub(getStores, '/api/stores', base),
@@ -64,14 +63,13 @@ export async function GET(req: NextRequest) {
       ? sub(getDaily, '/api/daily', { store, start: base.start, end: base.end, pyStart: base.pyStart, pyEnd: base.pyEnd })
       : Promise.resolve(null),
     sub(getPromotions, '/api/promotions', { store }),
-    sub(getJolt, '/api/jolt', range),
-    sub(getJoltQuality, '/api/jolt-quality', range),
+    sub(getChecklists, '/api/checklists', range),
     sub(getGuestSat, '/api/guest-satisfaction', range),
     sub(getSoci, '/api/soci', range),
   ])
 
   return Response.json(
-    { kpis, trend, stores, employees, products, categories, channels, quarters, heatmap, meta, daily, dailyRange, promotions, jolt, joltQuality, guestSat, soci },
+    { kpis, trend, stores, employees, products, categories, channels, quarters, heatmap, meta, daily, dailyRange, promotions, checklists, guestSat, soci },
     { headers: { 'Cache-Control': 'no-store' } },
   )
 }

@@ -7,6 +7,7 @@ import { Kpis, KpiTile, MetricTrend, type Metric, type Series } from './design/K
 import { Page } from './design/shell'
 import ForecastBanner from './ForecastBanner'
 import StoreBreakdown from './StoreBreakdown'
+import ChecklistPanel from './ChecklistPanel'
 import OpsHealth    from './OpsHealth'
 import SupplySpend  from './SupplySpend'
 import Callouts     from './Callouts'
@@ -100,7 +101,7 @@ export default function Dashboard() {
       setRefreshMsg('Failed — is the proxy running?')
     }
   }
-  const { kpis, stores, products, categories, channels, quarters, promotions, daily, dailyRange, guestSat, soci, loading, refreshedAt } = data
+  const { kpis, stores, products, categories, channels, quarters, promotions, daily, dailyRange, checklists, guestSat, soci, loading, refreshedAt } = data
   const k = kpis as KpiData | null
   const isAll      = state.store === 'all'
   const isCustom   = state.period === 'custom'
@@ -244,15 +245,8 @@ export default function Dashboard() {
         {/* Channel / category / product mix — the kit's 1:1:2 row. */}
         {!isCustom && <MixRow channels={channels} products={products} categories={categories} loading={loading} />}
 
-        {/* Checklists moved from Jolt to Ops Execution on 2026-10-22 (Sam). Jolt's
-            completion and photo quality read 0% from then on, so the Jolt panel is off
-            until an Ops Execution feed replaces it. */}
-        <div className="sk-card">
-          <h3 className="sk-card-title">Checklists</h3>
-          <p className="sk-subline" style={{ margin: '4px 0 0' }}>
-            Moved from Jolt to Ops Execution on Oct 22. Completion will show here again once Ops Execution is connected.
-          </p>
-        </div>
+        {/* Checklists — Ops Execution completion per store (the stores left Jolt in Oct 2026). */}
+        <ChecklistPanel data={checklists} />
 
         {/* Quarter table (quarterly + YTD tabs) */}
         {showQuarters && (

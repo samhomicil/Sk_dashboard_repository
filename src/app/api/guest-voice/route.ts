@@ -3,6 +3,7 @@ import { query } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
+import { dateParams } from '@/lib/core/params'
 
 // Detail behind the Ops Health "Guest Voice" tiles.
 //
@@ -39,7 +40,6 @@ const NEW_DAYS = 14       // "new" bad reports worth chasing
 const sf = (s: Store) => (s === 'all' ? '1=1' : `store = '${SCORE_STORE[s] ?? ''}'`)
 const cf = (s: Store) => (s === 'all' ? '1=1' : `store = '${COMMENT_STORE[s] ?? ''}'`)
 const COMMENT_DATE = 'COALESCE(visit_datetime, received_date)'
-const iso = /^\d{4}-\d{2}-\d{2}$/
 const ymd = (d: Date) => d.toISOString().slice(0, 10)
 const shift = (base: string, days: number) => ymd(new Date(Date.parse(base) + days * 86_400_000))
 
@@ -109,9 +109,9 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const scoped = await requireStore(sp.get('store')); if (scoped instanceof Response) return scoped
   const store = scoped as Store
-  const start = sp.get('start')
-  const end = sp.get('end')
-  if (!start || !end || !iso.test(start) || !iso.test(end)) return Response.json(EMPTY)
+  const d = dateParams(sp, ['start', 'end']); if (d instanceof Response) return d
+  const { start, end } = d
+  if (!start || !end) return Response.json(EMPTY)
 
   const days = Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1)
   const priorEnd = shift(start, -1)

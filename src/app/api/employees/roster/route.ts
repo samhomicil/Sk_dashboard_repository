@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { requireStore } from '@/lib/store-guard'
+import { dateParams } from '@/lib/core/params'
 import { STORE_NAME } from '@/lib/storeAccess'
 import {
   getRoster, getProductivity, getAttendance, getInStoreGross, getDobMap,
@@ -14,7 +15,6 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 function iso(d: Date) { return d.toISOString().slice(0, 10) }
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET(req: NextRequest) {
   // Fail CLOSED, independently of proxy.ts. A preview deployment without AUTH env
@@ -30,12 +30,10 @@ export async function GET(req: NextRequest) {
   // The employee queries take the store's display name ('Miramar') and interpolate it,
   // so only a clamped, known value may reach them.
   const store = scoped === 'all' ? 'all' : STORE_NAME[scoped]
-  const end = sp.get('end') ?? iso(new Date(Date.now() - 86400000))
-  const start = sp.get('start') ?? iso(new Date(new Date(end).getTime() - 27 * 86400000))
-  // Interpolated into SQL as well — accept calendar dates only.
-  if (!ISO_DATE.test(start) || !ISO_DATE.test(end)) {
-    return Response.json({ error: 'start and end must be YYYY-MM-DD' }, { status: 400 })
-  }
+  // Interpolated into SQL — accept calendar dates only.
+  const d = dateParams(sp, ['start', 'end']); if (d instanceof Response) return d
+  const end = d.end || iso(new Date(Date.now() - 86400000))
+  const start = d.start || iso(new Date(new Date(end).getTime() - 27 * 86400000))
 
   try {
     const st = store === 'all' ? undefined : store

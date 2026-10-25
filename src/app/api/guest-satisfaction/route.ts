@@ -3,6 +3,7 @@ import { query } from '@/lib/db'
 import { TARGETS } from '@/lib/config'
 import type { Store } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
+import { dateParams } from '@/lib/core/params'
 
 // SMG360 guest satisfaction, summarised for the Ops Health strip.
 //
@@ -83,15 +84,14 @@ function scopeLabel(store: Store) {
   return DB_STORE[store] ?? 'Margate'
 }
 
-const iso = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const scoped = await requireStore(sp.get('store')); if (scoped instanceof Response) return scoped
   const store = scoped as Store
-  const start = sp.get('start')
-  const end = sp.get('end')
-  if (!start || !end || !iso.test(start) || !iso.test(end)) return Response.json(EMPTY)
+  const d = dateParams(sp, ['start', 'end']); if (d instanceof Response) return d
+  const { start, end } = d
+  if (!start || !end) return Response.json(EMPTY)
 
   const days = Math.max(
     1,

@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
   if (gate) return gate;
 
   const { searchParams } = req.nextUrl;
-  const months  = Math.min(Number(searchParams.get('months') ?? '6'), 24);
+  // Becomes the start date of a QuickBooks query — a whole number of months, 1..24.
+  const monthsReq = Number(searchParams.get('months') ?? '6');
+  const months  = Number.isFinite(monthsReq) ? Math.min(Math.max(Math.trunc(monthsReq), 1), 24) : 6;
   const store   = searchParams.get('store') ?? null;
 
   // Build start date: first day of (months) months ago

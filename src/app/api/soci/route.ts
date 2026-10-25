@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { query } from '@/lib/db'
 import type { Store } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
+import { dateParams } from '@/lib/core/params'
 
 // SOCi reputation + social — pulled from smoothieking.soci_daily by /Users/sam/soci-extractor.
 // Read-only daily snapshot. SOCi issues one login per account and only Margate is connected,
@@ -63,6 +64,9 @@ export interface SociData {
 export async function GET(req: NextRequest) {
   const scoped = await requireStore(req.nextUrl.searchParams.get('store')); if (scoped instanceof Response) return scoped
   const store = scoped as Store
+  // The review window is interpolated into SQL — calendar dates only, or 400.
+  const d = dateParams(req.nextUrl.searchParams, ['start', 'end']); if (d instanceof Response) return d
+  const { start, end } = d
 
   const empty: SociData = {
     store: 'Margate', snapshotDate: '', avgRating: null,
@@ -93,12 +97,8 @@ export async function GET(req: NextRequest) {
     // Review-level counts for the selected range. Google is effectively the only channel
     // (114 of 116 lifetime); Yelp can't be sliced because its reviews aren't in the feed,
     // so it stays a lifetime count.
-    const sp2 = req.nextUrl.searchParams
-    const start = sp2.get('start')
-    const end = sp2.get('end')
-    const isoRe = /^\d{4}-\d{2}-\d{2}$/
     let period: SociData['period'] = null
-    if (start && end && isoRe.test(start) && isoRe.test(end)) {
+    if (start && end) {
       const l7 = new Date(Date.parse(end) - 6 * 86_400_000).toISOString().slice(0, 10)
       const p = await query<{
         n: number; rating: number | null; neg: number; replied: number

@@ -3,6 +3,7 @@ import { query } from '@/lib/db'
 import type { Store } from '@/lib/types'
 import { requireStore } from '@/lib/store-guard'
 import { CHECKLIST_SINCE } from '@/lib/core/targets'
+import { dateParams } from '@/lib/core/params'
 import type { SopData } from '@/components/checklistTypes'
 
 // Checklist completion from Crunchtime Ops Execution (the stores left Jolt in Oct 2026).
@@ -20,7 +21,6 @@ const STORE_LABEL: Record<string, string> = {
   Miramar: 'Smoothie King Miramar',
   Margate: 'Smoothie King Margate',
 }
-const ISO = /^\d{4}-\d{2}-\d{2}$/
 
 interface Raw { store: string; list_name: string; total: number; on_time: number; late: number; missed: number }
 
@@ -42,8 +42,9 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const scoped = await requireStore(sp.get('store')); if (scoped instanceof Response) return scoped
   const store = scoped as Store
-  const start = sp.get('start'), end = sp.get('end')
-  const window = start && end && ISO.test(start) && ISO.test(end) ? `AND p.due_date BETWEEN '${start}' AND '${end}'` : ''
+  const d = dateParams(sp, ['start', 'end']); if (d instanceof Response) return d
+  const { start, end } = d
+  const window = start && end ? `AND p.due_date BETWEEN '${start}' AND '${end}'` : ''
   const stores = Object.entries(CHECKLIST_SINCE)
     .filter(([s]) => store === 'all' || DB_STORE[store] === s)
     .map(([s, since]) => `('${s}', '${since}')`).join(', ')

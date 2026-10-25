@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { PROXY_URL, STORE_CODES } from './config'
+import { isIsoDate } from './core/params'
 import type { Store } from './types'
 
 // Server-side result cache for SQL reads (Vercel Runtime Cache, in-memory locally).
@@ -97,10 +98,18 @@ export function storeFilter(store: Store, tableAlias = ''): string {
   return `${col} = '${STORE_CODES[store]}'`
 }
 
+/**
+ * `CAST(col AS DATE) BETWEEN start AND end`. The dates are interpolated, so they must be
+ * real YYYY-MM-DD dates — routes validate at the boundary (core/params dateParams), and
+ * this refuses anything else as a second line, rather than writing it into SQL.
+ */
 export function dateFilter(
   start: string,
   end: string,
   col = 'closed_datetime',
 ): string {
+  if (!isIsoDate(start) || !isIsoDate(end)) {
+    throw new Error('dateFilter: start and end must be YYYY-MM-DD calendar dates')
+  }
   return `CAST(${col} AS DATE) BETWEEN '${start}' AND '${end}'`
 }

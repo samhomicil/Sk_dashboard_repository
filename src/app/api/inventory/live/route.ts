@@ -2,6 +2,7 @@ import { buildPurchasingLive } from '@/lib/purchasing-live'
 import { resolveDateRange } from '@/lib/dates'
 import type { Period } from '@/lib/types'
 import { requireAllStores } from '@/lib/store-guard'
+import { dateParams } from '@/lib/core/params'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -12,8 +13,9 @@ export async function GET(req: Request) {
   // Group totals with no single-store version — owners only.
   const gate = await requireAllStores(); if (gate) return gate
   const url = new URL(req.url)
-  let start = url.searchParams.get('start') ?? ''
-  let end = url.searchParams.get('end') ?? ''
+  // The window is interpolated into SQL — calendar dates only, or 400.
+  const d = dateParams(url.searchParams, ['start', 'end']); if (d instanceof Response) return d
+  let { start, end } = d
   // Accept either an explicit start/end or a shared Period keyword (matches the rest of
   // the dashboard's date model). Default = quarterly.
   if (!start || !end) {

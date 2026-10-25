@@ -15,6 +15,7 @@ import { GET as getChecklists } from '../checklists/route'
 import { GET as getGuestSat } from '../guest-satisfaction/route'
 import { GET as getSoci } from '../soci/route'
 import { requireStore } from '@/lib/store-guard'
+import { dateParams } from '@/lib/core/params'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +44,10 @@ export async function GET(req: NextRequest) {
   const scoped = await requireStore(g('store')); if (scoped instanceof Response) return scoped
   const store: string = scoped
   const period = g('period') || 'weekly'
-  const base = { store, period, start: g('start'), end: g('end'), pyStart: g('pyStart'), pyEnd: g('pyEnd') }
+  // Every sub-handler re-validates these too; refusing here turns a bad date into one 400
+  // instead of a payload of silently-null sections.
+  const d = dateParams(sp, ['start', 'end', 'pyStart', 'pyEnd']); if (d instanceof Response) return d
+  const base = { store, period, start: d.start, end: d.end, pyStart: d.pyStart, pyEnd: d.pyEnd }
   const range = { store, start: base.start, end: base.end }
   const isCustom = period === 'custom'
 

@@ -1,5 +1,6 @@
 import { requireOwner } from '@/lib/owner-guard';
 import { NextRequest, NextResponse } from 'next/server';
+import { dateParams } from '@/lib/core/params';
 import { getConnections, getPnlReport, getPnlTrend } from '@/lib/bills/qb';
 
 export const runtime = 'nodejs';
@@ -13,8 +14,11 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const store  = searchParams.get('store');
-  const start  = searchParams.get('start') ?? new Date().toISOString().slice(0, 7) + '-01';
-  const end    = searchParams.get('end')   ?? new Date().toISOString().slice(0, 10);
+  // Report params, not query text — but held to the same date rule as every other route.
+  const d = dateParams(searchParams, ['start', 'end']);
+  if (d instanceof Response) return d;
+  const start  = d.start || new Date().toISOString().slice(0, 7) + '-01';
+  const end    = d.end   || new Date().toISOString().slice(0, 10);
   const basis  = (searchParams.get('basis') ?? 'Accrual') as 'Accrual' | 'Cash';
   const byMonth = searchParams.get('by') === 'month';
 

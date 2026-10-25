@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { requireStore } from '@/lib/store-guard'
 import { STORES } from '@/lib/core/targets'
 import { etToday, etNowMinutes, isoAdd } from '@/lib/core/dates'
+import { isIsoDate } from '@/lib/core/params'
 import { draftWeek, weekDates, type SchedShift, type SchedDay, type SchedPerson, type ElsewhereShift } from '@/lib/core/schedule'
 import { loadScheduleInputs, weekStart, type WeekMode, type WeekActual } from '@/lib/scheduleData'
 import { ageOn } from '@/lib/minorLabor'
@@ -55,7 +56,8 @@ export async function GET(req: Request) {
   if (store instanceof Response) return store
   const today = etToday()
   const week = p.get('week')
-  const tuesday = weekStart(week && /^\d{4}-\d{2}-\d{2}$/.test(week) ? week : isoAdd(today, 7))
+  // Interpolated into SQL below; anything but a calendar date falls back to next week.
+  const tuesday = weekStart(isIsoDate(week) ? week : isoAdd(today, 7))
 
   const [inputs, saved] = await Promise.all([
     loadScheduleInputs(store, tuesday, today),
@@ -98,7 +100,7 @@ export async function POST(req: Request) {
   if (body.store !== store.key) {
     return Response.json({ error: 'forbidden', reason: `this login saves schedules for ${store.name} only` }, { status: 403 })
   }
-  if (!body.week || !/^\d{4}-\d{2}-\d{2}$/.test(body.week)) return Response.json({ error: 'week is required' }, { status: 400 })
+  if (!isIsoDate(body.week)) return Response.json({ error: 'week is required', reason: 'a calendar date (YYYY-MM-DD)' }, { status: 400 })
   const tuesday = weekStart(body.week)
   if (tuesday < weekStart(etToday())) return Response.json({ error: 'past weeks are read-only' }, { status: 400 })
   const dates = new Set(weekDates(tuesday))

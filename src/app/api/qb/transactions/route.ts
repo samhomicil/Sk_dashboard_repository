@@ -1,5 +1,6 @@
 import { requireOwner } from '@/lib/owner-guard';
 import { NextRequest, NextResponse } from 'next/server';
+import { dateParams } from '@/lib/core/params';
 import { getConnections, getAllPurchases, getAllDeposits, getAccounts } from '@/lib/bills/qb';
 
 export const runtime = 'nodejs';
@@ -10,8 +11,11 @@ export async function GET(req: NextRequest) {
   if (gate) return gate;
 
   const { searchParams } = req.nextUrl;
-  const start  = searchParams.get('start') ?? new Date().toISOString().slice(0, 10);
-  const end    = searchParams.get('end')   ?? new Date().toISOString().slice(0, 10);
+  // Both dates are written into a QuickBooks query string (getAllPurchases/Deposits).
+  const d = dateParams(searchParams, ['start', 'end']);
+  if (d instanceof Response) return d;
+  const start  = d.start || new Date().toISOString().slice(0, 10);
+  const end    = d.end   || new Date().toISOString().slice(0, 10);
   const limit  = Number(searchParams.get('limit') ?? '1000');
   const store  = searchParams.get('store') ?? null;
 

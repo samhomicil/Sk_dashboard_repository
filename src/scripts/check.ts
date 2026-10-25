@@ -196,6 +196,21 @@ console.log('\nSecurity')
     !FILES.some(f => f.rel.startsWith('app/api/') && /body\)?\s*,?\s*\}?\s*\)/.test(f.src) &&
       /JSON\.stringify\(\s*body\s*\)/.test(f.src) && /PROXY_URL/.test(f.src)),
     'An /api/query-style passthrough lets any signed-in user run arbitrary SQL.')
+
+  // /api/kpis and /api/daily read ?start= straight off the query string and handed it to
+  // dateFilter(), which writes it between quotes in the WHERE clause — so
+  // `start=2026-01-01' OR '1'='1` was SQL, from any signed-in login. Dates come off a
+  // request only through core/params dateParams(), which reads the param itself; a route
+  // that calls .get('start') directly is reading around it. Comment-stripped, so prose
+  // quoting the old call doesn't trip it.
+  const DATE_GET = /\.get\(\s*['"`](start|end|pyStart|pyEnd)['"`]\s*\)/
+  const rawDates = FILES.filter(f => f.rel.startsWith('app/api/') && f.rel.endsWith('route.ts') && DATE_GET.test(f.code))
+  check('route dates pass through core/params dateParams()', rawDates.length === 0,
+    rawDates.map(f => `${f.rel} — ${f.code.match(DATE_GET)?.[0]}`).join('\n')
+    + (rawDates.length ? '\n  -> const d = dateParams(sp, [\'start\', \'end\']); if (d instanceof Response) return d' : ''))
+  check('dateFilter() refuses a non-ISO date',
+    /export function dateFilter\([\s\S]*?isIsoDate\(start\)[\s\S]*?isIsoDate\(end\)[\s\S]*?throw/.test(src('lib/db.ts')),
+    'dateFilter interpolates its dates into SQL; it is the second line behind the route check.')
 }
 
 // ── 5. Manager-facing surfaces stay unloaded ─────────────────────────────────

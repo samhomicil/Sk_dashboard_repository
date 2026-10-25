@@ -3,7 +3,7 @@
 2. POST them to the dashboard's /api/ingest-refresh, which rebuilds the cache in-process
    on Vercel (which can reach Azure SQL) and writes smoothieking.dashboard_cache.
 
-Env: DB_PW (Azure SQL), REFRESH_KEY (x-refresh-key = Vercel REFRESH_SECRET/AZURE_SQL_PASSWORD),
+Env: DB_PW (Azure SQL), REFRESH_KEY (x-refresh-key = Vercel REFRESH_SECRET; required),
 optional DASH_URL (default the delta deployment).
 """
 import json
@@ -16,7 +16,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DATA = HERE.parents[1] / "data"
 URL = os.environ.get("DASH_URL", "https://sk-dashboard-delta.vercel.app") + "/api/ingest-refresh"
-KEY = os.environ.get("REFRESH_KEY", os.environ.get("DB_PW", ""))
+KEY = os.environ.get("REFRESH_KEY", "")  # never the DB password
 FILES = ["sigma-daily.json", "ee-periods.json", "ee-daily.json",
          "heatmap-daily.json", "heatmap-weekly.json"]
 

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { createHash, timingSafeEqual } from 'crypto'
 import { mkdirSync, writeFileSync, readdirSync, copyFileSync } from 'fs'
 import { join } from 'path'
 
@@ -20,9 +21,18 @@ const ALLOWED_FILES = new Set([
   'employee-key-map.json',
 ])
 
+// Constant-time compare. Hashing first gives both sides the same length.
+function keyMatches(given: string | null, secret: string): boolean {
+  if (!given) return false
+  const a = createHash('sha256').update(given).digest()
+  const b = createHash('sha256').update(secret).digest()
+  return timingSafeEqual(a, b)
+}
+
 export async function POST(req: NextRequest) {
-  const secret = process.env.REFRESH_SECRET ?? process.env.AZURE_SQL_PASSWORD
-  if (!secret || req.headers.get('x-refresh-key') !== secret) {
+  // Its own key, never the database password. No key configured = closed.
+  const secret = process.env.REFRESH_SECRET
+  if (!secret || !keyMatches(req.headers.get('x-refresh-key'), secret)) {
     return Response.json({ error: 'unauthorized' }, { status: 401 })
   }
   if (!process.env.AZURE_SQL_SERVER) {

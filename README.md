@@ -235,7 +235,7 @@ flag can't throttle serverless, where instances don't share memory.
 | `OPENBUDGET_REDIRECT_URI` (optional; defaults to production) | OpenBudget OAuth callback |
 | `OPENBUDGET_STALE_HOURS` | bank-balance freshness guard |
 | `CRON_SECRET` | authenticates the `/api/sync` cron |
-| `REFRESH_SECRET` | `x-refresh-key` for `/api/ingest-refresh`; **currently unset**, so it falls back to `AZURE_SQL_PASSWORD` |
+| `REFRESH_SECRET` | `x-refresh-key` for `/api/ingest-refresh` (Azure job `dash-refresh` sends it from its `refresh-key` secret). Required: with it unset the route refuses every call |
 | `SK_DATA_DIR` | override for the `data/` cache location |
 
 `SIGMA_CLIENT_ID` / `SIGMA_CLIENT_SECRET` are **no longer used** — the Sigma client was
@@ -260,9 +260,8 @@ authenticated by the `x-refresh-key` header, not a session.
 > Both cron routes are **excluded from the session gate** in `proxy.ts` (they have no
 > user session), so their secret *is* their only protection. Both now **fail closed** —
 > a missing secret rejects the request rather than skipping the check. Keep
-> `CRON_SECRET` populated in Vercel; `/api/ingest-refresh` works today only because it
-> falls back to `AZURE_SQL_PASSWORD` when `REFRESH_SECRET` is unset, which is protected
-> but poor hygiene — set a dedicated `REFRESH_SECRET`.
+> `CRON_SECRET` and `REFRESH_SECRET` populated in Vercel. `/api/ingest-refresh` accepts only
+> `REFRESH_SECRET` (constant-time compare); it no longer falls back to the database password.
 
 ### Working alongside other sessions
 

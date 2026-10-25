@@ -628,6 +628,8 @@
 @media (hover: hover) { .sk-refresh:hover:not(:disabled) { color: var(--ink); } }
 .sk-refresh:disabled { cursor: default; opacity: 0.6; }
 .sk-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Non-owners: the same label, but not a control (/api/refresh is owner-only). */
+.sk-refresh--static { cursor: default; text-decoration: none; }
 
 /* ── Overview panel grids ────────────────────────────────────────────────── */
 .sk-row4 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--grid-gutter); }

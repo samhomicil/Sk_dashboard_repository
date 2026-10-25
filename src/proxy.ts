@@ -40,6 +40,9 @@ const OWNER_APIS = [
   // matters more now that an agent token can present credentials: the middleware is
   // where a manager-scope token gets turned away.
   '/api/budget', '/api/balances',
+  // A full cache rebuild that WRITES smoothieking.dashboard_cache — not a manager action,
+  // and not something a store-locked login or the manager agent token should trigger.
+  '/api/refresh',
   // /api/employees/roster and /api/employees/profile are deliberately NOT here any more:
   // managers read the crew, pay included, because they do the hiring (Sam, 2026-09-29).
   // Both routes stay fail-closed in-handler and are store-locked (store-guard.ts), so a

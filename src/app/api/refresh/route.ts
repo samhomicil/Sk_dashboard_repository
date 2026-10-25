@@ -1,17 +1,23 @@
 import { spawn } from 'child_process'
 import { getCacheAsync } from '@/lib/cache'
+import { requireOwner } from '@/lib/owner-guard'
 
 // In-memory state (local dev only — serverless instances don't share this)
 let isRunning = false
 let startedAt: string | null = null
 
 /**
- * Minimum gap between full cache rebuilds. A rebuild recomputes every dashboard
- * rollup and WRITES smoothieking.dashboard_cache, so it is expensive; the manual
- * Refresh button on the Overview is reachable by any signed-in user (managers
- * included, by design — it is their operating data). The `isRunning` flag below
- * cannot throttle production because serverless instances don't share memory, so
- * the real guard is this cooldown, measured against the persisted refreshedAt.
+ * OWNER-ONLY. A rebuild recomputes every dashboard rollup and WRITES
+ * smoothieking.dashboard_cache (locally it spawns `npm run refresh`), so it is gated
+ * twice like the money routes: '/api/refresh' is in proxy.ts OWNER_APIS and both
+ * handlers call requireOwner(). It used to be open to every signed-in login — store-
+ * locked managers and the manager-scope agent token included. Managers still see the
+ * freshness label on the Scorecard; only owners get it as a refresh control. The 6am
+ * rebuild runs through /api/ingest-refresh and is unaffected.
+ *
+ * Minimum gap between full cache rebuilds: the `isRunning` flag below cannot throttle
+ * production because serverless instances don't share memory, so the real guard is
+ * this cooldown, measured against the persisted refreshedAt.
  */
 const COOLDOWN_MS = 5 * 60 * 1000
 
@@ -28,10 +34,12 @@ async function cooldownLeft(): Promise<number> {
 }
 
 export async function GET() {
+  const gate = await requireOwner(); if (gate) return gate
   return Response.json({ running: isRunning, startedAt })
 }
 
 export async function POST() {
+  const gate = await requireOwner(); if (gate) return gate
   const wait = await cooldownLeft()
   if (wait > 0) {
     const mins = Math.ceil(wait / 60000)

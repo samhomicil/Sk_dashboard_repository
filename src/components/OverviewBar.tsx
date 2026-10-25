@@ -12,6 +12,7 @@
  * is how the previous header behaved. Sign-out lives in the sidebar, not here.
  */
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { STORE_LABELS } from '@/lib/config'
 import type { Store, Period } from '@/lib/types'
 import { PageBar } from '@/components/design/shell'
@@ -58,6 +59,10 @@ export default function OverviewBar({
   refreshMsg: string | null
 }) {
   const lock = useStoreLock()
+  // A rebuild writes the shared cache, so /api/refresh is owner-only (proxy.ts + the
+  // handler). Everyone else gets the same freshness label without the control.
+  const canRefresh = useSession().data?.user?.role === 'owner'
+  const freshness = refreshing ? 'Refreshing…' : refreshedAt ? `Updated ${fmtRefreshed(refreshedAt)}` : 'Refresh data'
   const [cStart, setCStart] = useState(dates.start)
   const [cEnd, setCEnd] = useState(dates.end)
 
@@ -77,15 +82,21 @@ export default function OverviewBar({
                 className="sk-dot"
                 style={{ background: refreshedAt ? 'var(--status-good)' : 'var(--status-warn)' }}
               />
-              <button
-                type="button"
-                className="sk-refresh"
-                onClick={onRefresh}
-                disabled={refreshing}
-                title={refreshMsg ?? (refreshedAt ? `Data as of ${fmtRefreshed(refreshedAt)}` : 'No data yet')}
-              >
-                {refreshing ? 'Refreshing…' : refreshedAt ? `Updated ${fmtRefreshed(refreshedAt)}` : 'Refresh data'}
-              </button>
+              {canRefresh ? (
+                <button
+                  type="button"
+                  className="sk-refresh"
+                  onClick={onRefresh}
+                  disabled={refreshing}
+                  title={refreshMsg ?? (refreshedAt ? `Data as of ${fmtRefreshed(refreshedAt)}` : 'No data yet')}
+                >
+                  {freshness}
+                </button>
+              ) : (
+                <span className="sk-refresh sk-refresh--static">
+                  {refreshedAt ? `Updated ${fmtRefreshed(refreshedAt)}` : 'No data yet'}
+                </span>
+              )}
             </div>
           </>
         }

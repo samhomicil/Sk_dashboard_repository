@@ -31,29 +31,9 @@ export interface SpecEntry {
   note?: string;
 }
 
-// Store attribution is CONFIRMED against the QuickBooks chart of accounts, not
-// inferred from descriptor text: each company's bank/credit accounts carry the
-// mask in their name (Lakay Legacy has "BofA Checking (9371)", SK Miramar has
-// "BOA CHK (0828)", Hispaniola Wellness has "BOA CHK (5710)"), and the app's
-// store keys map margate->Lakay Legacy, miramar->SK Miramar, pines->Hispaniola.
-export const ACCOUNTS = [
-  { id: 'ACT-000002', institution: 'Bank of America', name: 'Business Adv Fundamentals', subtype: 'checking',    mask: '0828', store: 'Miramar', paidFrom: 'BOA',   storeNumber: '1892' },
-  { id: 'ACT-000001', institution: 'Bank of America', name: 'Business Advantage Sav',    subtype: 'savings',     mask: '0286', store: 'Miramar', paidFrom: 'BOA',   storeNumber: '1892' },
-  { id: 'ACT-000003', institution: 'Bank of America', name: 'Business Adv Fundamentals', subtype: 'checking',    mask: '5710', store: 'Pines',   paidFrom: 'BOA',   storeNumber: '1392' },
-  { id: 'ACT-000006', institution: 'Bank of America', name: 'Business Adv Fundamentals', subtype: 'checking',    mask: '9371', store: 'Margate', paidFrom: 'BOA',   storeNumber: '2384' },
-  { id: 'ACT-000005', institution: 'Bank of America', name: 'Business Advantage Sav',    subtype: 'savings',     mask: '1782', store: 'Margate', paidFrom: 'BOA',   storeNumber: '2384' },
-
-  // Cards ARE store-specific — QB books each one to a single company. An earlier
-  // pass treated them as shared because the feed names them all "D. AYBAR".
-  { id: 'ACT-000007', institution: 'Chase',           name: 'D. AYBAR',                  subtype: 'credit card', mask: '5979', store: 'Margate', paidFrom: 'Chase', storeNumber: '2384' },
-  { id: 'ACT-000008', institution: 'Chase',           name: 'D. AYBAR',                  subtype: 'credit card', mask: '2918', store: 'Pines',   paidFrom: 'Chase', storeNumber: '1392' },
-  { id: 'ACT-000009', institution: 'Capital One',     name: 'Capital One',               subtype: 'credit card', mask: '7879', store: 'Miramar', paidFrom: 'Chase', storeNumber: '1892' },
-
-  // ACT-000004 (BOA savings ••1151) is not on Pines' QuickBooks books, but Sam
-  // confirmed on 2026-09-25 that it is Pines' (opened 4/23 by a $100 transfer
-  // from Pines checking ••5710). Account Access records it under Pines too.
-  { id: 'ACT-000004', institution: 'Bank of America', name: 'Business Advantage Sav',    subtype: 'savings',     mask: '1151', store: 'Pines',   paidFrom: 'BOA',   storeNumber: '1392' },
-];
+// Which store owns each bank account is not listed here any more: it lives in
+// Account Access (each account has one owner) and is read with storeAccounts()
+// in openbudget.ts.
 
 export const SPEC: SpecEntry[] = [
   // ---- Smoothie King corporate ACH -------------------------------------------

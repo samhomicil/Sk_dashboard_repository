@@ -1,8 +1,8 @@
 import 'server-only';
 import { loadBills } from './data';
 import { expandSpec, resolveVendor, type AliasRule, type AliasTxn } from './vendorAlias';
-import { SPEC, ACCOUNTS } from './vendorAliasSpec';
-import { searchAllTransactions, isConnected, type ObTxn } from './openbudget';
+import { SPEC } from './vendorAliasSpec';
+import { searchAllTransactions, isConnected, storeAccounts, type ObTxn, type StoreAccount } from './openbudget';
 import { getAllPurchases, getAllDeposits } from './qb';
 
 // The unified transaction feed: OpenBudget (raw bank/card activity) enriched
@@ -42,13 +42,16 @@ export interface UnifiedTxn {
   settledBillIds?: string[];
 }
 
-const storeByAccount: Record<string, string | null> = Object.fromEntries(
-  ACCOUNTS.map((a) => [a.id, a.store]),
-);
-const accountLabel = (accountId: string): string => {
-  const a = ACCOUNTS.find((x) => x.id === accountId);
-  return a ? `${a.institution} ••${a.mask}` : accountId;
-};
+// Which store owns each account, and how to label it, come from Account Access
+// (storeAccounts) for every request rather than from a list kept here.
+interface AccountIndex { storeByAccount: Record<string, string | null>; label: (accountId: string) => string }
+function indexAccounts(accts: StoreAccount[]): AccountIndex {
+  const byId = new Map(accts.map((a) => [a.id, a]));
+  return {
+    storeByAccount: Object.fromEntries(accts.map((a) => [a.id, a.store])),
+    label: (accountId) => { const a = byId.get(accountId); return a ? `${a.institution} ••${a.mask}` : accountId; },
+  };
+}
 
 // A card payment appears TWICE in this feed — once as an outflow on the
 // checking account, once as a balance-reducing credit on the card's own
@@ -64,7 +67,7 @@ const CARD_PAYMENT_RE = /\b(autopay|crcardpmt|payment thank you|card\s*pmt)\b/i;
 // caller below), not module state — this runs in a warm serverless instance
 // shared across concurrent requests, so caching it on the function itself
 // would let one request's rule set leak into another's.
-function fromOpenBudget(t: ObTxn, rules: AliasRule[], billVendorById: Map<string, string>): UnifiedTxn {
+function fromOpenBudget(t: ObTxn, rules: AliasRule[], billVendorById: Map<string, string>, { storeByAccount, label }: AccountIndex): UnifiedTxn {
   const resolution = resolveVendor(t as unknown as AliasTxn, rules, storeByAccount);
   const matchedVendor = resolution ? billVendorById.get(resolution.billId) : undefined;
   return {
@@ -73,7 +76,7 @@ function fromOpenBudget(t: ObTxn, rules: AliasRule[], billVendorById: Map<string
     amount: -t.amount, // OpenBudget: outflow positive -> flip to match QB route's convention
     payee: matchedVendor ?? t.merchant ?? t.name,
     store: storeByAccount[t.account] ?? null,
-    accountLabel: accountLabel(t.account),
+    accountLabel: label(t.account),
     // Keep the raw descriptor once it's been translated to a human vendor name —
     // that raw string ("SKFI OPERATING DES:P4_ROYALTY", "MTC-Payment") is exactly
     // what made these unrecognizable in the first place; don't throw it away.
@@ -105,19 +108,16 @@ export async function getUnifiedTransactions(start: string, end: string): Promis
 
   if (await isConnected()) {
     try {
-      // Scoped to the explicit ACCOUNTS allowlist, not every account on the
-      // connection. Two reasons: (1) any account Sam links to OpenBudget for
-      // personal use — or any other account not yet mapped to a store — must
-      // never reach this app at all, not just get excluded from balances the
-      // way the untraced ••1151 savings account already is; and (2) that
-      // account's own transactions were leaking onto /transactions today,
-      // unattributed but visible, since nothing here filtered by account
-      // before now. Business account IDs only.
-      const obTxns = await searchAllTransactions({
+      // Scoped to the accounts Account Access says belong to a store. Account
+      // Access already refuses Pulse anything else; naming them here as well
+      // keeps an account with no store owner off /transactions entirely.
+      const accts = await storeAccounts();
+      const index = indexAccounts(accts);
+      const obTxns = accts.length ? await searchAllTransactions({
         startDate: start, endDate: end,
-        accountIds: ACCOUNTS.map((a) => a.id),
-      });
-      for (const t of obTxns) rows.push(fromOpenBudget(t, rules, billVendorById));
+        accountIds: accts.map((a) => a.id),
+      }) : [];
+      for (const t of obTxns) rows.push(fromOpenBudget(t, rules, billVendorById, index));
     } catch (e) {
       openBudgetOk = false;
       warning = `OpenBudget fetch failed: ${e instanceof Error ? e.message : String(e)}`;

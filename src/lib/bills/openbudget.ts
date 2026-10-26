@@ -1,5 +1,4 @@
 import 'server-only';
-import { ACCOUNTS } from './vendorAliasSpec';
 
 // OpenBudget (api.openbudget.sh) is a Plaid-backed MCP server holding the raw bank
 // transactions and live balances for the accounts in project_openbudget.md.
@@ -122,12 +121,32 @@ export async function searchAllTransactions(params: {
   return all;
 }
 
+// ── Which store owns each account ───────────────────────────────────────────
+//
+// Decided in Account Access, where every account has one owner (each store
+// company, or the household), not in a list here. The owners match the QuickBooks
+// chart of accounts — notably, the two Chase cards and the Capital One card are
+// each billed to a single store despite the feed naming them all "D. AYBAR".
+// An owner Pulse doesn't map to a store (the household) is ignored, so a personal
+// account can't reach Pulse even if it were ever shared with it. Re-read every
+// 10 minutes, so an owner Sam changes on the Account Access page lands here soon.
+
+const STORE_OF_OWNER: Record<string, string> = { margate: 'Margate', pines: 'Pines', miramar: 'Miramar' };
+export interface StoreAccount { id: string; store: string; institution: string; mask: string }
+let ownersCache: { at: number; rows: StoreAccount[] } | null = null;
+
+export async function storeAccounts(): Promise<StoreAccount[]> {
+  if (ownersCache && Date.now() - ownersCache.at < 10 * 60_000) return ownersCache.rows;
+  const d = await callTool<{ shared: { ownerId: string; accounts: { id: string; mask: string; institution: string }[] }[] }>('describe_access');
+  const rows = d.shared.flatMap((s) =>
+    STORE_OF_OWNER[s.ownerId] ? s.accounts.map((a) => ({ id: a.id, store: STORE_OF_OWNER[s.ownerId], institution: a.institution, mask: a.mask })) : [],
+  );
+  ownersCache = { at: Date.now(), rows };
+  return rows;
+}
+
 // ── Live balance, shaped for /api/sync -> sk_bills.QbBalance ───────────────
 //
-// Account -> store attribution here is CONFIRMED against the QuickBooks chart
-// of accounts (see vendorAliasSpec.ts's ACCOUNTS), not inferred from the feed —
-// notably, the two Chase cards and the Capital One card are each billed to a
-// single store despite the feed naming them all identically ("D. AYBAR").
 //
 // This covers MORE than SimpleFIN: Miramar's Capital One card is invisible to
 // SimpleFIN but present here. Neither source sees Huntington (Margate bank,
@@ -146,13 +165,14 @@ export interface StoreBalance {
 const STALE_HOURS = Number(process.env.OPENBUDGET_STALE_HOURS ?? 24);
 
 export async function getOpenBudgetBalances(): Promise<StoreBalance[]> {
-  const { accounts } = await listAccounts();
+  const [{ accounts }, owned] = await Promise.all([listAccounts(), storeAccounts()]);
+  const storeOf = new Map(owned.map((a) => [a.id, a.store]));
   const byStore = new Map<string, StoreBalance>();
   const now = Date.now() / 1000;
 
   for (const a of accounts) {
-    const store = storeByAccountId(a.id);
-    if (!store) continue; // unattributed account (e.g. the untraced ••1151 savings) — do not guess
+    const store = storeOf.get(a.id);
+    if (!store) continue; // no store owner in Account Access — do not guess
     const entry = byStore.get(store) ?? {
       store, checking: 0, savings: 0, creditCard: 0, cashTotal: 0,
       balanceDate: 0, ageHours: 0, stale: false,
@@ -182,7 +202,3 @@ export async function getOpenBudgetBalances(): Promise<StoreBalance[]> {
   });
 }
 
-const ACCOUNT_STORE: Record<string, string | null> = Object.fromEntries(
-  ACCOUNTS.map((a) => [a.id, a.store]),
-);
-const storeByAccountId = (id: string): string | null => ACCOUNT_STORE[id] ?? null;

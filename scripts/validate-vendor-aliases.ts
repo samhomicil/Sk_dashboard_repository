@@ -1,14 +1,15 @@
 // Expands the alias spec against the live Bill table, runs the real resolver
 // over OpenBudget history, and reports what it would and would not catch.
 //
-//   npx tsx scripts/validate-vendor-aliases.ts <transactions.json> <bills.json>
+//   npx tsx --env-file=.env.local -r ./scripts/server-only-shim.cjs scripts/validate-vendor-aliases.ts <transactions.json> <bills.json>
 //
 // Read-only: prints a report and writes the expanded rules to
 // scripts/out/vendor-aliases.json. Nothing is written to the database.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolveVendor, expandSpec, type AliasTxn } from '../src/lib/bills/vendorAlias';
-import { SPEC, ACCOUNTS } from '../src/lib/bills/vendorAliasSpec';
+import { SPEC } from '../src/lib/bills/vendorAliasSpec';
+import { storeAccounts } from '../src/lib/bills/openbudget';
 
 interface Bill { id: string; store: string; vendor: string; amountValue: number; amountType: string; paidFrom: string | null }
 
@@ -16,8 +17,9 @@ const [txPath, billPath] = process.argv.slice(2);
 const txns: AliasTxn[] = JSON.parse(readFileSync(txPath, 'utf8'));
 const bills: Bill[] = JSON.parse(readFileSync(billPath, 'utf8'));
 
+// Store owners come from Account Access, as in the app (top-level await is fine: tsx runs this as ESM).
 const storeByAccount: Record<string, string | null> =
-  Object.fromEntries(ACCOUNTS.map((a) => [a.id, a.store]));
+  Object.fromEntries((await storeAccounts()).map((a) => [a.id, a.store]));
 
 // Same expansion the live app runs (openbudget.ts) — this script exists to
 // validate that path against history, so it must not have its own copy of it.

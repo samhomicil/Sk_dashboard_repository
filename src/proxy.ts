@@ -21,6 +21,10 @@ import { scopeFor } from '@/lib/storeAccess'
  *   - /api/auth/*          NextAuth's own sign-in / callback / session routes
  *   - /api/ingest-refresh  the 6am cloud routine POSTs here with x-refresh-key
  *   - /api/sync            the balance-sync cron, authenticated with CRON_SECRET
+ *   - /api/hub/*           the Nexus agent hub's read-only feed, authenticated in-handler
+ *                          by lib/hub-guard.ts requireHubToken (bearer HUB_TOKEN). Never a
+ *                          session. The entry is `api/hub/` WITH the slash, so it covers
+ *                          only routes under app/api/hub/ — `npm run check` holds it there.
  *   - /login               the sign-in screen
  *   - Next internals and static assets
  */
@@ -133,6 +137,6 @@ export default auth(async (req) => {
 
 export const config = {
   matcher: [
-    '/((?!api/auth|api/ingest-refresh|api/sync|login|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|txt|xml|json|woff2?)$).*)',
+    '/((?!api/auth|api/ingest-refresh|api/sync|api/hub/|login|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|txt|xml|json|woff2?)$).*)',
   ],
 }

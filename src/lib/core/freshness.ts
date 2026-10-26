@@ -228,6 +228,13 @@ export const SOURCES: SourceContract[] = [
     cadence: 'daily', maxAgeDays: 2, fedBy: 'opsx-extractor (job jolt-daily)', consumers: ['Scorecard checklists'] },
   { table: 'smoothieking.opsx_projects', label: 'Ops Execution schedule', dateColumn: 'loaded_at',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'opsx-extractor (job jolt-daily)', consumers: ['Scorecard checklists'] },
+  // A VIEW over the two tables above: per store per due date, lists due / done / on time and
+  // temp logs due / done. The daily recap email reads it, and so does the hub feed, so both
+  // count a day's checklists by the one definition. The extractor loads runs through today,
+  // so due_date advances one day per nightly load.
+  { table: 'smoothieking.opsx_daily', label: 'Checklists by day (view)', dateColumn: 'due_date',
+    cadence: 'daily', maxAgeDays: 2, fedBy: 'opsx-extractor (job jolt-daily), via the base tables',
+    consumers: ['daily recap email', 'hub feed checklists'] },
   { table: 'smoothieking.soci_daily', label: 'SOCi social (daily)', dateColumn: 'snapshot_date',
     cadence: 'daily', maxAgeDays: 4, fedBy: 'soci-extractor', consumers: ['Guest Voice'] },
   { table: 'smoothieking.soci_reviews', label: 'SOCi reviews', dateColumn: 'review_date',

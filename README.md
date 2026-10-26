@@ -117,6 +117,33 @@ it **on purpose** — pre-gating so the planned route can't ship ungated.
 `/api/refresh` is deliberately **not** owner-gated (see Caching) — the Refresh button is
 a manager surface. It's rate-limited instead.
 
+### Hub API (`/api/hub/*`)
+
+A small read-only feed for Sam's agent hub (Nexus). Nexus's **server** calls it with
+`Authorization: Bearer $HUB_TOKEN`, so its alerts carry the same numbers these screens show.
+Every number comes from the same core rule the screen uses; nothing is recomputed.
+
+- **Auth.** [`src/lib/hub-guard.ts`](src/lib/hub-guard.ts) `requireHubToken(req)` is the first
+  line of every hub handler: sha256 of both sides, then `timingSafeEqual`; it fails closed
+  when `HUB_TOKEN` is unset, under 32 characters, or equal to an agent token. The routes are
+  left out of the proxy's session gate (matcher entry `api/hub/`, with the slash) the way the
+  crons are, so that check is their only gate — and a session cookie is **not** a credential
+  there. `npm run check` fails if a hub route skips the check, reads a session, or the
+  matcher entry is widened.
+- **Responses** are JSON with `Cache-Control: no-store`; 401 `{"error":"unauthorized"}` on any
+  token problem, 400 on a bad `date`, 502 `{"error":"query failed"}` if the database errors.
+
+| Endpoint | Returns | Source (same as) |
+|---|---|---|
+| `GET /api/hub/cash` | per store: bank `balance` (checking, cashTotal, asOf, ageHours, stale); the next `HUB_CASH_DAYS` (14) forecast `days` (date, balance, inflow, outflow, outflow `items` ≥ `HUB_OUTFLOW_ITEM_MIN` $300 with label + note); `firstBelowZero` and `lowest` {date, balance, items} over those days; `forecast` {asOf, updatedAt, balanceSource, flaggedStale}; `stale` + `staleReasons` (`balance` older than `OPENBUDGET_STALE_HOURS`, `forecast_flagged` by forecast.py, `forecast_old` past the freshness registry's 2 days) | `sk_bills.Forecast` rows as written (Cash Flow), `getLiveBalances()` over `sk_bills.QbBalance` |
+| `GET /api/hub/checklists?date=YYYY-MM-DD` | the day (default yesterday ET), `target` (`SOP_COMPLETE_TARGET`), `dayComplete`; per store `lists_due`, `lists_done`, `lists_on_time`, `temp_due`, `temp_done`, `rate` (done ÷ due), `below_target`, `counted` (false before the store's `CHECKLIST_SINCE` or with nothing due — rates are then null) | `smoothieking.opsx_daily` (the nightly recap's rule; a view over the tables `/api/checklists` reads) |
+| `GET /api/hub/sales` | per store and `total`: `today` so far, `yesterday`, `lastYear` (same weekday 364 days before yesterday) as {net, orders}, plus `yesterdayVsLastYear`; `today.asOf` = last successful Brink pull (ET), `runId`, `stale` by the Now screen's rule | `NET_SALES` + `ORDERS` over `smoothieking.sales` (Now / Scorecard); today keyed to the latest intraday run, never a stale cache |
+| `GET /api/hub/guest` | open SMG guest cases per reporting store: `open` = unresolved + in progress, the open `days` with each one's `capturedAt`, `latestCapturedAt`. SMG reports Pines and Miramar together, so that row is `"Pines+Miramar"` with `combined: true` | `smoothieking.guest_cases` (Guest Voice "pending") |
+
+```bash
+curl -s -H "Authorization: Bearer $HUB_TOKEN" https://sk-dashboard-delta.vercel.app/api/hub/cash
+```
+
 ### Google OAuth — the canonical URL matters
 
 There is **one** OAuth client for both this app and sk-bills: Google Cloud project
@@ -236,6 +263,7 @@ flag can't throttle serverless, where instances don't share memory.
 | `OPENBUDGET_STALE_HOURS` | bank-balance freshness guard |
 | `CRON_SECRET` | authenticates the `/api/sync` cron |
 | `REFRESH_SECRET` | `x-refresh-key` for `/api/ingest-refresh` (Azure job `dash-refresh` sends it from its `refresh-key` secret). Required: with it unset the route refuses every call |
+| `HUB_TOKEN` | bearer token for the read-only hub feed `/api/hub/*` (the Nexus agent hub; see [Hub API](#hub-api-apihub)). At least 32 characters and different from `AGENT_TOKEN_*`. Unset, short or reused = every hub call is refused (401). Set it in Vercel as **Sensitive**, Production only |
 | `SK_DATA_DIR` | override for the `data/` cache location |
 
 `SIGMA_CLIENT_ID` / `SIGMA_CLIENT_SECRET` are **no longer used** — the Sigma client was
@@ -257,10 +285,11 @@ Push to `main` → Vercel builds and deploys production. There is no separate re
 balances. `/api/ingest-refresh` is POSTed by the external 6am cloud routine and is
 authenticated by the `x-refresh-key` header, not a session.
 
-> Both cron routes are **excluded from the session gate** in `proxy.ts` (they have no
-> user session), so their secret *is* their only protection. Both now **fail closed** —
+> Both cron routes, and the hub feed `/api/hub/*` (bearer `HUB_TOKEN`), are **excluded from
+> the session gate** in `proxy.ts` (they have no user session), so their secret *is* their only
+> protection. All of them **fail closed** —
 > a missing secret rejects the request rather than skipping the check. Keep
-> `CRON_SECRET` and `REFRESH_SECRET` populated in Vercel. `/api/ingest-refresh` accepts only
+> `CRON_SECRET`, `REFRESH_SECRET` and `HUB_TOKEN` populated in Vercel. `/api/ingest-refresh` accepts only
 > `REFRESH_SECRET` (constant-time compare); it no longer falls back to the database password.
 
 ### Working alongside other sessions

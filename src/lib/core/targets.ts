@@ -489,3 +489,14 @@ export const USAGE_MIN_INTERVALS = 3
  *  past eight days a week was skipped (Pines and Miramar had no 10/12 count) and on-hand
  *  is last count + deliveries − usage over a fortnight or more. Shown with "~". */
 export const COUNT_STALE_DAYS = 8
+
+/* ── Hub feed (/api/hub/*, read by the Nexus agent hub) ──────────────────────────────
+ * Sam's spec for the hub's cash summary, 2026-10-25. Presentation only: neither changes a
+ * forecast number, they choose which of the forecast's own rows and lines are sent. */
+
+/** Forecast days /api/hub/cash returns per store, from today. firstBelowZero and lowest are
+ *  read over these days (the Cash Flow screen's low spans the forecast's whole horizon). */
+export const HUB_CASH_DAYS = 14
+
+/** A forecast outflow line at or above this many dollars is listed by name on its day. */
+export const HUB_OUTFLOW_ITEM_MIN = 300

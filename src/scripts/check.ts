@@ -243,10 +243,73 @@ console.log('\nAgent access')
     .filter(f => /^app\/api\/.+route\.ts$/.test(f.rel) && /sk_bills|prisma|QbBalance/.test(f.src))
     .map(f => '/' + f.rel.replace(/^app\//, '').replace(/\/route\.ts$/, ''))
     .filter(r => r !== '/api/sync')   // the cron, authenticated with CRON_SECRET
+    // The hub feed has no session to gate: it is outside the proxy by design and bearer-only
+    // in-handler. Its own checks (Hub feed, below) hold every route to requireHubToken.
+    .filter(r => !r.startsWith('/api/hub/'))
   const listed = (proxy.match(/'\/api\/[a-z-]+'/g) ?? []).map(s2 => s2.replace(/'/g, ''))
   const unlisted = billsRoutes.filter(r => !listed.includes(r))
   check('every route touching sk_bills is in OWNER_APIS', unlisted.length === 0,
     unlisted.join(', '))
+}
+
+// ── 4c. The hub feed is bearer-only, and its proxy bypass covers nothing else ─
+// /api/hub/* serves Nexus server to server, so proxy.ts leaves it out of the session gate
+// the way it leaves out the crons — which makes each route's own token check the ONLY gate
+// in front of bank balances. Two ways that goes wrong quietly: a new hub route ships
+// without the check (nothing else would stop an anonymous caller), or the matcher entry is
+// loosened to `api/hub` and silently un-gates some future /api/hubspot along with it.
+console.log('\nHub feed')
+{
+  const proxyCode = stripComments(src('proxy.ts'))
+  const routeFiles = FILES.filter(f => f.rel.startsWith('app/') && /\/route\.tsx?$/.test(f.rel))
+  const hubRoutes = routeFiles.filter(f => f.rel.startsWith('app/api/hub/'))
+
+  // Each exported handler's FIRST statement must be the token check. A handler declared as
+  // `export const GET = ...` cannot be read this way, so it counts as unchecked.
+  const HANDLER = /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*\([^)]*\)[^{]*\{\s*([^\n]*)/g
+  const unguarded: string[] = []
+  for (const f of hubRoutes) {
+    const handlers = [...f.code.matchAll(HANDLER)]
+    if (!handlers.length || /export\s+const\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/.test(f.code)) {
+      unguarded.push(`${f.rel} — no handler declared as \`export async function GET(req)\``)
+    }
+    for (const h of handlers) {
+      if (!/^const\s+(\w+)\s*=\s*requireHubToken\(\s*\w+\s*\)\s*;?\s*if\s*\(\s*\1\s*\)\s*return\s+\1\b/.test(h[2])) {
+        unguarded.push(`${f.rel} ${h[1]} — first line: ${h[2].trim().slice(0, 80)}`)
+      }
+    }
+  }
+  check(`every /api/hub route checks HUB_TOKEN first (${hubRoutes.length} routes)`,
+    hubRoutes.length > 0 && unguarded.length === 0,
+    unguarded.join('\n') + (unguarded.length
+      ? '\n  -> open each handler with: const denied = requireHubToken(req); if (denied) return denied'
+      : ''))
+
+  // The token is the only credential. A session or agent check inside a hub route would let
+  // a signed-in browser (or an agent token) in without HUB_TOKEN.
+  const SESSION = /from\s+['"]@\/auth['"]|\b(?:auth|requireOwner|requireStore|requireScope|requireAllStores|currentScope|agentRole)\s*\(/
+  const sessioned = hubRoutes.filter(f => SESSION.test(f.code))
+  check('no /api/hub route accepts a session or agent token', sessioned.length === 0,
+    sessioned.map(f => `${f.rel} — ${f.code.match(SESSION)?.[0]}`).join('\n'))
+
+  check('requireHubToken compares a sha256 of each side in constant time, and fails closed',
+    /createHash\(\s*'sha256'\s*\)/.test(src('lib/hub-guard.ts')) && /timingSafeEqual\(/.test(src('lib/hub-guard.ts'))
+      && /process\.env\.HUB_TOKEN\s*\?\?\s*''/.test(src('lib/hub-guard.ts')),
+    'lib/hub-guard.ts must hash both sides before timingSafeEqual, and treat an unset HUB_TOKEN as no access.')
+
+  // The matcher's hub exclusion must be exactly `api/hub/`, and every route it excludes must
+  // be a hub route. Read the lookahead alternatives that begin with api/hub.
+  const matcher = proxyCode.match(/matcher:\s*\[\s*'([^']+)'/)?.[1] ?? ''
+  const hubAlts = [...matcher.matchAll(/(?:\(\?!|\|)(api\/hub[^|)]*)/g)].map(m => m[1])
+  const coveredByBypass = routeFiles
+    .map(f => ({ f, path: f.rel.replace(/^app\//, '').replace(/\/route\.tsx?$/, '').replace(/\([^)]*\)\//g, '') }))
+    .filter(({ path }) => hubAlts.some(a => path.startsWith(a) || (path + '/').startsWith(a)))
+  const strays = coveredByBypass.filter(({ f }) => !f.rel.startsWith('app/api/hub/')).map(({ f }) => f.rel)
+  check('the proxy\'s hub bypass is `api/hub/` and covers only app/api/hub routes',
+    hubAlts.length === 1 && hubAlts[0] === 'api/hub/' && strays.length === 0
+      && coveredByBypass.length === hubRoutes.length,
+    `matcher hub entries: ${JSON.stringify(hubAlts)} (want ["api/hub/"])`
+      + (strays.length ? `\n  routes outside app/api/hub that skip the session gate: ${strays.join(', ')}` : ''))
 }
 
 // ── 5b. Wide Promise.all must bind by name ───────────────────────────────────

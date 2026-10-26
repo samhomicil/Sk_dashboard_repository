@@ -38,7 +38,7 @@ const OWNER_PAGES = ['/bills', '/cashflow', '/pnl', '/transactions', '/settings'
 const OWNER_APIS = [
   '/api/bills', '/api/forecast', '/api/cost-plan', '/api/accounts',
   '/api/payments', '/api/reconcile', '/api/qb', '/api/sales',
-  '/api/openbudget', '/api/transactions',
+  '/api/transactions',
   // Both read sk_bills and both already call requireOwner() in-handler, so they were
   // never exposed — but only one of the two required gates was doing the work. That
   // matters more now that an agent token can present credentials: the middleware is

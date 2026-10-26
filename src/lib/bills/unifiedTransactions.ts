@@ -125,7 +125,7 @@ export async function getUnifiedTransactions(start: string, end: string): Promis
     }
   } else {
     openBudgetOk = false;
-    warning = 'OpenBudget not connected — visit /api/openbudget/auth to authorize';
+    warning = 'Bank data is not set up — ACCOUNT_ACCESS_URL / ACCOUNT_ACCESS_KEY missing';
   }
 
   // Huntington: Margate's bank account and Miramar's LOC. Neither is linked in

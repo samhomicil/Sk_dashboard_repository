@@ -23,7 +23,7 @@ for (const line of readFileSync(join(__dirname, '..', '.env.local'), 'utf8').spl
   const connected = await isConnected();
   console.log('isConnected:', connected);
   if (!connected) {
-    console.log('Not connected — visit /api/openbudget/auth in a browser to authorize.');
+    console.log('Not set up — put ACCOUNT_ACCESS_URL and ACCOUNT_ACCESS_KEY (Pulse\'s Account Access key) in .env.local.');
     return;
   }
 

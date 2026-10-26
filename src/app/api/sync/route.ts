@@ -70,7 +70,7 @@ export async function GET(req: Request) {
 
   let balances: Awaited<ReturnType<typeof getOpenBudgetBalances>>;
   try {
-    if (!(await isConnected())) throw new Error('OpenBudget not connected — visit /api/openbudget/auth');
+    if (!(await isConnected())) throw new Error('Bank data is not set up — ACCOUNT_ACCESS_URL / ACCOUNT_ACCESS_KEY missing');
     balances = await getOpenBudgetBalances();
   } catch (e) {
     return NextResponse.json(

@@ -49,11 +49,10 @@ export const ACCOUNTS = [
   { id: 'ACT-000008', institution: 'Chase',           name: 'D. AYBAR',                  subtype: 'credit card', mask: '2918', store: 'Pines',   paidFrom: 'Chase', storeNumber: '1392' },
   { id: 'ACT-000009', institution: 'Capital One',     name: 'Capital One',               subtype: 'credit card', mask: '7879', store: 'Miramar', paidFrom: 'Chase', storeNumber: '1892' },
 
-  // ACT-000004 (BOA savings ••1151, $80.00) appears on NO store's QuickBooks
-  // chart of accounts — Hispaniola/Pines has no savings account at all. Left
-  // unattributed rather than guessed; an earlier pass assigned it to Pines by
-  // elimination, which QB does not support.
-  { id: 'ACT-000004', institution: 'Bank of America', name: 'Business Advantage Sav',    subtype: 'savings',     mask: '1151', store: null,      paidFrom: 'BOA',   storeNumber: null },
+  // ACT-000004 (BOA savings ••1151) is not on Pines' QuickBooks books, but Sam
+  // confirmed on 2026-09-25 that it is Pines' (opened 4/23 by a $100 transfer
+  // from Pines checking ••5710). Account Access records it under Pines too.
+  { id: 'ACT-000004', institution: 'Bank of America', name: 'Business Advantage Sav',    subtype: 'savings',     mask: '1151', store: 'Pines',   paidFrom: 'BOA',   storeNumber: '1392' },
 ];
 
 export const SPEC: SpecEntry[] = [

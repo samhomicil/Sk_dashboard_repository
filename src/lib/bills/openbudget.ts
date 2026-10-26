@@ -4,7 +4,17 @@ import { ACCOUNTS } from './vendorAliasSpec';
 
 // OpenBudget (api.openbudget.sh) — a Plaid-backed personal-finance MCP server
 // giving raw bank transactions + live balances for the accounts linked in
-// project_openbudget.md. This is the app's OWN OAuth identity
+// project_openbudget.md.
+//
+// Since 2026-10-26 Pulse reads it THROUGH Account Access
+// (account-access-pi.vercel.app), Sam's layer that holds the only OpenBudget
+// login and answers each app with just the accounts he shared with it — for
+// Pulse, the three stores'. When ACCOUNT_ACCESS_URL + ACCOUNT_ACCESS_KEY are set,
+// every call below goes there with that key; the layer speaks the same MCP tools
+// with the same reply shapes, so nothing downstream changes. The direct OAuth
+// path underneath stays only until Pulse's own OpenBudget client is revoked.
+//
+// The direct path is the app's OWN OAuth identity
 // (client_id iBDYVZjLmwWUsskkBJSxdYGQwuSOuUFy, registered via dynamic client
 // registration, public/PKCE — no client_secret), separate from the client any
 // Claude Code CLI session registers for itself. Do not reuse a CLI-minted
@@ -182,6 +192,7 @@ export async function saveTokens(tok: TokenResponse): Promise<void> {
 }
 
 export async function isConnected(): Promise<boolean> {
+  if (accessLayer()) return true;
   const prisma = getPrisma();
   if (!prisma) return false;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -213,8 +224,15 @@ async function getValidToken(): Promise<string | null> {
 let cachedSessionId: string | undefined;
 let rpcSeq = 0;
 
+/** Account Access endpoint + this app's key, when configured. */
+function accessLayer(): { url: string; key: string } | null {
+  const url = process.env.ACCOUNT_ACCESS_URL, key = process.env.ACCOUNT_ACCESS_KEY;
+  return url && key ? { url, key } : null;
+}
+
 async function mcpCall<T>(method: string, params?: unknown, notify = false): Promise<T | null> {
-  const token = await getValidToken();
+  const via = accessLayer();
+  const token = via ? via.key : await getValidToken();
   if (!token) throw new Error('OpenBudget not connected — visit /api/openbudget/auth to authorize');
 
   const payload: Record<string, unknown> = { jsonrpc: '2.0', method };
@@ -230,8 +248,8 @@ async function mcpCall<T>(method: string, params?: unknown, notify = false): Pro
   };
   if (cachedSessionId) headers['Mcp-Session-Id'] = cachedSessionId;
 
-  const r = await fetch(MCP_URL, { method: 'POST', headers, body: JSON.stringify(payload), cache: 'no-store' });
-  if (!r.ok) throw new Error(`OpenBudget MCP HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`);
+  const r = await fetch(via ? via.url : MCP_URL, { method: 'POST', headers, body: JSON.stringify(payload), cache: 'no-store' });
+  if (!r.ok) throw new Error(`${via ? 'Account Access' : 'OpenBudget MCP'} HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`);
   const sid = r.headers.get('Mcp-Session-Id');
   if (sid) cachedSessionId = sid;
   if (notify) return null;
@@ -249,7 +267,7 @@ interface JsonRpcEnvelope<T> {
 }
 
 async function initSession(): Promise<void> {
-  if (cachedSessionId) return;
+  if (cachedSessionId || accessLayer()) return; // Account Access keeps no sessions
   await mcpCall('initialize', {
     protocolVersion: '2025-06-18',
     capabilities: {},
@@ -260,12 +278,13 @@ async function initSession(): Promise<void> {
 
 async function callTool<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
   await initSession();
-  const res = await mcpCall<JsonRpcEnvelope<{ structuredContent?: { data: T }; content?: { type: string; text: string }[] }>>(
+  const res = await mcpCall<JsonRpcEnvelope<{ isError?: boolean; structuredContent?: { data: T }; content?: { type: string; text: string }[] }>>(
     'tools/call',
     { name, arguments: args },
   );
   if (res?.error) throw new Error(`OpenBudget tool ${name} failed: ${res.error.message}`);
   const result = res?.result;
+  if (result?.isError) throw new Error(`OpenBudget tool ${name} failed: ${result.content?.find((c) => c.type === 'text')?.text ?? 'no detail'}`);
   if (result?.structuredContent) return result.structuredContent.data;
   const text = result?.content?.find((c) => c.type === 'text')?.text;
   if (text) return JSON.parse(text) as T;

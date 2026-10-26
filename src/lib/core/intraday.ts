@@ -1,6 +1,6 @@
 import {
   UNITS_PER_PERSON_HALF_HOUR, TRUCK_WINDOWS, DELIVERY_DOWS, SEND_HOME_MIN_HOURS, BUSY_RANK,
-  PACE_CLAMP, LATE_MINUTES, WEEKLY_OT_HOURS, REPEAT_LATE_MIN,
+  PACE_CLAMP, LATE_MINUTES, WEEKLY_OT_HOURS, REPEAT_LATE_MIN, REFRESH_WINDOWS, INTRADAY_STALE_MINUTES,
   MIX_TOP_N, MIX_AHEAD_RATIO, MIX_AHEAD_MIN, MIX_BEHIND_MIN_USUAL, MIX_BEHIND_RATIO, MIX_OUT_MIN_USUAL,
 } from './targets'
 import { itemFamily } from './menuNames'
@@ -201,6 +201,31 @@ export type StoreNow = {
 
 const LEAD = /manager|captain|lead/i
 const SLOT = 30
+
+/** sources.ts latestRunSql's row. */
+export type RunProbe = {
+  ok_at: string | null; last_at: string | null; last_ok: boolean | number | null; last_id: number | null
+}
+
+/** How current today's Brink data is, as of `now` (minutes ET) — the Now screen's refresh
+ *  block, and the hub feed's. Times are minutes after midnight ET. Outside today's refresh
+ *  window nothing new lands, so old data there is not stale; inside it, data older than
+ *  INTRADAY_STALE_MINUTES is (or no pull at all, once that long into the window). */
+export function refreshStatus(run: RunProbe | undefined, today: string, now: number) {
+  const win = REFRESH_WINDOWS[dowOf(today)]
+  const window = { from: hmToMin(win[0]), to: hmToMin(win[1]) }
+  const inWindow = now >= window.from && now <= window.to
+  const asOf = run?.ok_at ? hmToMin(run.ok_at.slice(11, 16)) : null   // last successful pull today
+  const ageMin = asOf == null ? null : now - asOf
+  const stale = inWindow && (asOf == null
+    ? now > window.from + INTRADAY_STALE_MINUTES
+    : ageMin! > INTRADAY_STALE_MINUTES)
+  const nextSlot = Math.floor(now / 30) * 30 + 30
+  const next = now < window.from ? Math.ceil(window.from / 30) * 30
+    : nextSlot <= window.to ? nextSlot : null                         // next scheduled pull today
+  const lastFailed = run?.last_at != null && !Number(run.last_ok)     // the most recent pull did not complete
+  return { window, inWindow, asOf, ageMin, stale, next, lastFailed }
+}
 
 /** Half-hours of a usual day that count against today as of the pull: every "/ avg" on the
  *  screen sums the usual days' slots below this. */

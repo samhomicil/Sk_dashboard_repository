@@ -56,6 +56,11 @@ export const wmtFood = {
 /** The canonical net-sales measure inside smoothieking.sales. Sum this expression. */
 export const NET_SALES = `SUM(CASE WHEN voided=0 AND is_modifier=0 THEN net_sales ELSE 0 END)`
 
+/** The order count that goes with NET_SALES: distinct orders with at least one line not
+ *  voided. The Scorecard's daily rows (/api/daily) and salesBySlot's `orders` count exactly
+ *  this; an order whose every line was voided is not an order. */
+export const ORDERS = `COUNT(DISTINCT CASE WHEN voided=0 THEN order_id END)`
+
 /**
  * Labor hours + pay per store per day — read this, never smoothieking.labor, for any
  * hours or labor-cost aggregate. It is a database VIEW so the daily recap email (Python)
@@ -233,3 +238,19 @@ export const LATEST_RATES = `
 
 /** The brink-intraday job's run log: one row per 30-minute pull (ET wall clock). */
 export const INTRADAY_RUNS = 'smoothieking.intraday_runs'
+
+/**
+ * "Has a new pull landed?" — today's last successful run, today's last run and whether it
+ * succeeded, and the newest run id of any day. Read it with queryLive (never the cache): the
+ * job writes straight to SQL and cannot expire this app's cache, so the id is put into the
+ * SQL of every today-query and the cache turns over exactly when a pull lands. Feed the row
+ * to core/intraday refreshStatus. `today` is an ET date the caller computed, never input.
+ */
+export const latestRunSql = (today: string) => `
+  SELECT (SELECT TOP 1 CONVERT(varchar(19), run_at, 120) FROM ${INTRADAY_RUNS}
+           WHERE business_date = '${today}' AND ok = 1 ORDER BY id DESC) AS ok_at,
+         (SELECT TOP 1 CONVERT(varchar(19), run_at, 120) FROM ${INTRADAY_RUNS}
+           WHERE business_date = '${today}' ORDER BY id DESC) AS last_at,
+         (SELECT TOP 1 ok FROM ${INTRADAY_RUNS}
+           WHERE business_date = '${today}' ORDER BY id DESC) AS last_ok,
+         (SELECT TOP 1 id FROM ${INTRADAY_RUNS} ORDER BY id DESC) AS last_id`

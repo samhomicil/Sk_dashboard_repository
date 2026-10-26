@@ -3,17 +3,16 @@ import { requireStore, currentScope } from '@/lib/store-guard'
 import { holidayName } from '@/lib/holiday'
 import {
   STORES, DOW, HIST_WEEKS, LABOR_TARGET, LABOR_AMBER, UNITS_PER_PERSON_HALF_HOUR, LATE_MINUTES,
-  REFRESH_WINDOWS, INTRADAY_STALE_MINUTES, LATE_LOOKBACK_DAYS, EE_TARGET, VOID_PCT_TARGET,
-  DISCOUNT_PCT_TARGET, WEEKLY_OT_HOURS,
+  LATE_LOOKBACK_DAYS, EE_TARGET, VOID_PCT_TARGET, DISCOUNT_PCT_TARGET, WEEKLY_OT_HOURS,
 } from '@/lib/core/targets'
 import { etToday, etNowMinutes, isoAdd, dowOf, hmToMin } from '@/lib/core/dates'
-import { salesBySlot, eeBySlot, madeUnitsByItem, SALES_SLOT, LATEST_RATES, LABOR_SHIFTS, INTRADAY_RUNS } from '@/lib/core/sources'
+import { salesBySlot, eeBySlot, madeUnitsByItem, SALES_SLOT, LATEST_RATES, LABOR_SHIFTS, latestRunSql } from '@/lib/core/sources'
 import { resolvedKeySql } from '@/lib/core/employee'
 import { buildRateFor, isSalaried, type EmpRateRow } from '@/lib/core/labor'
 import { allKeyed } from '@/lib/core/keyed'
 import {
-  buildStoreNow, buildPeople, personKey, usualUpTo, type SlotRow, type EESlotRow, type ItemRow, type ClockRow, type PlanRow, type StoreNow,
-  type LateEvent,
+  buildStoreNow, buildPeople, personKey, usualUpTo, refreshStatus, type SlotRow, type EESlotRow, type ItemRow, type ClockRow,
+  type PlanRow, type StoreNow, type LateEvent, type RunProbe,
 } from '@/lib/core/intraday'
 
 // THE NOW SCREEN's data: each store's day so far, as of the last 30-minute Brink pull.
@@ -23,7 +22,6 @@ import {
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type RunRow = { ok_at: string | null; last_at: string | null; last_ok: boolean | number | null; last_id: number | null }
 type Store = (typeof STORES)[number]
 
 export type NowPayload = {
@@ -61,8 +59,6 @@ const spanMin = (start: string, end: string | null) => {
   return b <= a ? b + 1440 - a : b - a
 }
 
-const minOf = (dt: string | null) => (dt ? hmToMin(dt.slice(11, 16)) : null)
-
 export async function GET(req: Request) {
   const s = await requireStore(new URL(req.url).searchParams.get('store'))
   if (s instanceof Response) return s
@@ -77,9 +73,6 @@ export async function GET(req: Request) {
 
   const today = etToday()
   const now = etNowMinutes()
-  const win = REFRESH_WINDOWS[dowOf(today)]
-  const window = { from: hmToMin(win[0]), to: hmToMin(win[1]) }
-  const inWindow = now >= window.from && now <= window.to
 
   // Has a new pull landed? Asked uncached; its id then keys the cache of every today-query.
   const dow = dowOf(today)
@@ -87,23 +80,9 @@ export async function GET(req: Request) {
   const sunday = isoAdd(monday, 6)
   const lookStart = isoAdd(today, -LATE_LOOKBACK_DAYS)     // ≥ 7, so it also covers Mon..yesterday
 
-  const [run] = await queryLive<RunRow[]>(`
-    SELECT (SELECT TOP 1 CONVERT(varchar(19), run_at, 120) FROM ${INTRADAY_RUNS}
-             WHERE business_date = '${today}' AND ok = 1 ORDER BY id DESC) AS ok_at,
-           (SELECT TOP 1 CONVERT(varchar(19), run_at, 120) FROM ${INTRADAY_RUNS}
-             WHERE business_date = '${today}' ORDER BY id DESC) AS last_at,
-           (SELECT TOP 1 ok FROM ${INTRADAY_RUNS}
-             WHERE business_date = '${today}' ORDER BY id DESC) AS last_ok,
-           (SELECT TOP 1 id FROM ${INTRADAY_RUNS} ORDER BY id DESC) AS last_id`)
-  const asOf = minOf(run?.ok_at ?? null)
+  const [run] = await queryLive<RunProbe[]>(latestRunSql(today))
+  const { window, inWindow, asOf, ageMin, stale, next, lastFailed } = refreshStatus(run, today, now)
   const tag = `/* intraday run ${run?.last_id ?? 0} */`
-  const ageMin = asOf == null ? null : now - asOf
-  const stale = inWindow && (asOf == null
-    ? now > window.from + INTRADAY_STALE_MINUTES
-    : ageMin! > INTRADAY_STALE_MINUTES)
-  const nextSlot = Math.floor(now / 30) * 30 + 30
-  const next = now < window.from ? Math.ceil(window.from / 30) * 30
-    : nextSlot <= window.to ? nextSlot : null
 
   const tomorrow = isoAdd(today, 1)
   const histDates = Array.from({ length: HIST_WEEKS }, (_, i) => isoAdd(today, -7 * (i + 1)))
@@ -217,9 +196,7 @@ export async function GET(req: Request) {
   const body: NowPayload = {
     today, day: DOW[dowOf(today)], holiday: holidayName(today), now,
     refresh: {
-      window, inWindow, asOf,
-      lastFailed: run?.last_at != null && !Number(run.last_ok),
-      ageMin, stale, next,
+      window, inWindow, asOf, lastFailed, ageMin, stale, next,
     },
     targets: {
       labor: LABOR_TARGET, laborAmber: LABOR_AMBER,

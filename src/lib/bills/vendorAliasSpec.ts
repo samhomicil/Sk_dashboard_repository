@@ -109,8 +109,10 @@ export const SPEC: SpecEntry[] = [
   // October 2026 went out as one-off Zelles ("Zelle payment to Anthony Tome for
   // \"Consulting Fees.\"", $3,333.33 from each store on 10/13), not the recurring
   // schedule, and matched nothing — so the seller note read missed while paid.
-  { pattern: 'Zelle payment to Anthony Tome', vendorLike: 'TOME', amountMin: 3000, amountMax: 3700,
-    priority: 95, confirmed: true, note: 'one-off Zelle form of the same $3,333.33 note payment' },
+  // Half payments, $1,666.67, Nov 2026 through Feb 2027 (Sam 2026-10-27), so the band
+  // spans half to full; the bill amount says which is expected that month.
+  { pattern: 'Zelle payment to Anthony Tome', vendorLike: 'TOME', amountMin: 1500, amountMax: 3700,
+    priority: 95, confirmed: true, note: 'one-off Zelle form of the note payment: $1,666.67 Nov-Feb, $3,333.33 otherwise' },
 
   // Pines rent (InvenTrust) is ALSO enriched as "Smoothie King" — same receiver-name
   // problem as PFG, but monthly and ~$8.6k rather than weekly and ~$2k. One draft

@@ -500,3 +500,10 @@ export const HUB_CASH_DAYS = 14
 
 /** A forecast outflow line at or above this many dollars is listed by name on its day. */
 export const HUB_OUTFLOW_ITEM_MIN = 300
+
+/** /api/hub/bills: bills due this many days ahead are listed as "coming due". */
+export const HUB_BILLS_AHEAD_DAYS = 7
+/** /api/hub/bills: bank debits this size or larger that settle no bill are listed as
+ *  possible new vendors, looking back this many days. */
+export const HUB_BILLS_UNMATCHED_MIN = 25
+export const HUB_BILLS_UNMATCHED_DAYS = 14

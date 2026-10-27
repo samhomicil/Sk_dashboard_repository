@@ -39,6 +39,12 @@ export interface ReconciledOccurrence {
     date: string;
     payee: string;
     alsoSettles?: string[];
+    /** Every transaction in a same-day split, when the payment came as several debits. */
+    txnIds?: string[];
+    /** False while the bank still shows it pending — the nightly clear waits for posted. */
+    cleared?: boolean;
+    /** False when the alias rule behind it is unconfirmed — proposes, never auto-clears. */
+    confirmed?: boolean;
   };
 }
 
@@ -68,30 +74,78 @@ const MATCH_DAYS_AFTER = 5;   // how far after due date to look for a txn
  * A transaction settles a given bill at most once, so one payment cannot clear two
  * months of the same bill.
  */
+interface BankHit {
+  /** The representative transaction — for a same-day split, the largest piece. */
+  txn: UnifiedTxn;
+  /** Dollars this payment puts against the occurrence (the sum, for a split). */
+  amount: number;
+  /** Every transaction consumed — more than one only for a same-day split. */
+  ids: string[];
+}
+
 function bankAutoMatch(
   bill: BillRecord,
   dueISO: string,
   expected: number | null,
   feed: UnifiedTxn[],
   claimed: Set<string>,
-): UnifiedTxn | undefined {
+  /** Expected dollars of another bill for this same occurrence period. */
+  expectedOf: (billId: string) => number | null,
+): BankHit | undefined {
   if (expected == null || expected <= 0) return undefined;
   const late = bill.payment === 'auto' ? BILL_MATCH_LATE_DAYS_AUTO : BILL_MATCH_LATE_DAYS_MANUAL;
-  const best = feed
-    .filter((t) => {
-      if (claimed.has(`${bill.id}|${t.id}`)) return false;
-      if (!t.matched) return false;
-      const settles = t.settledBillIds ?? (t.billId ? [t.billId] : []);
-      if (!settles.includes(bill.id)) return false;
-      const off = Math.round(
-        (Date.parse(t.date + 'T00:00:00Z') - Date.parse(dueISO + 'T00:00:00Z')) / 86_400_000);
-      if (off < -BILL_MATCH_EARLY_DAYS || off > late) return false;
-      return Math.abs(Math.abs(t.amount) - expected) / expected <= BILL_MATCH_TOLERANCE;
-    })
-    .sort((a, b) =>
-      Math.abs(Date.parse(a.date) - Date.parse(dueISO)) -
-      Math.abs(Date.parse(b.date) - Date.parse(dueISO)))[0];
-  return best;
+  // Early payments scale with the bill's cadence. Two days fits a weekly PFG draft, but
+  // monthly charges routinely land a week or two ahead of the day the bill row names —
+  // Northwest bills Margate around the 9th-13th against day 18, QuickBooks charges the
+  // card at month-end against day 14. 45% of the interval stays clear of the previous
+  // occurrence's late window (a monthly bill's prior occurrence sits 30 days back, past
+  // the 15-day manual allowance), so a payment still can't be claimed by two months.
+  const early = Math.max(BILL_MATCH_EARLY_DAYS, Math.floor(recurrenceIntervalDays(bill.recurrence) * 0.45));
+  const dist = (t: UnifiedTxn) => Math.abs(Date.parse(t.date) - Date.parse(dueISO));
+
+  const inWindow = feed.filter((t) => {
+    if (claimed.has(`${bill.id}|${t.id}`)) return false;
+    if (!t.matched) return false;
+    const settles = t.settledBillIds ?? (t.billId ? [t.billId] : []);
+    if (!settles.includes(bill.id)) return false;
+    const off = Math.round(
+      (Date.parse(t.date + 'T00:00:00Z') - Date.parse(dueISO + 'T00:00:00Z')) / 86_400_000);
+    return off >= -early && off <= late;
+  });
+
+  // One charge that settles several bills (Neal's rent + CAM, Lockton's two policies,
+  // Workstream's four subscriptions) is judged against what those bills add up to, not
+  // against this one bill's share — otherwise a $124 Workstream charge "misses" the $59
+  // Hiring line by 110% and every bundled bill stays open forever.
+  const target = (t: UnifiedTxn): number => {
+    const settles = t.settledBillIds ?? [];
+    if (settles.length <= 1) return expected;
+    const sum = settles.reduce((a, id) => a + ((id === bill.id ? expected : expectedOf(id)) ?? 0), 0);
+    return sum > 0 ? sum : expected;
+  };
+  const fits = (dollars: number, exp: number) => Math.abs(dollars - exp) / exp <= BILL_MATCH_TOLERANCE;
+
+  const single = inWindow
+    .filter((t) => t.variableAmount ? Math.abs(t.amount) > 0 : fits(Math.abs(t.amount), target(t)))
+    .sort((a, b) => dist(a) - dist(b))[0];
+  if (single) return { txn: single, amount: Math.abs(single.amount), ids: [single.id] };
+
+  // Some bills are drawn as two debits on one day — Par's monthly card-processing fee
+  // arrives as a pair (9/11 Margate $652.73 + $412.44). When no single debit fits, the
+  // same-day total of this bill's debits may.
+  const byDay = new Map<string, UnifiedTxn[]>();
+  for (const t of inWindow) {
+    if ((t.settledBillIds?.length ?? 0) > 1) continue;
+    byDay.set(t.date, [...(byDay.get(t.date) ?? []), t]);
+  }
+  const split = [...byDay.values()]
+    .filter((g) => g.length > 1 && fits(g.reduce((a, t) => a + Math.abs(t.amount), 0), expected))
+    .sort((a, b) => dist(a[0]) - dist(b[0]))[0];
+  if (split) {
+    const rep = [...split].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0];
+    return { txn: rep, amount: split.reduce((a, t) => a + Math.abs(t.amount), 0), ids: split.map((t) => t.id) };
+  }
+  return undefined;
 }
 
 /** Forecast payroll for this store nearest `dueISO`, within PAYROLL_MATCH_DAYS. */
@@ -127,6 +181,7 @@ export function reconcile(
   const nowISO = iso(now);
   const dueWindowEnd = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + DUE_DAYS));
   const out: ReconciledOccurrence[] = [];
+  const billById = new Map(bills.map((b) => [b.id, b]));
 
   for (const bill of bills) {
     if (bill.active === false) continue;
@@ -189,19 +244,25 @@ export function reconcile(
 
       // QuickBooks reaches almost nothing (see bankAutoMatch). Fall back to the bank
       // feed, but only on a three-signal agreement.
-      let bankMatch: UnifiedTxn | undefined;
+      let bankMatch: BankHit | undefined;
       if (!match) {
-        bankMatch = bankAutoMatch(bill, dueISO, staticExpected ?? matchBasis, feed, bankClaimed);
-        if (bankMatch) bankClaimed.add(`${bill.id}|${bankMatch.id}`);
+        const expectedOf = (id: string) => {
+          const other = billById.get(id);
+          return other ? resolveAmount(other as unknown as Parameters<typeof resolveAmount>[0], sales, ym, dueISO).val : null;
+        };
+        bankMatch = bankAutoMatch(bill, dueISO, staticExpected ?? matchBasis, feed, bankClaimed, expectedOf);
+        if (bankMatch) for (const id of bankMatch.ids) bankClaimed.add(`${bill.id}|${id}`);
       }
 
       const manualKey = `${bill.id}|${dueISO}`;
       let status: ReconciledOccurrence['status'];
-      // A BANK MATCH PROPOSES, IT DOES NOT CLEAR. Sam, asked whether this was
-      // auto-clearing or suggesting: "suggestions". Three agreeing signals are strong
-      // evidence, but marking a bill paid is a statement about his money and it is his
-      // to make — the same reason suggestMatch has never auto-applied. The matching
-      // work is unchanged; only the verdict moved.
+      // RECONCILE ITSELF NEVER CLEARS ON A BANK MATCH — it stays write-free and derives
+      // status on every render. 2026-08-21 Sam chose "suggestions" over auto-clearing.
+      // 2026-10-27 he reversed that ("make [the] fix so it doesn't go stale", "this
+      // should be done more automated") after nobody confirmed proposals for three weeks
+      // and 114 bills read missed/overdue with ~100 of them paid. The clearing now
+      // happens in ONE place, the nightly job in autoclear.ts, which persists a
+      // three-signal proposal as a BillPayment plus an audit row Sam can see and undo.
       if (manualPaid.has(manualKey) || match) {
         status = 'paid';
       } else if (dueISO > dueWindowEnd) {
@@ -219,7 +280,7 @@ export function reconcile(
       const matchDollars = match ? Math.abs(match.amount) / 100 : null;
       // A proposal still feeds the rolling average — it is real money that left the
       // account, whether or not the pairing has been confirmed.
-      const proposedDollars = bankMatch ? Math.abs(bankMatch.amount) : null;
+      const proposedDollars = bankMatch ? bankMatch.amount : null;
       if (matchDollars != null || proposedDollars != null) {
         rollingBuf.push((matchDollars ?? proposedDollars)!);
         if (rollingBuf.length > 3) rollingBuf.shift();
@@ -260,8 +321,11 @@ export function reconcile(
         status,
         match: match ? { txnId: match.id, amount: matchDollars!, variancePct } : undefined,
         bankProposal: bankMatch
-          ? { txnId: bankMatch.id, amount: proposedDollars!, date: bankMatch.date,
-              payee: bankMatch.payee, alsoSettles: bankMatch.settledBillIds }
+          ? { txnId: bankMatch.txn.id, amount: proposedDollars!, date: bankMatch.txn.date,
+              payee: bankMatch.txn.payee, alsoSettles: bankMatch.txn.settledBillIds,
+              cleared: bankMatch.txn.cleared,
+              confirmed: bankMatch.txn.ruleConfirmed,
+              txnIds: bankMatch.ids.length > 1 ? bankMatch.ids : undefined }
           : undefined,
       });
     }

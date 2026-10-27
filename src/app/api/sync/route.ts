@@ -4,7 +4,8 @@ import { getPrisma } from '@/lib/bills/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// 300, not 60: the nightly bank clear below rebuilds the Bills page's reconcile.
+export const maxDuration = 300;
 
 /**
  * Syncs each store's live POSTED bank balances into sk_bills.QbBalance, so the
@@ -99,8 +100,21 @@ export async function GET(req: Request) {
       stale: b.stale,
     });
   }
+  // Then clear bills the bank shows paid (three-signal matches only; see autoclear.ts).
+  // A failure here must not fail the balance sync that already landed — it is
+  // reported in the response and the bills simply stay as they were.
+  let autoclear: { cleared: number; skipped: number } | { error: string };
+  try {
+    const { runAutoClear } = await import('@/lib/bills/autoclear');
+    const r = await runAutoClear(new Date());
+    autoclear = { cleared: r.cleared.length, skipped: r.skipped.length };
+  } catch (e) {
+    console.error('[sync] autoclear failed:', e);
+    autoclear = { error: e instanceof Error ? e.message : String(e) };
+  }
+
   // fresh balances just landed — expire cached SQL reads so pages pick them up
   const { expireDbCache } = await import('@/lib/db');
   await expireDbCache();
-  return NextResponse.json({ ok: true, source: 'openbudget', synced });
+  return NextResponse.json({ ok: true, source: 'openbudget', synced, autoclear });
 }

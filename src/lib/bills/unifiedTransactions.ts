@@ -40,6 +40,12 @@ export interface UnifiedTxn {
    *  payment can independently satisfy each of its own bills' occurrences,
    *  matching how it's actually paid rather than an arbitrary single bill. */
   settledBillIds?: string[];
+  /** The matching rule marks the bill amount a placeholder (card payments), so a
+   *  payment of any size can settle it — see variableAmount in vendorAliasSpec.ts. */
+  variableAmount?: boolean;
+  /** The matching rule is confirmed. Only confirmed rules may clear a bill on their own
+   *  (autoclear.ts); an unconfirmed one still proposes. */
+  ruleConfirmed?: boolean;
 }
 
 // Which store owns each account, and how to label it, come from Account Access
@@ -87,7 +93,22 @@ function fromOpenBudget(t: ObTxn, rules: AliasRule[], billVendorById: Map<string
     matched: !!matchedVendor,
     billId: resolution?.billId,
     settledBillIds: resolution && resolution.settles.length > 1 ? resolution.settles : undefined,
+    variableAmount: resolution?.variableAmount || undefined,
+    ruleConfirmed: resolution ? resolution.confirmed : undefined,
   };
+}
+
+/**
+ * Pure: raw OpenBudget rows -> UnifiedTxn, each resolved against `rules`. Exported so
+ * the offline harnesses see exactly the feed the Bills page and the nightly auto-clear
+ * job see, rather than a re-implementation of it.
+ */
+export function unifyOpenBudget(
+  obTxns: ObTxn[], rules: AliasRule[], bills: { id: string; vendor: string }[], accts: StoreAccount[],
+): UnifiedTxn[] {
+  const billVendorById = new Map(bills.map((b) => [b.id, b.vendor]));
+  const index = indexAccounts(accts);
+  return obTxns.map((t) => fromOpenBudget(t, rules, billVendorById, index));
 }
 
 export interface UnifiedResult {
@@ -100,7 +121,6 @@ export interface UnifiedResult {
 export async function getUnifiedTransactions(start: string, end: string): Promise<UnifiedResult> {
   const bills = await loadBills();
   const { rules } = expandSpec(SPEC, bills);
-  const billVendorById = new Map(bills.map((b) => [b.id, b.vendor]));
 
   const rows: UnifiedTxn[] = [];
   let openBudgetOk = true;
@@ -112,12 +132,11 @@ export async function getUnifiedTransactions(start: string, end: string): Promis
       // Access already refuses Pulse anything else; naming them here as well
       // keeps an account with no store owner off /transactions entirely.
       const accts = await storeAccounts();
-      const index = indexAccounts(accts);
       const obTxns = accts.length ? await searchAllTransactions({
         startDate: start, endDate: end,
         accountIds: accts.map((a) => a.id),
       }) : [];
-      for (const t of obTxns) rows.push(fromOpenBudget(t, rules, billVendorById, index));
+      rows.push(...unifyOpenBudget(obTxns, rules, bills, accts));
     } catch (e) {
       openBudgetOk = false;
       warning = `OpenBudget fetch failed: ${e instanceof Error ? e.message : String(e)}`;

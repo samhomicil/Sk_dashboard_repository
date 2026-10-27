@@ -140,6 +140,28 @@ model CostPlan {
   @@schema("sk_bills")
 }
 
+// One row per bill occurrence the nightly bank clear marked paid (lib/bills/autoclear.ts).
+// Created at runtime like QbBalance, so no `prisma db push` is needed. undoneAt is set when
+// Sam un-marks it; that occurrence is then never auto-cleared again.
+model BillAutoClear {
+  id        Int       @id @default(autoincrement())
+  billId    String    @db.NVarChar(64)
+  dueDate   String    @db.NVarChar(10)
+  store     String?   @db.NVarChar(20)
+  vendor    String?   @db.NVarChar(200)
+  txnId     String    @db.NVarChar(64)
+  txnIds    String?   @db.NVarChar(400)
+  txnDate   String    @db.NVarChar(10)
+  amount    Float
+  payee     String?   @db.NVarChar(200)
+  movedFrom String?   @db.NVarChar(10)
+  clearedAt DateTime  @default(now())
+  undoneAt  DateTime?
+
+  @@unique([billId, dueDate], map: "UQ_BillAutoClear_bill_due")
+  @@schema("sk_bills")
+}
+
 // A linked bank/card account from the OpenBudget (Plaid) feed, tied to the store
 // that owns it. Reconciliation needs this because the same merchant (FPL, Comcast,
 // Smoothie King Corporate) bills all three stores — the account is what says which.

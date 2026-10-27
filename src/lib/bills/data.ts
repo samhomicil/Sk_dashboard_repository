@@ -262,6 +262,14 @@ export async function markUnpaid(billId: string, dueDate: string): Promise<void>
   const db = getPrisma();
   if (!db) return;
   await db.billPayment.deleteMany({ where: { billId, dueDate } });
+  // If the nightly bank clear (autoclear.ts) had marked this one, record the undo so it
+  // never re-clears it. Inline rather than imported: autoclear.ts imports this module.
+  try {
+    await db.$executeRaw`UPDATE sk_bills.BillAutoClear SET undoneAt = SYSUTCDATETIME()
+      WHERE billId = ${billId} AND dueDate = ${dueDate} AND undoneAt IS NULL`;
+  } catch {
+    // BillAutoClear doesn't exist until the first nightly clear runs.
+  }
 }
 
 /**

@@ -28,6 +28,10 @@ export interface SpecEntry {
   variableAmount?: boolean;
   /** Day numbers (0=Sun..6=Sat) this rule applies to. */
   weekday?: number[];
+  /** Inclusive day-of-month range [first, last] this rule applies to (UTC date of the
+   *  transaction). Separates a monthly charge from weekly ones under the same
+   *  descriptor — Par's card-processing fee and PFG both arrive as "Smoothie King". */
+  dayOfMonth?: [number, number];
   note?: string;
 }
 
@@ -77,7 +81,7 @@ export const SPEC: SpecEntry[] = [
     note: '2026-08 format. Royalty vs tech fee is the amount — see the $900 split above. '
         + 'e.g. "SKFI Operating DES:SKFIACHCCD ID:1892", $4,302.38 on 2026-08-17' },
   { pattern: 'SKFI\\s+Operating\\s+DES:SKFIACHCCD', matchType: 'regex', vendorLike: 'Technology F',
-    amountMax: 900, priority: 92, confirmed: false,
+    amountMax: 900, priority: 92, confirmed: true,
     note: 'Same descriptor as royalty, under the amount split. NOT yet observed in the '
         + 'new format — the last tech fee was 2026-07-23 under DES:P6_TECHFEE, and the '
         + 'next falls due around the 23rd. Confirm against that draft before trusting it.' },
@@ -87,7 +91,7 @@ export const SPEC: SpecEntry[] = [
         + '($1,201.10-$2,151.19), matching NAF\'s last on 2026-07-16 ($984.59-$1,895.14). '
         + 'Exactly half the royalty draft in every store on the same day.' },
   { pattern: 'RMF\\s+Miami', matchType: 'regex', vendorLike: 'Regional Mar',
-    priority: 92, confirmed: false,
+    priority: 92, confirmed: true,
     note: 'Regional Ad Fund, renamed from MIAMI RAF. Only $0.01 verification pings seen '
         + 'so far (2026-07-21), no real draft, so the amount range is unverified.' },
 
@@ -102,6 +106,11 @@ export const SPEC: SpecEntry[] = [
     priority: 88, confirmed: true },
   { pattern: 'Zelle Recurring payment to Anthony Tome', vendorLike: 'TOME', priority: 95, confirmed: true,
     note: 'Monthly Consulting Fees, $3,333.33/mo — matches the TOME bills' },
+  // October 2026 went out as one-off Zelles ("Zelle payment to Anthony Tome for
+  // \"Consulting Fees.\"", $3,333.33 from each store on 10/13), not the recurring
+  // schedule, and matched nothing — so the seller note read missed while paid.
+  { pattern: 'Zelle payment to Anthony Tome', vendorLike: 'TOME', amountMin: 3000, amountMax: 3700,
+    priority: 95, confirmed: true, note: 'one-off Zelle form of the same $3,333.33 note payment' },
 
   // Pines rent (InvenTrust) is ALSO enriched as "Smoothie King" — same receiver-name
   // problem as PFG, but monthly and ~$8.6k rather than weekly and ~$2k. One draft
@@ -111,6 +120,17 @@ export const SPEC: SpecEntry[] = [
     alsoSettles: ['InvenTrust — Utilities- Water/Sewer'], store: 'Pines',
     amountMin: 7500, amountMax: 9500, priority: 88, confirmed: true,
     note: 'InvenTrust: rent + water/sewer in one monthly draft; water varies $426-$476' },
+
+  // Par's monthly card-processing fee is ALSO enriched as plain "Smoothie King", drawn
+  // as TWO debits on one day between the 11th and 14th: 9/11 Margate $652.73 + $412.44,
+  // Miramar $1,151.60 + $767.52, Pines $654.17 + $977.65; 10/14 Margate $601.81 +
+  // $362.21, Miramar $959.46 + $547.68, Pines $746.92 + $548.77. Without this rule the
+  // weekday PFG rules below swallowed them as food cost. Day of month plus the size band
+  // (pieces have run $362-$1,152; PFG drafts on those days have all been $1,590+) keep
+  // the two apart; reconcile sums the same-day pair against the fee bill.
+  { pattern: 'Smoothie King', field: 'merchant', vendorLike: 'Card Processing Fees',
+    dayOfMonth: [10, 15], amountMin: 300, amountMax: 1250, priority: 68, confirmed: true,
+    note: 'Par monthly fee: two same-day debits on the 11th-14th, summed against the bill' },
 
   // ---- Food cost (PFG / Performance Foods) ------------------------------------
   // The ACH is "PERFORMACE FOODS DES:PAYMENT ID:7000144604 INDN:SMOOTHIE KING",
@@ -156,10 +176,17 @@ export const SPEC: SpecEntry[] = [
 
   // ---- Utilities / services ---------------------------------------------------
   { pattern: 'Florida Power & Light', field: 'merchant', vendorLike: 'FPL', priority: 80, confirmed: true },
-  { pattern: 'IN *C3MS',   vendorLike: 'C3MS',    store: 'Margate', priority: 80, confirmed: true },
-  { pattern: 'CRUNCH CORAL', vendorLike: 'Crunch Fitness', store: 'Margate',
-    amountMin: 150, amountMax: 180, priority: 80, confirmed: true,
-    note: 'Margate card, $162.75 exactly. Pines is charged Crunch too but has no bill.' },
+  { pattern: 'IN *C3MS',   vendorLike: 'C3MS',    store: 'Margate', priority: 80, confirmed: true,
+    enabled: false, note: 'C3MS replaced by Rockbot (Sam, 2026-10-27); bill paused.' },
+  // In-store music since Oct 2026: "PST*ROCKBOT, INC." on Miramar's debit card and
+  // "Rockbot DES:… INDN:Samuel" ACH at Margate, $45 a month each.
+  { pattern: 'ROCKBOT', vendorLike: 'Rockbot', amountMin: 40, amountMax: 55, priority: 80, confirmed: true,
+    note: '$45/mo music, Miramar ~20th and Margate ~22nd; replaced C3MS' },
+  // Moved Margate -> Pines 2026-10-27 (Sam: "crunch is charged at pines"): Jan-May on
+  // the Margate Chase card, then 6/4 and 10/27 on Pines checking ("CRUNCH CORA…").
+  { pattern: 'CRUNCH CORA', vendorLike: 'Crunch Fitness', store: 'Pines',
+    amountMin: 150, amountMax: 185, priority: 80, confirmed: true,
+    note: 'Pines checking: $177.75 6/4, $162.91 10/27.' },
   // The "Storage Unit" bill is Extra Space Storage; the vendor label never says so.
   // Extra Space unit 1068. The $146.26-vs-$146.48 note below was the small half of
   // the problem; the real one was that $146.26 was a PROMOTIONAL rate. It went to
@@ -195,8 +222,11 @@ export const SPEC: SpecEntry[] = [
   // gets booked against the quarterly PM — Pines alone shows four charges
   // ($284.27, $155.18, $671.43, $222.29) in two months against one quarterly bill.
   // The bracket keeps the PM-sized charge and lets repairs fall out as unmatched.
+  // UNCONFIRMED 2026-10-27 (proposes, never auto-clears): Air-Tech is paid by hand off
+  // BuildOps invoice links, often catching up earlier quarters — Pines' two $222.29 on
+  // 10/5-10/6 paid past quarters while invoice 16939 for this one stayed open.
   { pattern: 'Airtech', field: 'merchant', vendorLike: 'Air', amountMin: 190, amountMax: 260,
-    priority: 70, confirmed: true,
+    priority: 70, confirmed: false,
     note: 'quarterly PM only; charges outside $190-$260 are repair calls, not bills' },
   // The four Workstream subscriptions are billed individually but DRAWN AS ONE
   // charge, and they sum to it exactly:
@@ -225,9 +255,9 @@ export const SPEC: SpecEntry[] = [
   { pattern: 'WWP*NORTHWEST EXTERMIN', vendorLike: 'Northwest Extermination — Pest Control',
     store: 'Pines', amountMin: 70, amountMax: 90, priority: 82, confirmed: true, note: '$80.00 bill' },
   { pattern: 'WWP*NORTHWEST EXTERMIN', vendorLike: 'Northwest Extermination — Rodent Monitoring',
-    store: 'Margate', amountMin: 50, amountMax: 68, priority: 82, confirmed: false, note: '$58.85 bill' },
+    store: 'Margate', amountMin: 50, amountMax: 68, priority: 82, confirmed: true, note: '$58.85 bill' },
   { pattern: 'WWP*NORTHWEST EXTERMIN', vendorLike: 'Northwest Extermination — Pest Control',
-    store: 'Margate', amountMin: 12, amountMax: 28, priority: 82, confirmed: false, note: '$20.00 bill' },
+    store: 'Margate', amountMin: 12, amountMax: 28, priority: 82, confirmed: true, note: '$20.00 bill, charged $21.40' },
 
   // ---- card-paid bills (shared cards: store pinned by amount) ------------------
   // Margate Comcast bills on Chase ••5979: $133.91 Internet and ~$73 VoiceEdge.
@@ -236,8 +266,12 @@ export const SPEC: SpecEntry[] = [
   { pattern: 'Comcast', field: 'merchant', vendorLike: 'Comcast — Business VoiceEdge', store: 'Margate',
     amountMin: 60, amountMax: 85, priority: 75, confirmed: true, note: '$71.94 bill, charged $73.12' },
   // Pines pays Comcast from both BOA ••5710 and Chase ••2918.
+  // UNCONFIRMED 2026-10-27, so it proposes but never auto-clears: Pines' accounts pay the
+  // OTHER stores' Comcast too — 10/20 the Pines Chase card paid Miramar's $168.97, 10/21
+  // Pines checking paid Margate's $118.91 — and with all three near $184/mo the amount
+  // can't tell them apart. Confirm only once each store pays its own.
   { pattern: 'Comcast', field: 'merchant', vendorLike: 'Comcast — Internet + Phone', store: 'Pines',
-    amountMin: 160, amountMax: 200, priority: 75, confirmed: true,
+    amountMin: 160, amountMax: 200, priority: 75, confirmed: false,
     note: 'Pines pays Comcast from both BOA ••5710 and Chase ••2918; charges run $168.77-$196.63 against a $168.84 bill' },
   // Miramar's single $352.74 on Capital One ••7879 is a catch-up after a missed
   // payment: 2 x $168.77 + $15.20 late fee. The range is deliberately wide enough
@@ -322,7 +356,7 @@ export const SPEC: SpecEntry[] = [
   { pattern: 'NEALREALTYINVEST', vendorLike: 'Rent — Base Rent', alsoSettles: ['Rent — Property Expense'],
     store: 'Margate', amountMin: 2700, amountMax: 6000, priority: 60, confirmed: true,
     note: 'one draft settles Base Rent + Property Expense (CAM). Statement 08/2026: $1,590.00 + $1,214.58 = $2,804.58. July was missed and paid late, so expect a two-period catch-up.' },
-  { pattern: 'ADP EEPAY', vendorLike: 'ADP — Payroll', amountMin: 1000, priority: 70, confirmed: false,
+  { pattern: 'ADP EEPAY', vendorLike: 'ADP — Payroll', amountMin: 1000, priority: 70, confirmed: true,
     note: 'wage funding, not the $99 ADP Payroll Processing fee. Amount floor keeps the two apart.' },
 
   // MARGATE DOES NOT USE ADP. Its payroll runs through Workstream — "Workstream

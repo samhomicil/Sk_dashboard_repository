@@ -255,6 +255,12 @@ export const SOURCES: SourceContract[] = [
   { table: 'sk_bills.QbBalance', label: 'Bank balances', dateColumn: 'updatedAt',
     cadence: 'daily', maxAgeDays: 2, fedBy: '/api/sync (OpenBudget, 06:00 UTC cron)',
     consumers: ['Cash Flow', 'Bills'] },
+  // Written by the nightly bank clear right after the balance sync. A week with no
+  // row means the job is failing or the alias rules stopped matching — most weeks
+  // carry rent, payroll, PFG and a dozen fixed bills that all clear from the bank.
+  { table: 'sk_bills.BillAutoClear', label: 'Bills cleared from the bank', dateColumn: 'clearedAt',
+    cadence: 'daily', maxAgeDays: 7, fedBy: '/api/sync (nightly bank clear, lib/bills/autoclear.ts)',
+    consumers: ['Bills', 'Nexus CFO agent (/api/hub/bills)'] },
   { table: 'sk_bills.Bill', label: 'Bill schedule', dateColumn: 'updatedAt',
     cadence: 'on-demand', maxAgeDays: 400, fedBy: 'manual entry in the bills app',
     consumers: ['Bills', 'Budget', 'Cash Flow'], queriedAs: ['db.bill.'] },

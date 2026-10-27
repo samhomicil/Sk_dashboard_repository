@@ -28,6 +28,8 @@ export interface AliasRule {
   variableAmount: boolean;
   /** Day numbers (0=Sun..6=Sat) this rule applies to; empty = any day. */
   weekday: number[];
+  /** Inclusive day-of-month range this rule applies to; null = any day. */
+  dayOfMonth: [number, number] | null;
   priority: number;
   confirmed: boolean;
   enabled: boolean;
@@ -54,6 +56,8 @@ export interface AliasResolution {
   confirmed: boolean;
   /** Other rules that also matched — a sign the table needs tightening. */
   ambiguous: string[];
+  /** The rule says the bill's amount is a placeholder (card payments): don't judge the amount. */
+  variableAmount: boolean;
 }
 
 /**
@@ -99,6 +103,10 @@ function constraintsHold(rule: AliasRule, txn: AliasTxn, store: string | null): 
     const day = new Date(`${txn.date}T00:00:00Z`).getUTCDay();
     if (!rule.weekday.includes(day)) return false;
   }
+  if (rule.dayOfMonth) {
+    const dom = new Date(`${txn.date}T00:00:00Z`).getUTCDate();
+    if (dom < rule.dayOfMonth[0] || dom > rule.dayOfMonth[1]) return false;
+  }
   return true;
 }
 
@@ -131,6 +139,7 @@ export function resolveVendor(
     ruleId: best.id,
     confirmed: best.confirmed,
     ambiguous: rest.filter((r) => r.billId !== best.billId).map((r) => r.id),
+    variableAmount: best.variableAmount,
   };
 }
 
@@ -203,6 +212,7 @@ export function expandSpec(
           }),
           variableAmount: s.variableAmount ?? false,
           weekday: s.weekday ?? [],
+          dayOfMonth: s.dayOfMonth ?? null,
           priority: s.priority ?? 0,
           confirmed: s.confirmed ?? false,
           enabled: s.enabled ?? true,

@@ -18,7 +18,9 @@ export const maxDuration = 300
  * job wrote it, and the unmatched debits are the same bank feed with the same alias
  * rules. This route only picks and trims.
  *
- *   past_due   missed or overdue occurrences, oldest first
+ *   past_due   missed or overdue occurrences, oldest first. An item with paid_in_bank has a
+ *              bank payment that fits it on all three signals (the reconcile's bankProposal);
+ *              it reads past due only because the nightly clear hasn't marked it paid yet
  *   due_soon   unpaid occurrences due today through HUB_BILLS_AHEAD_DAYS ahead
  *   auto_cleared   bills the nightly clear marked paid in the last 7 days, still standing
  *   unmatched  bank debits of HUB_BILLS_UNMATCHED_MIN+ in the last HUB_BILLS_UNMATCHED_DAYS
@@ -42,8 +44,10 @@ export async function GET(req: Request) {
       recentAutoClears(7),
     ])
     const ahead = addDays(today, HUB_BILLS_AHEAD_DAYS)
-    const item = (o: (typeof data.occurrences)[number]) =>
-      ({ vendor: o.vendor, due: o.due, expected: cents(o.expected), status: o.status })
+    const item = (o: (typeof data.occurrences)[number]) => ({
+      vendor: o.vendor, due: o.due, expected: cents(o.expected), status: o.status,
+      ...(o.bankProposal ? { paid_in_bank: { date: o.bankProposal.date, amount: cents(o.bankProposal.amount), payee: o.bankProposal.payee } } : {}),
+    })
     const stores = Object.fromEntries(STORES.map(({ name: store }) => {
       const mine = data.occurrences.filter((o) => o.store === store)
       const past = mine.filter((o) => o.status === 'missed' || o.status === 'overdue').sort((a, b) => a.due.localeCompare(b.due))

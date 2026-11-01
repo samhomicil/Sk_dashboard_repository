@@ -144,6 +144,28 @@ export async function runAutoClear(now: Date = new Date(), opts: { dryRun?: bool
   return { dryRun, ...plan };
 }
 
+/**
+ * What the next nightly clear would mark paid, written nowhere: the hub's "paid in the
+ * bank". The same planner on the same view, so Nexus never calls a bill paid that the
+ * clear itself would pass over (Margate's Oct 7 rent paid September, not October).
+ */
+export async function pendingAutoClears(occurrences: ReconciledOccurrence[]): Promise<AutoCleared[]> {
+  const db = getPrisma();
+  let undone = new Set<string>();
+  if (db) {
+    try {
+      const prior = await db.$queryRaw<{ billId: string; dueDate: string }[]>`
+        SELECT billId, dueDate FROM sk_bills.BillAutoClear WHERE undoneAt IS NOT NULL`;
+      undone = new Set(prior.map((r) => `${r.billId}|${r.dueDate}`));
+    } catch {
+      // no clear has run yet, so nothing has been un-marked
+    }
+  }
+  const bills = await loadBills();
+  const category = new Map(bills.map((b) => [b.id, b.category]));
+  return planAutoClear(occurrences, (id) => category.get(id) ?? '', undone).cleared;
+}
+
 /** Auto-clears from the last `days` days that are still standing — the CFO note's "handled" list. */
 export async function recentAutoClears(days: number): Promise<AutoCleared[]> {
   const db = getPrisma();

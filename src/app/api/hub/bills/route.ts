@@ -1,7 +1,7 @@
 import { requireHubToken } from '@/lib/hub-guard'
 import { getDashboardData } from '@/lib/bills/service'
 import { getUnifiedTransactions } from '@/lib/bills/unifiedTransactions'
-import { recentAutoClears } from '@/lib/bills/autoclear'
+import { pendingAutoClears, recentAutoClears } from '@/lib/bills/autoclear'
 import { STORES, HUB_BILLS_AHEAD_DAYS, HUB_BILLS_UNMATCHED_MIN, HUB_BILLS_UNMATCHED_DAYS } from '@/lib/core/targets'
 import { etToday } from '@/lib/core/dates'
 
@@ -18,9 +18,10 @@ export const maxDuration = 300
  * job wrote it, and the unmatched debits are the same bank feed with the same alias
  * rules. This route only picks and trims.
  *
- *   past_due   missed or overdue occurrences, oldest first. An item with paid_in_bank has a
- *              bank payment that fits it on all three signals (the reconcile's bankProposal);
- *              it reads past due only because the nightly clear hasn't marked it paid yet
+ *   past_due   missed or overdue occurrences, oldest first. An item with paid_in_bank is one
+ *              the next nightly clear would mark paid (pendingAutoClears: the clear's own
+ *              planner, so its date floor, oldest-first and confirmed-rule checks all apply);
+ *              it reads past due only because that clear hasn't run on it yet
  *   due_soon   unpaid occurrences due today through HUB_BILLS_AHEAD_DAYS ahead
  *   auto_cleared   bills the nightly clear marked paid in the last 7 days, still standing
  *   unmatched  bank debits of HUB_BILLS_UNMATCHED_MIN+ in the last HUB_BILLS_UNMATCHED_DAYS
@@ -44,10 +45,14 @@ export async function GET(req: Request) {
       recentAutoClears(7),
     ])
     const ahead = addDays(today, HUB_BILLS_AHEAD_DAYS)
-    const item = (o: (typeof data.occurrences)[number]) => ({
-      vendor: o.vendor, due: o.due, expected: cents(o.expected), status: o.status,
-      ...(o.bankProposal ? { paid_in_bank: { date: o.bankProposal.date, amount: cents(o.bankProposal.amount), payee: o.bankProposal.payee } } : {}),
-    })
+    const willClear = new Map((await pendingAutoClears(data.occurrences)).map((c) => [`${c.billId}|${c.due}`, c]))
+    const item = (o: (typeof data.occurrences)[number]) => {
+      const c = willClear.get(`${o.billId}|${o.due}`)
+      return {
+        vendor: o.vendor, due: o.due, expected: cents(o.expected), status: o.status,
+        ...(c ? { paid_in_bank: { date: c.txnDate, amount: cents(c.amount), payee: c.payee } } : {}),
+      }
+    }
     const stores = Object.fromEntries(STORES.map(({ name: store }) => {
       const mine = data.occurrences.filter((o) => o.store === store)
       const past = mine.filter((o) => o.status === 'missed' || o.status === 'overdue').sort((a, b) => a.due.localeCompare(b.due))

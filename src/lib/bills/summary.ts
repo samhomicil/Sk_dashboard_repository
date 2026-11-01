@@ -1,0 +1,71 @@
+import 'server-only'
+import { getDashboardData } from './service'
+import { getUnifiedTransactions } from './unifiedTransactions'
+import { pendingAutoClears, recentAutoClears } from './autoclear'
+import { STORES, HUB_BILLS_AHEAD_DAYS, HUB_BILLS_UNMATCHED_MIN, HUB_BILLS_UNMATCHED_DAYS } from '@/lib/core/targets'
+import { etToday } from '@/lib/core/dates'
+
+/**
+ * What's late, what's due, and what the bank paid: the one bills summary behind the
+ * Nexus bills agent (/api/hub/bills) and the CFO's connector (/api/bills/summary), so
+ * the phone and the alert can never disagree about whether a bill is paid.
+ *
+ * Recomputes nothing of its own: occurrences are the Bills page's reconcile
+ * (getDashboardData), the auto-clear list is sk_bills.BillAutoClear as the nightly
+ * job wrote it, and the unmatched debits are the same bank feed with the same alias
+ * rules. This only picks and trims.
+ *
+ *   past_due   missed or overdue occurrences, oldest first. An item with paid_in_bank is one
+ *              the next nightly clear would mark paid (pendingAutoClears: the clear's own
+ *              planner, so its date floor, oldest-first and confirmed-rule checks all apply);
+ *              it reads past due only because that clear hasn't run on it yet
+ *   due_soon   unpaid occurrences due today through HUB_BILLS_AHEAD_DAYS ahead
+ *   auto_cleared   bills the nightly clear marked paid in the last 7 days, still standing
+ *   unmatched  bank debits of HUB_BILLS_UNMATCHED_MIN+ in the last HUB_BILLS_UNMATCHED_DAYS
+ *              that settled no bill and aren't transfers — new vendors, or bills paid
+ *              from the wrong store's account
+ */
+
+const cents = (n: number | null | undefined) => Math.round(Number(n || 0) * 100) / 100
+const addDays = (iso: string, n: number) => {
+  const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10)
+}
+
+export async function billsSummary(now: Date = new Date()) {
+  const today = etToday()
+  const [data, feed, cleared] = await Promise.all([
+    getDashboardData(now),
+    getUnifiedTransactions(addDays(today, -HUB_BILLS_UNMATCHED_DAYS), today),
+    recentAutoClears(7),
+  ])
+  const ahead = addDays(today, HUB_BILLS_AHEAD_DAYS)
+  const willClear = new Map((await pendingAutoClears(data.occurrences)).map((c) => [`${c.billId}|${c.due}`, c]))
+  const item = (o: (typeof data.occurrences)[number]) => {
+    const c = willClear.get(`${o.billId}|${o.due}`)
+    return {
+      vendor: o.vendor, due: o.due, expected: cents(o.expected), status: o.status,
+      ...(c ? { paid_in_bank: { date: c.txnDate, amount: cents(c.amount), payee: c.payee } } : {}),
+    }
+  }
+  const stores = Object.fromEntries(STORES.map(({ name: store }) => {
+    const mine = data.occurrences.filter((o) => o.store === store)
+    const past = mine.filter((o) => o.status === 'missed' || o.status === 'overdue').sort((a, b) => a.due.localeCompare(b.due))
+    const soon = mine.filter((o) => o.status !== 'paid' && o.due >= today && o.due <= ahead).sort((a, b) => a.due.localeCompare(b.due))
+    return [store, {
+      past_due: { count: past.length, total: cents(past.reduce((a, o) => a + (o.expected ?? 0), 0)), items: past.map(item) },
+      due_soon: { count: soon.length, total: cents(soon.reduce((a, o) => a + (o.expected ?? 0), 0)), items: soon.map(item) },
+    }]
+  }))
+  const unmatched = feed.rows
+    .filter((t) => t.source === 'openbudget' && t.amount < 0 && !t.matched && !t.isTransfer
+      && Math.abs(t.amount) >= HUB_BILLS_UNMATCHED_MIN)
+    .map((t) => ({ date: t.date, store: t.store, amount: cents(Math.abs(t.amount)), payee: t.payee, account: t.accountLabel }))
+    .sort((a, b) => b.date.localeCompare(a.date))
+  return {
+    as_of: data.now,
+    bank_feed_ok: feed.openBudgetOk,
+    stores,
+    auto_cleared: cleared,
+    unmatched,
+  }
+}

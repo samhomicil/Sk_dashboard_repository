@@ -27,6 +27,12 @@ import type { ReconciledOccurrence } from './reconcile';
  * OLDEST FIRST. A late rent, loan or insurance payment pays the oldest open month, the
  * way a landlord or lender applies it: Margate's October rent paid on Nov 3 clears
  * October, not November. See OLDEST_FIRST_CATEGORIES for why it stops there.
+ *
+ * ALREADY USED BY HAND. A hand mark records no transaction, so a late payment Sam used to
+ * mark the month before paid can still sit inside THIS month's window. When the previous
+ * month was marked paid by hand on or after the payment's date and has no bank payment of
+ * its own, the payment is taken to be that one and skipped: Margate's October Lockton was
+ * marked paid 10/27 from the 10/27 draft, which would otherwise have cleared November too.
  */
 export const AUTOCLEAR_FROM = '2026-10-27';
 // Where arrears are real and a late payment is applied to the oldest month: rent, loans,
@@ -36,6 +42,7 @@ export const AUTOCLEAR_FROM = '2026-10-27';
 // unpaid forever. One period back at most, for the same reason.
 const OLDEST_FIRST_CATEGORIES = new Set(['Rent / Lease', 'Loan / Debt', 'Insurance']);
 const OLDEST_FIRST_LOOKBACK_DAYS = 45;
+const etDate = (d: Date | string) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 const daysBefore = (iso: string, n: number) => {
   const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10);
 };
@@ -69,6 +76,25 @@ export async function ensureAutoClearTable(db: PrismaClient): Promise<void> {
   );
 }
 
+/** Occurrences marked paid by hand: every BillPayment this job didn't write. */
+async function handPaidDates(db: PrismaClient): Promise<Map<string, string>> {
+  const marks = await db.$queryRaw<{ billId: string; dueDate: string; paidAt: Date }[]>`
+    SELECT billId, dueDate, paidAt FROM sk_bills.BillPayment`;
+  let auto = new Set<string>();
+  try {
+    const rows = await db.$queryRaw<{ billId: string; dueDate: string }[]>`SELECT billId, dueDate FROM sk_bills.BillAutoClear`;
+    auto = new Set(rows.map((r) => `${r.billId}|${r.dueDate}`));
+  } catch {
+    // no clear has run yet, so every mark is a hand mark
+  }
+  const out = new Map<string, string>();
+  for (const m of marks) {
+    const key = `${m.billId}|${m.dueDate}`;
+    if (!auto.has(key)) out.set(key, etDate(m.paidAt));
+  }
+  return out;
+}
+
 const isOpen = (o: ReconciledOccurrence) => o.status === 'missed' || o.status === 'overdue' || o.status === 'due';
 
 /**
@@ -79,6 +105,8 @@ export function planAutoClear(
   occurrences: ReconciledOccurrence[],
   categoryOf: (billId: string) => string,
   undone: Set<string>,
+  /** Occurrences marked paid by hand, not by this job: `billId|due` → the Eastern date of the mark. */
+  handPaidOn: Map<string, string> = new Map(),
   /** Earliest payment date eligible. Only tests move it. */
   from: string = AUTOCLEAR_FROM,
 ): Pick<AutoClearResult, 'cleared' | 'skipped'> {
@@ -98,6 +126,11 @@ export function planAutoClear(
       if (bp.date < from) continue; // reconciled by hand before the job existed
       if (bp.cleared === false) { skip('payment still pending at the bank'); continue; }
       if (bp.confirmed === false) { skip('matched by a rule that is not confirmed yet'); continue; }
+      const prev = occs.filter((o) => o.due < p.due).slice(-1)[0];
+      const markedOn = prev ? handPaidOn.get(`${billId}|${prev.due}`) : undefined;
+      if (prev && prev.status === 'paid' && !prev.bankProposal && !prev.match && markedOn && markedOn >= bp.date) {
+        skip(`looks like the payment used to mark ${prev.due} paid by hand on ${markedOn}`); continue;
+      }
       let target = p;
       if (oldestFirst) {
         const floor = daysBefore(p.due, OLDEST_FIRST_LOOKBACK_DAYS);
@@ -128,9 +161,9 @@ export async function runAutoClear(now: Date = new Date(), opts: { dryRun?: bool
     SELECT billId, dueDate, undoneAt FROM sk_bills.BillAutoClear`;
   const undone = new Set(prior.filter((r) => r.undoneAt).map((r) => `${r.billId}|${r.dueDate}`));
 
-  const [data, bills] = await Promise.all([getDashboardData(now), loadBills()]);
+  const [data, bills, hand] = await Promise.all([getDashboardData(now), loadBills(), handPaidDates(db)]);
   const category = new Map(bills.map((b) => [b.id, b.category]));
-  const plan = planAutoClear(data.occurrences, (id) => category.get(id) ?? '', undone);
+  const plan = planAutoClear(data.occurrences, (id) => category.get(id) ?? '', undone, hand);
   if (!dryRun) {
     for (const row of plan.cleared) {
       await markPaid(row.billId, row.due);
@@ -161,9 +194,9 @@ export async function pendingAutoClears(occurrences: ReconciledOccurrence[]): Pr
       // no clear has run yet, so nothing has been un-marked
     }
   }
-  const bills = await loadBills();
+  const [bills, hand] = await Promise.all([loadBills(), db ? handPaidDates(db) : Promise.resolve(new Map<string, string>())]);
   const category = new Map(bills.map((b) => [b.id, b.category]));
-  return planAutoClear(occurrences, (id) => category.get(id) ?? '', undone).cleared;
+  return planAutoClear(occurrences, (id) => category.get(id) ?? '', undone, hand).cleared;
 }
 
 /** Auto-clears from the last `days` days that are still standing — the CFO note's "handled" list. */

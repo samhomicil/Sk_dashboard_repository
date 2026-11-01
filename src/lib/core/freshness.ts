@@ -20,7 +20,17 @@
 
 export type Cadence = 'realtime' | 'daily' | 'weekly' | 'monthly' | 'on-demand'
 
+export type Area = 'Sales' | 'Labor' | 'Employees' | 'Food' | 'Inventory' | 'Guest' | 'Ops & social' | 'Marketing' | 'Money' | 'App'
+
 export interface SourceContract {
+  /** the part of the business it describes, so a person reads "Inventory: 3 feeds behind", not table names */
+  area: Area
+  /**
+   * Rows land only when something happens (an override, a review, a bill cleared), so no
+   * new rows can simply mean nothing happened. A stale grade on one of these is "quiet",
+   * not "broken": the Nexus feed watch lists it without alerting.
+   */
+  events?: true
   /** schema-qualified table/view as it appears in queries */
   table: string
   /** human name used in the UI */
@@ -64,17 +74,17 @@ export interface SourceContract {
 
 export const SOURCES: SourceContract[] = [
   // ── Sales / POS ────────────────────────────────────────────────────────────
-  { table: 'smoothieking.sales', label: 'POS sales', dateColumn: 'closed_datetime',
+  { area: 'Sales', table: 'smoothieking.sales', label: 'POS sales', dateColumn: 'closed_datetime',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink extractor',
     consumers: ['Scorecard', 'Outlook', 'Budget', 'Cash Flow', 'Menu Mix', 'Inventory'] },
   // The 30-minute intraday pull's own log (brink-intraday job, 2026-10-01). Today's sales and
   // timecards land with each row; the Now screen dates itself by the last ok one and pauses
   // its send-home calls when that is over INTRADAY_STALE_MINUTES old inside open hours.
   // Nothing runs overnight, so a day-old last row is normal at 6 AM; two days is broken.
-  { table: 'smoothieking.intraday_runs', label: 'Intraday Brink pulls', dateColumn: 'run_at',
+  { area: 'Sales', table: 'smoothieking.intraday_runs', label: 'Intraday Brink pulls', dateColumn: 'run_at',
     cadence: 'realtime', maxAgeDays: 2, fedBy: 'brink-intraday job (run_intraday.py)',
     consumers: ['Now'] },
-  { table: 'smoothieking.tillhistory', label: 'Tills & tips', dateColumn: 'till_date',
+  { area: 'Sales', table: 'smoothieking.tillhistory', label: 'Tills & tips', dateColumn: 'till_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink extractor',
     consumers: ['Cash Flow', 'Budget', 'payroll model'] },
   // The menu taxonomy: item -> Smoothies / Smoothie Bowls / Food / Retail / Modifiers,
@@ -82,40 +92,40 @@ export const SOURCES: SourceContract[] = [
   // feed — it only moves when the menu does, so a fortnight is not stale. It replaced
   // data/menu-mix.json, a hand-refreshed Sigma export that silently went two months
   // out of date and blanked the category and product panels.
-  { table: 'smoothieking.menu_item_category', label: 'Menu taxonomy', dateColumn: 'synced_at',
+  { area: 'Sales', table: 'smoothieking.menu_item_category', label: 'Menu taxonomy', dateColumn: 'synced_at',
     cadence: 'weekly', maxAgeDays: 14, fedBy: 'Brink extractor (run_pmix.py)',
     consumers: ['Scorecard category mix', 'Scorecard top products', 'Menu Mix'] },
 
   // ── Labor ──────────────────────────────────────────────────────────────────
-  { table: 'smoothieking.labor', label: 'Labor actuals', dateColumn: 'shift_date',
+  { area: 'Labor', table: 'smoothieking.labor', label: 'Labor actuals', dateColumn: 'shift_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard extractor',
     consumers: ['Scorecard', 'Outlook', 'Budget', 'Cash Flow', 'Employees'] },
-  { table: 'smoothieking.labor_schedule', label: 'Posted schedule', dateColumn: 'work_date',
+  { area: 'Labor', table: 'smoothieking.labor_schedule', label: 'Posted schedule', dateColumn: 'work_date',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'Brink schedule extractor', forwardLooking: true,
     consumers: ['Outlook', 'Budget', 'payroll model'] },
   // The schedule builder's inputs from the CrunchTime side (Sam: NetChef/CrunchTime supplies
   // availability and time off; Brink supplies everything about scheduled and worked time).
   // Each is a whole-snapshot reload every night, so the reload stamp is what ages.
-  { table: 'smoothieking.netchef_availability_roster', label: 'Availability roster (NetChef)', dateColumn: 'loaded_at',
+  { area: 'Labor', table: 'smoothieking.netchef_availability_roster', label: 'Availability roster (NetChef)', dateColumn: 'loaded_at',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'netchef-daily job → load_availability.py (NetChef app over HTTP, no browser)',
     consumers: ['Schedule'] },
-  { table: 'smoothieking.netchef_availability_day', label: 'Availability by day (NetChef)', dateColumn: 'loaded_at',
+  { area: 'Labor', table: 'smoothieking.netchef_availability_day', label: 'Availability by day (NetChef)', dateColumn: 'loaded_at',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'netchef-daily job → load_availability.py (NetChef app over HTTP, no browser)',
     consumers: ['Schedule'] },
-  { table: 'smoothieking.teamworx_time_off', label: 'Time off (Teamworx)', dateColumn: 'loaded_at',
+  { area: 'Labor', table: 'smoothieking.teamworx_time_off', label: 'Time off (Teamworx)', dateColumn: 'loaded_at',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'netchef-daily job → load_time_off.py (Teamworx via NetChef sign-on)',
     consumers: ['Schedule'] },
   // Written by the app itself when a manager saves a version — no feed to go stale.
-  { table: 'smoothieking.schedule_drafts', label: 'Saved schedule versions', dateColumn: 'created_at',
+  { area: 'Labor', table: 'smoothieking.schedule_drafts', label: 'Saved schedule versions', dateColumn: 'created_at',
     cadence: 'on-demand', maxAgeDays: 400, fedBy: 'Schedule page (Save as a version)',
     consumers: ['Schedule'] },
   // Views over labor + labor_schedule — the one definition of labor hours (no owners;
   // salaried manager at scheduled hours) and of shifts on the floor. Same Brink feed,
   // so the same 2-day contract as labor.
-  { table: 'smoothieking.vw_labor_hours_daily', label: 'Labor hours & pay (view)', dateColumn: 'd',
+  { area: 'Labor', table: 'smoothieking.vw_labor_hours_daily', label: 'Labor hours & pay (view)', dateColumn: 'd',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard + schedule extractors',
     consumers: ['Scorecard', 'Outlook', 'daily recap email'] },
-  { table: 'smoothieking.vw_labor_floor_shifts', label: 'Shifts on the floor (view)', dateColumn: 'd',
+  { area: 'Labor', table: 'smoothieking.vw_labor_floor_shifts', label: 'Shifts on the floor (view)', dateColumn: 'd',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard + schedule extractors',
     consumers: ['Labor heatmap'] },
 
@@ -123,90 +133,90 @@ export const SOURCES: SourceContract[] = [
   // Same Brink feed as labor, so the same 2-day contract. Break records drive minor-hour
   // compliance, which is a legal exposure rather than a reporting nicety — a stale feed
   // there means a violation goes unflagged, not just a number going soft.
-  { table: 'smoothieking.employee_breaks', label: 'Employee breaks', dateColumn: 'business_date',
+  { area: 'Employees', table: 'smoothieking.employee_breaks', label: 'Employee breaks', dateColumn: 'business_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard extractor',
     consumers: ['Employees', 'minor-hour compliance'] },
-  { table: 'smoothieking.employee_sales', label: 'Per-employee sales', dateColumn: 'business_date',
+  { area: 'Employees', table: 'smoothieking.employee_sales', label: 'Per-employee sales', dateColumn: 'business_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink extractor',
     consumers: ['Employees'] },
-  { table: 'smoothieking.labor_edits', label: 'Timecard edits', dateColumn: 'business_date',
+  { area: 'Employees', events: true, table: 'smoothieking.labor_edits', label: 'Timecard edits', dateColumn: 'business_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'Brink timecard extractor',
     consumers: ['Employees', 'labor audit'] },
-  { table: 'smoothieking.manager_overrides', label: 'Manager overrides', dateColumn: 'approval_time',
+  { area: 'Employees', events: true, table: 'smoothieking.manager_overrides', label: 'Manager overrides', dateColumn: 'approval_time',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'Brink extractor',
     consumers: ['Employees', 'labor audit'] },
   // Reference data, not a feed: rows change when someone is hired or aliased, so age is
   // not a health signal. Generous contracts so they never raise a false alarm, but they
   // stay registered — an unregistered table is one nobody notices has stopped updating.
-  { table: 'smoothieking.vw_employee_dim', label: 'Employee roster (view)', dateColumn: 'hired_date',
+  { area: 'Employees', table: 'smoothieking.vw_employee_dim', label: 'Employee roster (view)', dateColumn: 'hired_date',
     cadence: 'weekly', maxAgeDays: 400, fedBy: 'Brink HR sync',
     consumers: ['Employees'] },
-  { table: 'smoothieking.employee_hr_netchef', label: 'NetChef HR records', dateColumn: 'date_of_birth',
+  { area: 'Employees', table: 'smoothieking.employee_hr_netchef', label: 'NetChef HR records', dateColumn: 'date_of_birth',
     queriedAs: ['smoothieking.vw_employee_dim'],
     cadence: 'weekly', maxAgeDays: 40000, fedBy: 'netchef sync_hr',
     consumers: ['Employees', 'minor-hour compliance'] },
-  { table: 'smoothieking.employee_alias', label: 'Employee name aliases', dateColumn: 'created_at',
+  { area: 'Employees', table: 'smoothieking.employee_alias', label: 'Employee name aliases', dateColumn: 'created_at',
     cadence: 'weekly', maxAgeDays: 400, fedBy: 'manual mapping',
     consumers: ['Employees', 'Outlook'] },
 
   // ── Food ───────────────────────────────────────────────────────────────────
-  { table: 'smoothieking.pfs_invoices', label: 'PFG invoices', dateColumn: 'invoice_date',
+  { area: 'Food', table: 'smoothieking.pfs_invoices', label: 'PFG invoices', dateColumn: 'invoice_date',
     cadence: 'weekly', maxAgeDays: 6, fedBy: 'pfg-portal extractor',
     consumers: ['Budget', 'Inventory', 'Cash Flow', 'Outlook'] },
-  { table: 'smoothieking.pfg_compat', label: 'PFG (view alias)', dateColumn: 'order_date',
+  { area: 'Food', table: 'smoothieking.pfg_compat', label: 'PFG (view alias)', dateColumn: 'order_date',
     cadence: 'weekly', maxAgeDays: 6, fedBy: 'view over pfs_invoices',
     consumers: ['Inventory'] },
-  { table: 'smoothieking.walmart_spend', label: 'Walmart spend', dateColumn: 'order_date',
+  { area: 'Food', table: 'smoothieking.walmart_spend', label: 'Walmart spend', dateColumn: 'order_date',
     cadence: 'daily', maxAgeDays: 4, fedBy: 'walmart-extractor',
     consumers: ['Scorecard', 'Budget', 'Inventory'] },
 
   // CrunchTime's E&E per check (core/sources.ts EE_CHECKS), from NetChef's menu mix. Every
   // EE% in the app reads it. NetChef trails the POS by about an hour, so today fills in through
   // the day; a missing yesterday means the load has stopped.
-  { table: 'smoothieking.ee_check', label: 'E&E (CrunchTime)', dateColumn: 'business_date',
+  { area: 'Food', table: 'smoothieking.ee_check', label: 'E&E (CrunchTime)', dateColumn: 'business_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'src/scripts/load_ee_netchef.py (NetChef menu mix)',
     consumers: ['Scorecard', 'Now', 'Menu Mix', 'Labor & crew', 'Daily recap'] },
   // NetChef's theoretical recipe cost and sales per item per day, same load as ee_check.
   // Menu Mix takes only its COGS% from here; units and sales there are Brink's.
-  { table: 'smoothieking.netchef_recipe_daily', label: 'Recipe cost by item (CrunchTime)', dateColumn: 'business_date',
+  { area: 'Food', table: 'smoothieking.netchef_recipe_daily', label: 'Recipe cost by item (CrunchTime)', dateColumn: 'business_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'src/scripts/load_ee_netchef.py (NetChef menu mix)',
     consumers: ['Menu Mix'] },
 
   // ── Inventory / COGS ───────────────────────────────────────────────────────
-  { table: 'smoothieking.netchef_usage_api', label: 'Recipe usage (COGS)', dateColumn: 'period_end',
+  { area: 'Inventory', table: 'smoothieking.netchef_usage_api', label: 'Recipe usage (COGS)', dateColumn: 'period_end',
     cadence: 'weekly', maxAgeDays: 10, fedBy: 'netchef-extractor',
     consumers: ['Scorecard', 'Outlook', 'Budget', 'Inventory'] },
   // Weekly (and nightly) counts straight from CrunchTime, entered lines only, so a blank
   // stays "not counted" instead of reading as zero. The Order screen's on-hand starts here.
-  { table: 'smoothieking.netchef_counts', label: 'Inventory counts (entered lines)', dateColumn: 'count_date',
+  { area: 'Inventory', table: 'smoothieking.netchef_counts', label: 'Inventory counts (entered lines)', dateColumn: 'count_date',
     cadence: 'weekly', maxAgeDays: 9, fedBy: '/Users/sam/netchef-counts/load_counts.py',
     consumers: ['Inventory Order'] },
   // PFG's own view the day before an order is due through the day after the truck
   // (Sunday–Wednesday): this account's price per item, stock flags, delivery dates, cutoff.
-  { table: 'smoothieking.pfg_snapshot_items', label: 'PFG prices and stock', dateColumn: 'as_of_date',
+  { area: 'Inventory', table: 'smoothieking.pfg_snapshot_items', label: 'PFG prices and stock', dateColumn: 'as_of_date',
     cadence: 'weekly', maxAgeDays: 4, fedBy: 'pfg-weekly job → pfg-portal/snapshot.py',
     consumers: ['Inventory Order'] },
-  { table: 'smoothieking.pfg_snapshot_calendar', label: 'PFG delivery dates and cutoff', dateColumn: 'as_of_date',
+  { area: 'Inventory', table: 'smoothieking.pfg_snapshot_calendar', label: 'PFG delivery dates and cutoff', dateColumn: 'as_of_date',
     cadence: 'weekly', maxAgeDays: 4, fedBy: 'pfg-weekly job → pfg-portal/snapshot.py',
     consumers: ['Inventory Order'] },
-  { table: 'smoothieking.netchef_vendor_items', label: 'NetChef PFG item mapping', dateColumn: 'loaded_at',
+  { area: 'Inventory', table: 'smoothieking.netchef_vendor_items', label: 'NetChef PFG item mapping', dateColumn: 'loaded_at',
     cadence: 'weekly', maxAgeDays: 9, fedBy: 'netchef-counts/load_vendor_items.py',
     consumers: ['Inventory Order'] },
-  { table: 'smoothieking.netchef_onhand', label: 'On-hand inventory', dateColumn: 'as_of',
+  { area: 'Inventory', table: 'smoothieking.netchef_onhand', label: 'On-hand inventory', dateColumn: 'as_of',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'netchef-extractor',
     consumers: ['Inventory', 'Shrink'] },
   // The full weekly physical inventory. core/onHand anchors the nightly count chain to
   // it, so if this goes stale every on-hand figure quietly drifts on recipe usage alone
   // — with no count to re-anchor it, an "estimated" line only gets softer.
-  { table: 'smoothieking.netchef_usage', label: 'Weekly physical inventory (count anchor)',
+  { area: 'Inventory', table: 'smoothieking.netchef_usage', label: 'Weekly physical inventory (count anchor)',
     dateColumn: 'period_end', cadence: 'weekly', maxAgeDays: 14, fedBy: 'netchef-extractor',
     consumers: ['Order Guide', 'Inventory'] },
 
   // ── Guest ──────────────────────────────────────────────────────────────────
-  { table: 'smoothieking.guest_daily', label: 'Guest scores (daily)', dateColumn: 'survey_date',
+  { area: 'Guest', table: 'smoothieking.guest_daily', label: 'Guest scores (daily)', dateColumn: 'survey_date',
     cadence: 'daily', maxAgeDays: 3, fedBy: 'smg-extractor',
     consumers: ['Scorecard', 'Guest Voice'] },
-  { table: 'smoothieking.guest_feedback', label: 'Guest surveys (period)', dateColumn: 'period_end',
+  { area: 'Guest', table: 'smoothieking.guest_feedback', label: 'Guest surveys (period)', dateColumn: 'period_end',
     cadence: 'on-demand', maxAgeDays: 10, fedBy: 'smg-extractor main.py (not scheduled)',
     consumers: ['Guest Voice (fallback only)'],
     standby: {
@@ -218,50 +228,55 @@ export const SOURCES: SourceContract[] = [
          + 'no live surface reads. Delete both this and the fallback branch in '
          + 'api/guest-satisfaction when the daily table has proven itself.',
     } },
-  { table: 'smoothieking.guest_comments', label: 'Guest comments', dateColumn: 'received_date',
+  { area: 'Guest', events: true, table: 'smoothieking.guest_comments', label: 'Guest comments', dateColumn: 'received_date',
     cadence: 'daily', maxAgeDays: 5, fedBy: 'smg-extractor', consumers: ['Guest Voice'] },
-  { table: 'smoothieking.guest_cases', label: 'Guest cases', dateColumn: 'case_date',
+  { area: 'Guest', events: true, table: 'smoothieking.guest_cases', label: 'Guest cases', dateColumn: 'case_date',
     cadence: 'daily', maxAgeDays: 5, fedBy: 'smg-extractor', consumers: ['Guest Voice'] },
 
   // ── Ops / SOPs / social ────────────────────────────────────────────────────
-  { table: 'smoothieking.opsx_submissions', label: 'Ops Execution checklists', dateColumn: 'loaded_at',
+  { area: 'Ops & social', table: 'smoothieking.opsx_submissions', label: 'Ops Execution checklists', dateColumn: 'loaded_at',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'opsx-extractor (job jolt-daily)', consumers: ['Scorecard checklists'] },
-  { table: 'smoothieking.opsx_projects', label: 'Ops Execution schedule', dateColumn: 'loaded_at',
+  { area: 'Ops & social', table: 'smoothieking.opsx_projects', label: 'Ops Execution schedule', dateColumn: 'loaded_at',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'opsx-extractor (job jolt-daily)', consumers: ['Scorecard checklists'] },
   // A VIEW over the two tables above: per store per due date, lists due / done / on time and
   // temp logs due / done. The daily recap email reads it, and so does the hub feed, so both
   // count a day's checklists by the one definition. The extractor loads runs through today,
   // so due_date advances one day per nightly load.
-  { table: 'smoothieking.opsx_daily', label: 'Checklists by day (view)', dateColumn: 'due_date',
+  { area: 'Ops & social', table: 'smoothieking.opsx_daily', label: 'Checklists by day (view)', dateColumn: 'due_date',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'opsx-extractor (job jolt-daily), via the base tables',
     consumers: ['daily recap email', 'hub feed checklists'] },
-  { table: 'smoothieking.soci_daily', label: 'SOCi social (daily)', dateColumn: 'snapshot_date',
+  { area: 'Ops & social', table: 'smoothieking.soci_daily', label: 'SOCi social (daily)', dateColumn: 'snapshot_date',
     cadence: 'daily', maxAgeDays: 4, fedBy: 'soci-extractor', consumers: ['Guest Voice'] },
-  { table: 'smoothieking.soci_reviews', label: 'SOCi reviews', dateColumn: 'review_date',
+  { area: 'Ops & social', events: true, table: 'smoothieking.soci_reviews', label: 'SOCi reviews', dateColumn: 'review_date',
     cadence: 'daily', maxAgeDays: 7, fedBy: 'soci-extractor', consumers: ['Guest Voice'] },
 
   // ── Marketing ──────────────────────────────────────────────────────────────
-  { table: 'smoothieking.vw_marketing_promotions', label: 'Promotions', dateColumn: 'end_date',
+  { area: 'Marketing', table: 'smoothieking.vw_marketing_promotions', label: 'Promotions', dateColumn: 'end_date',
     cadence: 'on-demand', maxAgeDays: 400, fedBy: 'manual entry', forwardLooking: true,
     consumers: ['Marketing', 'forecast holiday factor'] },
 
   // ── Derived / app-owned ────────────────────────────────────────────────────
-  { table: 'smoothieking.dashboard_cache', label: 'Dashboard cache', dateColumn: 'refreshed_at',
+  { area: 'App', table: 'smoothieking.dashboard_cache', label: 'Dashboard cache', dateColumn: 'refreshed_at',
     cadence: 'daily', maxAgeDays: 2, fedBy: '/api/ingest-refresh (6am cloud routine)',
     consumers: ['Scorecard', 'Menu Mix', 'heatmap'] },
-  { table: 'sk_bills.Forecast', label: 'Cash forecast', dateColumn: 'as_of',
+  { area: 'Money', table: 'sk_bills.Forecast', label: 'Cash forecast', dateColumn: 'as_of',
     cadence: 'daily', maxAgeDays: 2, fedBy: 'cash-forecast/forecast.py --write (MANUAL today)',
     consumers: ['Cash Flow'] },
-  { table: 'sk_bills.QbBalance', label: 'Bank balances', dateColumn: 'updatedAt',
+  { area: 'Money', table: 'sk_bills.QbBalance', label: 'Bank balances', dateColumn: 'updatedAt',
     cadence: 'daily', maxAgeDays: 2, fedBy: '/api/sync (OpenBudget, 06:00 UTC cron)',
     consumers: ['Cash Flow', 'Bills'] },
   // Written by the nightly bank clear right after the balance sync. A week with no
   // row means the job is failing or the alias rules stopped matching — most weeks
   // carry rent, payroll, PFG and a dozen fixed bills that all clear from the bank.
-  { table: 'sk_bills.BillAutoClear', label: 'Bills cleared from the bank', dateColumn: 'clearedAt',
+  { area: 'Money', events: true, table: 'sk_bills.BillAutoClear', label: 'Bills cleared from the bank', dateColumn: 'clearedAt',
     cadence: 'daily', maxAgeDays: 7, fedBy: '/api/sync (nightly bank clear, lib/bills/autoclear.ts)',
     consumers: ['Bills', 'Nexus CFO agent (/api/hub/bills)'] },
-  { table: 'sk_bills.Bill', label: 'Bill schedule', dateColumn: 'updatedAt',
+  // A row per bill occurrence marked paid, by hand on the Bills page or by the nightly clear.
+  // The clear reads it to tell a hand mark from its own (a hand mark records no transaction).
+  { area: 'Money', events: true, table: 'sk_bills.BillPayment', label: 'Bills marked paid', dateColumn: 'paidAt',
+    cadence: 'daily', maxAgeDays: 14, fedBy: 'Bills page (Mark paid) and the nightly bank clear',
+    consumers: ['Bills', 'Cash Flow', 'nightly bank clear'] },
+  { area: 'Money', table: 'sk_bills.Bill', label: 'Bill schedule', dateColumn: 'updatedAt',
     cadence: 'on-demand', maxAgeDays: 400, fedBy: 'manual entry in the bills app',
     consumers: ['Bills', 'Budget', 'Cash Flow'], queriedAs: ['db.bill.'] },
 ]
